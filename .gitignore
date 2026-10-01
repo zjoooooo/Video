@@ -3,3 +3,4 @@ out/
 films/*/film.html
 tests/fixtures/*.html
 !tests/fixtures/*.src.html
+__pycache__/
