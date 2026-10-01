@@ -6,7 +6,10 @@
     "film": "node scripts/render.mjs films/2026-09-it-report/film.src.html --out out/video.mp4 --sub 8 && uv run --with numpy scripts/score.py out/2026-09-it-report.events.json out/score.wav && ffmpeg -y -loglevel error -i out/video.mp4 -i out/score.wav -map 0:v -map 1:a -c:v copy -c:a aac -b:a 192k -shortest -movflags +faststart out/it-report-2026-09.mp4",
     "sheet": "node scripts/render.mjs films/2026-09-it-report/film.src.html --sheet",
     "check": "node scripts/render.mjs films/2026-09-it-report/film.src.html --check",
-    "qa": "uv run --with numpy scripts/qa_pops.py out/it-report-2026-09.mp4"
+    "qa": "uv run --with numpy scripts/qa_pops.py out/it-report-2026-09.mp4",
+    "intro": "node scripts/render.mjs films/2026-10-parkops-intro/film.src.html --out out/parkops-intro.video.mp4 --sub 8 && uv run --with numpy scripts/score.py out/2026-10-parkops-intro.events.json out/parkops-intro.wav && ffmpeg -y -loglevel error -i out/parkops-intro.video.mp4 -i out/parkops-intro.wav -map 0:v -map 1:a -c:v copy -c:a aac -b:a 192k -shortest -movflags +faststart out/parkops-intro.mp4",
+    "intro:sheet": "node scripts/render.mjs films/2026-10-parkops-intro/film.src.html --sheet --step 0.5",
+    "intro:check": "node scripts/render.mjs films/2026-10-parkops-intro/film.src.html --check"
   },
   "repository": {
     "type": "git",

@@ -76,7 +76,7 @@ function width(str, size, w = 600, f = FONT) { font(size, w, f); return ctx.meas
 // Kinetic type: words rise from under the baseline inside a clip and leave upward.
 function rise(str, x, y, size, o = {}) {
   const { w = 700, c = C.text, align = 'left', at = 0, out = 1e9, gap = 0.06, dur = 0.7, f = FONT } = o;
-  if (t < at || t > out + 1) return;
+  if (t < at || t > out + 1) return;   // at may be negative: a scene drawn inside a transition runs at t < 0
   font(size, w, f);
   const words = str.split(' ');
   const sp = ctx.measureText(' ').width;
@@ -207,7 +207,8 @@ function tile(icon, cx, cy, size, state, s = 1) {      // a device: its icon in 
   if (s <= 0) return;
   ctx.save(); ctx.translate(cx, cy); ctx.scale(s, s);
   rr(-size / 2, -size / 2, size, size, 12); ctx.fillStyle = C.panel2; ctx.fill();
-  ctx.strokeStyle = state === 'crit' ? C.crit : C.border; ctx.lineWidth = state === 'crit' ? 3 : 1.5; ctx.stroke();
+  const beat = ((t % 0.5) + 0.5) % 0.5;                 // seconds since the last beat
+  ctx.strokeStyle = state === 'crit' ? C.crit : C.border; ctx.lineWidth = state === 'crit' ? 3 + 4 * Math.exp(-beat * 9) : 1.5; ctx.stroke();
   ctx.globalAlpha = state === 'off' ? 0.45 : 1;
   ctx.drawImage(IMG[ICON[icon]], -size * 0.38, -size * 0.38, size * 0.76, size * 0.76);
   ctx.globalAlpha = 1;
@@ -372,7 +373,7 @@ function s4() {                                          // 44–52 s: every sta
 }
 
 function s5() {                                          // 52–60 s: know first
-  rise('Know first.', W / 2, 520, 168, { w: 800, align: 'center', at: 0.25 });
+  rise('Know first.', W / 2, 520, 168, { w: 800, align: 'center', at: -0.25 });   // rising while the iris opens
   const lock = outExpo(prog(t, 2.0, 2.7));
   if (lock <= 0) return;
   font(64, 800); const a = ctx.measureText('ParkOps ').width, b = ctx.measureText('Watch Dog').width, dogW = 120;
