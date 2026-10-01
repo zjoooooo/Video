@@ -1,0 +1,500 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ParkOps Watch Dog: know first</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #0b0f17; }
+  canvas { display: block; width: 100vw; height: 100vh; object-fit: contain; }
+</style>
+</head>
+<body>
+<canvas id="c" width="1920" height="1080"></canvas>
+<script>
+'use strict';
+// Frame contract: window.DURATION (seconds) and async window.seek(t).
+// Every visual value is a pure function of t; render() resets the canvas each frame.
+// Facts come from case.json (the CK36 outage of 1 Oct 2026 as recorded by the ParkOps server).
+// Open film.html#play for a live preview; the renderer never uses that path.
+
+const W = 1920, H = 1080, DURATION = 60;
+const CASE = JSON.parse(__TEXT:case.json__);
+const MAN = JSON.parse(__TEXT:assets/mascot.json__);
+const cv = document.getElementById('c');
+const ctx = cv.getContext('2d');
+
+// ---- tunables: the Watch Dog dashboard's tokens -------------------------------
+const C = { bg: '#0b0f17', panel: '#0e1320', panel2: '#131a2b', border: '#243049', text: '#e5e7eb', text3: '#9ca3af',
+            ok: '#34d399', okBg: 'rgba(16,185,129,.15)', crit: '#f87171', critBg: 'rgba(239,68,68,.15)', off: '#6b7280',
+            brand: '#818cf8', primary: '#4f46e5' };
+const FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
+const MONO = 'ui-monospace, SFMono-Regular, Menlo, monospace';
+const MX = 160;
+const SEAM = 0.3;                 // half-length of a transition (s)
+const POP = [3.2, 0.7];           // spring for pops: frequency (Hz), damping
+const MOVE = [2.0, 0.9];          // spring for travel
+const CK36_DOT = 57;              // which fleet dot stands for CK36
+
+// ---- time toolkit ---------------------------------------------------------------
+const clamp = (x, a = 0, b = 1) => (x < a ? a : x > b ? b : x);
+const prog = (t, a, b) => clamp((t - a) / (b - a));
+const lerp = (a, b, u) => a + (b - a) * u;
+const outExpo = u => (u >= 1 ? 1 : 1 - Math.pow(2, -10 * u));
+const inExpo = u => (u <= 0 ? 0 : Math.pow(2, 10 * u - 10));
+const inOutExpo = u => (u <= 0 ? 0 : u >= 1 ? 1 : u < 0.5 ? Math.pow(2, 20 * u - 10) / 2 : (2 - Math.pow(2, -20 * u + 10)) / 2);
+const outCubic = u => 1 - Math.pow(1 - u, 3);
+const inOutCubic = u => (u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2);
+function spring(t, f = 3, z = 0.7) {             // closed-form step response
+  if (t <= 0) return 0;
+  const w = 2 * Math.PI * f;
+  if (z < 1) { const wd = w * Math.sqrt(1 - z * z);
+    return 1 - Math.exp(-z * w * t) * (Math.cos(wd * t) + (z * w / wd) * Math.sin(wd * t)); }
+  return 1 - Math.exp(-w * t) * (1 + w * t);
+}
+const wobble = (t, f = 4, k = 9) => (t <= 0 ? 0 : Math.sin(t * f * 2 * Math.PI) * Math.exp(-t * k));
+const hash = (a, b = 0) => { let h = (a * 374761393 + b * 668265263) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
+const secs = hms => { const [h, m, s] = hms.split(':').map(Number); return h * 3600 + m * 60 + s; };
+const hms = n => [Math.floor(n / 3600), Math.floor(n / 60) % 60, n % 60].map(v => String(v).padStart(2, '0')).join(':');
+
+// ---- drawing helpers (scene functions read the local time `t`) -------------------
+let t = 0;
+const font = (size, w = 600, f = FONT) => { ctx.font = `${w} ${size}px ${f}`; };
+const bg = (c = C.bg) => { ctx.fillStyle = c; ctx.fillRect(0, 0, W, H); };
+function dot(x, y, r, c) { if (r <= 0) return; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fillStyle = c; ctx.fill(); }
+function rr(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect(x, y, w, h, r); }
+function line(x0, y0, x1, y1, c, w) {
+  ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1);
+  ctx.strokeStyle = c; ctx.lineWidth = w; ctx.lineCap = 'round'; ctx.stroke();
+}
+function label(str, x, y, size, o = {}) {
+  const { w = 600, c = C.text, align = 'left', f = FONT } = o;
+  font(size, w, f); ctx.fillStyle = c; ctx.textAlign = align; ctx.textBaseline = 'alphabetic';
+  ctx.fillText(str, x, y);
+}
+function width(str, size, w = 600, f = FONT) { font(size, w, f); return ctx.measureText(str).width; }
+
+// Kinetic type: words rise from under the baseline inside a clip and leave upward.
+function rise(str, x, y, size, o = {}) {
+  const { w = 700, c = C.text, align = 'left', at = 0, out = 1e9, gap = 0.06, dur = 0.7, f = FONT } = o;
+  if (t < at || t > out + 1) return;
+  font(size, w, f);
+  const words = str.split(' ');
+  const sp = ctx.measureText(' ').width;
+  const ws = words.map(s => ctx.measureText(s).width);
+  const total = ws.reduce((a, b) => a + b, 0) + sp * (words.length - 1);
+  let cx = align === 'center' ? x - total / 2 : align === 'right' ? x - total : x;
+  ctx.save();
+  ctx.beginPath(); ctx.rect(cx - 16, y - size * 1.05, total + 32, size * 1.4); ctx.clip();
+  ctx.fillStyle = c; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  words.forEach((s, i) => {
+    const a = outExpo(prog(t, at + i * gap, at + i * gap + dur));
+    const b = inExpo(prog(t, out + i * gap * 0.5, out + i * gap * 0.5 + 0.3));
+    if (a > 0 && b < 1) ctx.fillText(s, cx, y + (1 - a) * size * 1.3 - b * size * 1.3);
+    cx += ws[i] + sp;
+  });
+  ctx.restore();
+}
+function pill(str, cx, cy, fg, bgc, s = 1, size = 22) {
+  if (s <= 0) return;
+  font(size, 700); const w = ctx.measureText(str).width + size * 1.6, h = size * 1.9;
+  ctx.save(); ctx.translate(cx, cy); ctx.scale(s, s);
+  rr(-w / 2, -h / 2, w, h, h / 2); ctx.fillStyle = bgc; ctx.fill();
+  ctx.fillStyle = fg; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(str, 0, 1);
+  ctx.restore();
+}
+function check(x, y, s, at, c) {                       // stroke-drawn tick
+  const p = outCubic(prog(t, at, at + 0.25)); if (p <= 0) return;
+  const a = [x - 0.45 * s, y + 0.02 * s], b = [x - 0.12 * s, y + 0.34 * s], d = [x + 0.48 * s, y - 0.32 * s];
+  const p1 = clamp(p / 0.4), p2 = clamp((p - 0.4) / 0.6);
+  ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(lerp(a[0], b[0], p1), lerp(a[1], b[1], p1));
+  if (p2 > 0) ctx.lineTo(lerp(b[0], d[0], p2), lerp(b[1], d[1], p2));
+  ctx.strokeStyle = c; ctx.lineWidth = s * 0.2; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.stroke();
+}
+
+// ---- Watson: the dashboard's sprite sheets, composed the way mascot.js does ---------
+const IMG = {};
+const OFF = document.createElement('canvas'), offCtx = OFF.getContext('2d');
+// frame f of a clip, standing on (cx, by) with the stage h px tall; pupils painted over the blank eyes
+function watson(name, f, cx, by, h, gaze = { x: 0, y: 0 }) {
+  const st = MAN.base, k = h / (st[3] - st[1]), ox = cx - (st[2] - st[0]) * k / 2, oy = by - h;
+  const draw = (g, sheet, i, x0, y0) => {
+    const s = MAN.sheets[sheet], [fw, fh] = s.frame;
+    g.imageSmoothingQuality = 'high';
+    g.drawImage(IMG[sheet], (i % MAN.cols) * fw, Math.floor(i / MAN.cols) * fh, fw, fh,
+      x0 + (s.box[0] - st[0]) * k, y0 + (s.box[1] - st[1]) * k, (s.box[2] - s.box[0]) * k, (s.box[3] - s.box[1]) * k);
+  };
+  let sheet = name, i = f;
+  if (name === 'rest') {                                // the tail wag under the front-facing look frame
+    sheet = 'look'; i = 0;
+    OFF.width = Math.ceil((st[2] - st[0]) * k); OFF.height = Math.ceil(h);
+    draw(offCtx, 'tail', f % MAN.sheets.tail.n, 0, 0);
+    offCtx.globalCompositeOperation = 'destination-in';
+    draw(offCtx, 'tailcut', MAN.sheets.look.cut[0], 0, 0);
+    offCtx.globalCompositeOperation = 'source-over';
+    draw(offCtx, 'look', 0, 0, 0);
+    ctx.drawImage(OFF, ox, oy);
+  } else {
+    i = clamp(f, 0, MAN.sheets[name].n - 1);
+    draw(ctx, name, i, ox, oy);
+  }
+  const s = MAN.sheets[sheet], eyes = s.eyes && s.eyes[i], fk = (s.box[2] - s.box[0]) / s.frame[0];
+  (eyes || []).forEach(e => {
+    const rx = e[2] * fk * k / 2, ry = e[3] * fk * k / 2;
+    const cx2 = ox + (s.box[0] - st[0] + e[0] * fk) * k + rx, cy2 = oy + (s.box[1] - st[1] + e[1] * fk) * k + ry;
+    ctx.save();
+    ctx.beginPath(); ctx.ellipse(cx2, cy2, rx + 0.5, ry + 0.5, 0, 0, 7); ctx.clip();
+    const px = cx2 + gaze.x * rx * 0.45, py = cy2 + gaze.y * ry * 0.5;
+    ctx.fillStyle = '#241810'; ctx.beginPath(); ctx.ellipse(px, py, rx * 0.62, ry * 0.56, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.9)'; ctx.beginPath(); ctx.arc(px - rx * 0.2, py - ry * 0.24, rx * 0.2, 0, 7); ctx.fill();
+    ctx.restore();
+  });
+}
+const clipFrame = (t0) => Math.floor((t - t0) * MAN.fps);
+
+// ---- the fleet: 193 stations as a grid of dots ----------------------------------------
+const COLS = 20, GAP = 58, GX = W / 2 - (COLS - 1) * GAP / 2, GY = 430;
+const dotXY = i => [GX + (i % COLS) * GAP, GY + Math.floor(i / COLS) * GAP];
+// flashes: [dot, start] — a problem flagged and gone within a beat, in the scale scene
+const FLASH = Array.from({ length: 9 }, (_, k) => [Math.floor(hash(k, 7) * CASE.fleet.stations), 1.0 + k * 0.75]);
+function fleet(o = {}) {
+  const { appear = 0, blink = null, flashes = [] } = o;
+  for (let i = 0; i < CASE.fleet.stations; i++) {
+    const [x, y] = dotXY(i), c = i % COLS, r = Math.floor(i / COLS);
+    const s = spring(t - (appear + (c + r) * 0.025), ...POP);
+    if (s <= 0) continue;
+    const beat = ((t - c * 0.012) % 0.5 + 0.5) % 0.5;     // a wave crosses the grid on every beat
+    let rad = 11 * s * (1 + 0.16 * Math.exp(-beat * 9)), col = C.ok;
+    if (blink && i === blink[0] && t >= blink[1]) { col = C.crit; rad *= 1 + 0.5 * wobble(t - blink[1], 3, 6); }
+    for (const [fi, ft] of flashes) {
+      if (i !== fi || t < ft) continue;
+      if (t < ft + 0.5) { col = C.crit; rad *= 1 + 0.4 * wobble(t - ft, 3, 6); }
+      const ring = prog(t, ft, ft + 0.6);
+      if (ring > 0 && ring < 1) { ctx.beginPath(); ctx.arc(x, y, rad + ring * 30, 0, 7); ctx.strokeStyle = t < ft + 0.5 ? C.crit : C.ok;
+        ctx.globalAlpha = 1 - ring; ctx.lineWidth = 3; ctx.stroke(); ctx.globalAlpha = 1; }
+    }
+    dot(x, y, rad, col);
+  }
+}
+
+// ---- scenes -------------------------------------------------------------------------
+function s1() {                                          // 0–10 s: the fleet, and the question
+  rise(CASE.fleet.stations + ' car park stations.', W / 2, 250, 96, { align: 'center', at: 0.4, out: 2.7 });
+  rise('All running right now.', W / 2, 250, 96, { align: 'center', at: 3.0, out: 5.6 });
+  rise('Something will break.', W / 2, 250, 96, { align: 'center', at: 6.0, out: 7.7 });
+  rise('Who knows first?', W / 2, 250, 96, { align: 'center', at: 8.0, c: C.brand });
+  fleet({ appear: 0.4, blink: [CK36_DOT, 7.0] });
+  const [x, y] = dotXY(CK36_DOT), ring = prog(t, 7.0, 7.8);
+  if (ring > 0 && ring < 1) { ctx.beginPath(); ctx.arc(x, y, 14 + ring * 50, 0, 7); ctx.strokeStyle = C.crit;
+    ctx.globalAlpha = 1 - ring; ctx.lineWidth = 4; ctx.stroke(); ctx.globalAlpha = 1; }
+}
+
+function s2() {                                          // 10–14 s: the name
+  watson('welcome', clipFrame(0.1), W / 2, 760, 340);
+  font(120, 800); const a = ctx.measureText('ParkOps ').width, b = ctx.measureText('Watch Dog').width, x0 = W / 2 - (a + b) / 2;
+  rise('ParkOps', x0, 900, 120, { w: 800, c: C.brand, at: 0.5 });
+  rise('Watch Dog', x0 + a, 900, 120, { w: 800, at: 0.62 });
+}
+
+// The CK36 station map, laid out as on the station page: the PMS PC in the middle, a lane
+// either side, the booth and top-up cameras and the NVR below.
+const HUB = [960, 500], LANE_Y = 500, LANE_W = 500, LANE_H = 160, LANE_TILE = 116, HUB_TILE = 150;
+const LANES = CASE.site.lanes.map((l, i) => ({ ...l, x: i ? 1170 : 250 }));   // box left edge
+const BOTTOM = CASE.site.others.map((n, i) => ({ name: n, x: 830 + i * 130, icon: n === 'NVR' ? 'nvr' : 'camera' }));
+const BOX_Y = 790, BOX_W = 420, BOX_H = 190, CARD = [160, 290, 1600, 620];
+const laneTiles = l => [['station', l.station, l.x + LANE_W - 210], ['camera', l.camera, l.x + LANE_W - 82]];
+const ICON = { opc: 'dev-opc', station: 'dev-station', camera: 'dev-camera', nvr: 'dev-nvr' };
+function tile(icon, cx, cy, size, state, s = 1) {      // a device: its icon in a rounded tile with a status dot
+  if (s <= 0) return;
+  ctx.save(); ctx.translate(cx, cy); ctx.scale(s, s);
+  rr(-size / 2, -size / 2, size, size, 12); ctx.fillStyle = C.panel2; ctx.fill();
+  ctx.strokeStyle = state === 'crit' ? C.crit : C.border; ctx.lineWidth = state === 'crit' ? 3 : 1.5; ctx.stroke();
+  ctx.globalAlpha = state === 'off' ? 0.45 : 1;
+  ctx.drawImage(IMG[ICON[icon]], -size * 0.38, -size * 0.38, size * 0.76, size * 0.76);
+  ctx.globalAlpha = 1;
+  dot(size / 2 - 9, -size / 2 + 9, 6.5, state === 'crit' ? C.crit : state === 'off' ? C.off : C.ok);
+  ctx.restore();
+}
+function link(x0, y0, x1, y1, state, grow = 1) {
+  if (grow <= 0) return;
+  const x = lerp(x0, x1, grow), y = lerp(y0, y1, grow);
+  ctx.save();
+  ctx.setLineDash([12, 10]); ctx.lineDashOffset = state === 'ok' ? -t * 40 : 0;
+  line(x0, y0, x, y, state === 'crit' ? C.crit : state === 'off' ? C.off : 'rgba(52,211,153,.75)', 3);
+  ctx.restore();
+  if (state !== 'ok' || grow < 1) return;
+  for (let k = 0; k < 2; k++) {                         // packets: position is a pure function of t
+    const u = ((t * 0.7 + k / 2) % 1 + 1) % 1;
+    dot(lerp(x0, x1, u), lerp(y0, y1, u), 5, C.ok);
+  }
+}
+
+// One timeline for the whole map scene (local seconds from 14 s). Each state change is a real one.
+const M = { lost: 6.0, flagged: 12.0, site: 16.5, lane: 18.5, device: 20.0, rec: 22.0,
+            pcOff: 24.0, pcOn: 25.5, lanesBack: 26.5, clear: 28.0 };
+function mapState() {
+  const lanes = t < M.lost ? 'ok' : t < M.lanesBack ? 'crit' : 'ok';
+  const hub = t >= M.pcOff && t < M.pcOn ? 'off' : 'ok';
+  return { lanes, hub, others: hub === 'off' ? 'off' : 'ok' };
+}
+function clockAt() {                                     // the wall clock the scene shows
+  const L = CASE.timeline, s0 = secs(L[0].at);
+  if (t < M.lost) return hms(s0 - 6 + Math.floor(clamp(t, 0, 6)));                       // ticking up to 11:03:08
+  if (t < 10) return hms(s0);
+  if (t < M.flagged) return hms(s0 + Math.floor(CASE.flagSeconds * clamp((t - 10) / 2)));  // 23 s, run fast
+  if (t < M.pcOff) return L[1].at;
+  if (t < M.pcOn) return L[2].at;
+  if (t < M.lanesBack) return L[3].at;
+  if (t < M.clear) return L[4].at;
+  return L[5].at;
+}
+function stationMap() {
+  const st = mapState();
+  // card
+  const cardS = outExpo(prog(t, 0, 0.6));
+  if (cardS <= 0) return;
+  ctx.save(); ctx.globalAlpha = cardS;
+  rr(...CARD, 14); ctx.fillStyle = C.panel; ctx.fill();
+  ctx.strokeStyle = C.border; ctx.lineWidth = 1.5; ctx.stroke();
+  const edge = st.lanes === 'crit' ? C.crit : st.hub === 'off' ? C.off : C.ok;
+  rr(CARD[0], CARD[1], 7, CARD[3], 3); ctx.fillStyle = edge; ctx.fill();
+  ctx.restore();
+  // header: site and its state
+  const siteHi = spring(t - M.site, ...POP) * (1 - prog(t, M.rec - 0.3, M.rec));
+  const siteName = CASE.site.code + ' · ' + CASE.site.operator, siteW = width(siteName, 34, 700);
+  if (siteHi > 0) { rr(CARD[0] + 22, CARD[1] + 20, siteW + 36, 58, 12); ctx.globalAlpha = siteHi; ctx.fillStyle = C.critBg; ctx.fill();
+    ctx.strokeStyle = C.crit; ctx.lineWidth = 3; ctx.stroke(); ctx.globalAlpha = 1; }
+  label(siteName, CARD[0] + 40, CARD[1] + 61, 34, { w: 700 });
+  const headline = st.lanes === 'crit' && st.hub === 'off' ? ['PMS PC offline', C.text3]
+    : st.lanes === 'crit' ? ['4 devices unreachable', C.crit] : st.hub === 'off' ? ['PMS PC offline', C.text3] : ['All systems operational', C.ok];
+  label(headline[0], CARD[0] + 40 + siteW + 48, CARD[1] + 61, 30, { w: 600, c: headline[1] });
+  // links
+  const g = outCubic(prog(t, 1.8, 2.4));
+  const hubState = st.hub;
+  link(HUB[0] - HUB_TILE / 2, LANE_Y, LANES[0].x + LANE_W, LANE_Y, hubState === 'off' ? 'off' : st.lanes, g);
+  link(HUB[0] + HUB_TILE / 2, LANE_Y, LANES[1].x, LANE_Y, hubState === 'off' ? 'off' : st.lanes, g);
+  link(HUB[0], HUB[1] + HUB_TILE / 2 + 52, HUB[0], BOX_Y - BOX_H / 2, hubState === 'off' ? 'off' : 'ok', g);   // starts below the label
+  // hub
+  tile('opc', HUB[0], HUB[1], HUB_TILE, st.hub, spring(t - 0.4, ...POP));
+  if (t > 0.6) label(CASE.site.pc, HUB[0], HUB[1] + HUB_TILE / 2 + 36, 26, { w: 600, c: C.text3, align: 'center' });
+  // lanes
+  const laneHi = spring(t - M.lane, ...POP) * (1 - prog(t, M.rec - 0.3, M.rec));
+  LANES.forEach((l, i) => {
+    const s = spring(t - (0.8 + i * 0.4), ...POP); if (s <= 0) return;
+    ctx.save(); ctx.translate(l.x + LANE_W / 2, LANE_Y); ctx.scale(s, s);
+    rr(-LANE_W / 2, -LANE_H / 2, LANE_W, LANE_H, 14); ctx.fillStyle = st.lanes === 'crit' ? C.critBg : C.panel2; ctx.fill();
+    ctx.strokeStyle = laneHi > 0 ? C.crit : C.border; ctx.lineWidth = 1.5 + 4 * laneHi; ctx.stroke();
+    label(l.name, -LANE_W / 2 + 36, 14, 40, { w: 700, c: st.lanes === 'crit' ? C.crit : C.text });
+    ctx.restore();
+    const lanesState = st.hub === 'off' && st.lanes !== 'crit' ? 'off' : st.lanes;
+    const tag = spring(t - (M.device + i * 0.15), ...POP) * (1 - prog(t, M.rec - 0.3, M.rec));   // which device
+    laneTiles(l).forEach(([icon, name, x]) => {
+      tile(icon, x, LANE_Y, LANE_TILE, lanesState, s);
+      pill(name, x, LANE_Y + LANE_TILE / 2 + 52, '#fff', C.crit, tag, 24);
+    });
+  });
+  // booth, top-up, NVR
+  const bs = spring(t - 1.6, ...POP);
+  if (bs > 0) {
+    ctx.save(); ctx.translate(960, BOX_Y); ctx.scale(bs, bs);
+    rr(-BOX_W / 2, -BOX_H / 2, BOX_W, BOX_H, 14); ctx.fillStyle = C.panel2; ctx.fill(); ctx.strokeStyle = C.border; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.restore();
+    BOTTOM.forEach(b => {
+      tile(b.icon, b.x, BOX_Y - 18, 100, st.others, bs);
+      if (bs > 0.9) label(b.name, b.x, BOX_Y + 70, 22, { w: 600, c: C.text3, align: 'center' });
+    });
+  }
+}
+function alertPanel() {                                  // the notifications, as the bell's panel lists them
+  const inn = outExpo(prog(t, M.flagged, M.flagged + 0.6)), out = inExpo(prog(t, M.site - 0.6, M.site - 0.1));
+  const x = 1160 + (1 - inn) * 800 + out * 800, PW = 600;
+  if (inn <= 0 || out >= 1) return;
+  rr(x, 290, PW, 560, 14); ctx.fillStyle = C.panel; ctx.fill(); ctx.strokeStyle = C.border; ctx.lineWidth = 1.5; ctx.stroke();
+  label('Notifications', x + 32, 352, 34, { w: 700 });
+  watson('worried', clipFrame(M.flagged), x + PW - 84, 392, 124, { x: 0, y: -0.6 });
+  const badge = spring(t - (M.flagged + 0.3), ...POP);
+  if (badge > 0) { ctx.save(); ctx.translate(x + PW - 40, 300); ctx.scale(badge, badge); dot(0, 0, 22, C.crit);
+    label(String(CASE.alerts.length), 0, 9, 26, { w: 800, c: '#fff', align: 'center' }); ctx.restore(); }
+  CASE.alerts.forEach((a, i) => {
+    const at = M.flagged + 0.5 + i * 0.5, s = outExpo(prog(t, at, at + 0.4)); if (s <= 0) return;
+    const y = 420 + i * 104 - (1 - s) * 40;
+    ctx.save(); ctx.globalAlpha = s;
+    rr(x + 20, y, PW - 40, 90, 12); ctx.fillStyle = C.panel2; ctx.fill();
+    dot(x + 50, y + 34, 8, C.crit);
+    label(a, x + 72, y + 42, 27, { w: 600 });
+    label(CASE.timeline[1].at.slice(0, 5) + ' · unread', x + 72, y + 74, 21, { w: 500, c: C.text3 });
+    ctx.restore();
+  });
+}
+function timeline() {                                     // 11:03 → 11:59 → 12:01 → 12:04
+  const marks = [[0, M.rec + 0.5, C.crit, 'Lanes lost'], [2, M.pcOff, C.text3, 'PC restarted on site'],
+                 [3, M.pcOn, C.ok, 'PC back'], [5, M.clear, C.ok, 'All clear']];
+  const g = outExpo(prog(t, M.rec, M.rec + 0.6)); if (g <= 0) return;
+  const x0 = 300, x1 = 1620, y = 966;
+  line(x0, y, lerp(x0, x1, g), y, C.border, 4);
+  marks.forEach(([ti, at, c, cap], k) => {
+    const x = lerp(x0, x1, k / 3), s = spring(t - at, ...POP); if (s <= 0) return;
+    if (k > 0) { const seg = outCubic(prog(t, at - 0.3, at)); line(lerp(x0, x1, (k - 1) / 3), y, lerp(lerp(x0, x1, (k - 1) / 3), x, seg), y, [C.ok, C.crit, C.text3, C.ok][k], 4); }
+    dot(x, y, 12 * s, c);
+    label(CASE.timeline[ti].at.slice(0, 5), x, y + 44, 28, { w: 700, c: C.text, align: 'center', f: MONO });
+    label(cap, x, y + 76, 22, { w: 500, c: C.text3, align: 'center' });
+  });
+}
+function s3() {                                          // 14–44 s: CK36, 1 Oct 2026
+  // headline slot
+  rise(CASE.site.code + ' · ' + CASE.date, MX, 200, 72, { at: 0.3, out: M.lost - 0.4 });
+  rise('Both lanes lost.', MX, 200, 72, { c: C.crit, at: M.lost + 0.5, out: M.flagged - 0.4 });
+  rise('Flagged in ' + CASE.flagSeconds + ' seconds.', MX, 200, 72, { at: M.flagged, out: M.site - 0.5 });
+  rise('Which site.', MX, 200, 72, { at: M.site, out: M.lane - 0.4 });
+  rise('Which lane.', MX, 200, 72, { at: M.lane, out: M.device - 0.4 });
+  rise('Which device.', MX, 200, 72, { at: M.device, out: M.rec - 0.4 });
+  rise('All clear at ' + CASE.timeline[5].at.slice(0, 5) + '.', MX, 200, 72, { c: C.ok, at: M.clear });
+  // the wall clock, and how long the system took to flag it
+  const ck = clockAt();
+  if (t > 0.3) label(ck, W - MX, 200, 64, { w: 700, f: MONO, align: 'right', c: t >= M.lost && t < M.lanesBack ? C.crit : C.text });
+  const plus = Math.floor(CASE.flagSeconds * clamp((t - 10) / 2));
+  if (t >= 10 && t < M.site - 0.5) label('+' + plus + ' s', W - MX, 252, 34, { w: 700, f: MONO, align: 'right', c: C.brand });
+  // the map shifts left while the notifications are open
+  const side = outExpo(prog(t, M.flagged, M.flagged + 0.6)) * (1 - inOutCubic(prog(t, M.site - 0.6, M.site)));
+  const push = inOutCubic(prog(t, M.lane, M.lane + 0.8)) * (1 - inOutCubic(prog(t, M.rec - 0.6, M.rec)));
+  const s = (1 - 0.34 * side) * (1 + 0.12 * push), dx = -310 * side, cy = lerp(600, LANE_Y + 40, push);
+  ctx.save(); ctx.translate(960 + dx, cy); ctx.scale(s, s); ctx.translate(-960, -cy);   // scale about (960, cy), then shift
+  stationMap();
+  ctx.restore();
+  alertPanel();
+  timeline();
+  if (t >= M.clear) watson('happy', clipFrame(M.clear), 1480, 896, 170);
+}
+
+function s4() {                                          // 44–52 s: every station
+  rise('Every station. Every problem.', W / 2, 250, 88, { align: 'center', at: 0.4, out: 3.6 });
+  rise('Flagged in ~' + Math.round(CASE.fleet.medianFlagSeconds - 0.5) + ' s, typically.', W / 2, 250, 88, { align: 'center', at: 4.0 });
+  fleet({ appear: -10, flashes: FLASH });
+}
+
+function s5() {                                          // 52–60 s: know first
+  rise('Know first.', W / 2, 520, 168, { w: 800, align: 'center', at: 0.25 });
+  const lock = outExpo(prog(t, 2.0, 2.7));
+  if (lock <= 0) return;
+  font(64, 800); const a = ctx.measureText('ParkOps ').width, b = ctx.measureText('Watch Dog').width, dogW = 120;
+  const x0 = W / 2 - (dogW + a + b) / 2;
+  ctx.save(); ctx.globalAlpha = lock;
+  watson('rest', Math.floor((t - 2.0) * MAN.fps), x0 + dogW / 2, 760, 150);
+  ctx.restore();
+  rise('ParkOps', x0 + dogW + 8, 730, 64, { w: 800, c: C.brand, at: 2.0 });
+  rise('Watch Dog', x0 + dogW + 8 + a, 730, 64, { w: 800, at: 2.1 });
+}
+
+// ---- compositor -----------------------------------------------------------------------
+const SCENES = [{ t0: 0, draw: s1 }, { t0: 10, draw: s2 }, { t0: 14, draw: s3 }, { t0: 44, draw: s4 }, { t0: 52, draw: s5 }];
+const SEAMS = [{ type: 'iris', at: dotXY(CK36_DOT) }, { type: 'push', dx: -1, dy: 0 }, { type: 'wipe' }, { type: 'iris', at: [960, 520] }];
+const far = (x, y) => Math.hypot(Math.max(x, W - x), Math.max(y, H - y)) * 1.04;
+
+function drawScene(i, T) {
+  t = T - SCENES[i].t0;
+  ctx.save(); bg(); SCENES[i].draw(); ctx.restore();
+}
+function transition(k, T) {
+  const s = SEAMS[k], cut = SCENES[k + 1].t0;
+  const u = prog(T, cut - SEAM, cut + SEAM), e = inOutExpo(u);
+  const A = () => drawScene(k, T), B = () => drawScene(k + 1, T);
+  if (s.type === 'push') {
+    ctx.save(); ctx.translate(s.dx * e * W, s.dy * e * H); A(); ctx.restore();
+    ctx.save(); ctx.translate(-s.dx * (1 - e) * W, -s.dy * (1 - e) * H); B(); ctx.restore();
+  } else if (s.type === 'wipe') {
+    A();
+    const slant = 420, xc = lerp(-slant, W + slant, e), xt = xc + slant / 2, xb = xc - slant / 2;
+    ctx.save(); ctx.beginPath(); ctx.moveTo(-10, -10); ctx.lineTo(xt, -10); ctx.lineTo(xb, H + 10); ctx.lineTo(-10, H + 10); ctx.closePath();
+    ctx.clip(); B(); ctx.restore();
+    if (u > 0 && u < 1) line(xt, -10, xb, H + 10, C.brand, 6);
+  } else if (s.type === 'iris') {
+    A();
+    const [x, y] = s.at, r = e * far(x, y);
+    if (r > 0) {
+      ctx.save(); ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.clip(); B(); ctx.restore();
+      if (u < 1) { ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.strokeStyle = C.brand; ctx.lineWidth = 6; ctx.stroke(); }
+    }
+  }
+}
+function render(T) {
+  T = clamp(T, 0, DURATION);
+  ctx.reset();                                          // nothing carries over from the previous frame
+  bg();
+  for (let k = 0; k < SEAMS.length; k++) {
+    const cut = SCENES[k + 1].t0;
+    if (T >= cut - SEAM && T < cut + SEAM) return transition(k, T);
+  }
+  let i = SCENES.length - 1;
+  while (i > 0 && T < SCENES[i].t0) i--;
+  drawScene(i, T);
+}
+
+// ---- events for the score (the same times the scenes use) ------------------------------
+const EVENTS = { bpm: 120, duration: DURATION, cuts: [], hits: [], runs: [], rolls: [] };
+SCENES.slice(1).forEach((s, k) => EVENTS.cuts.push([s.t0, SEAMS[k].type]));
+const hit = (T, kind, x = 0.5, amp = 1) => EVENTS.hits.push([+T.toFixed(3), kind, x, amp]);
+const run = (T, n, dt, x0 = 0.3, x1 = 0.7) => EVENTS.runs.push([+T.toFixed(3), n, dt, x0, x1]);
+const m0 = 14;
+// fleet and the question
+hit(0.4, 'type', 0.5, 0.9); run(0.4, 20, 0.05, 0.2, 0.8); hit(3.0, 'type', 0.5, 0.8);
+hit(6.0, 'type', 0.5, 0.8); hit(7.0, 'soft', dotXY(CK36_DOT)[0] / W, 1); hit(8.0, 'type', 0.5, 1);
+// the name
+hit(10.5, 'done', 0.5, 1); hit(11.0, 'type', 0.45, 0.8);
+// CK36: the map assembles, the clock ticks up to 11:03:08
+hit(m0 + 0.4, 'pop', 0.5); hit(m0 + 0.8, 'pop', 0.25); hit(m0 + 1.2, 'pop', 0.75); hit(m0 + 1.6, 'pop', 0.5, 0.8);
+run(m0 + 1.0, 5, 1.0, 0.85, 0.85);
+// both lanes lost
+hit(m0 + M.lost, 'hero', 0.5, 1); hit(m0 + M.lost + 0.5, 'type', 0.2, 0.9);
+// 23 seconds, counted
+run(m0 + 10, CASE.flagSeconds, 2 / CASE.flagSeconds, 0.7, 0.9);
+// flagged: the bell and the four notifications
+hit(m0 + M.flagged, 'mark', 0.8, 1); hit(m0 + M.flagged, 'type', 0.2, 0.7);
+CASE.alerts.forEach((_, i) => hit(m0 + M.flagged + 0.5 + i * 0.5, 'alert', 0.8, 1));
+// which site, lane, device
+hit(m0 + M.site, 'pop', 0.15); hit(m0 + M.lane, 'pop', 0.3); hit(m0 + M.lane + 0.05, 'pop', 0.7);
+hit(m0 + M.device, 'pop', 0.3, 0.8); hit(m0 + M.device + 0.15, 'pop', 0.7, 0.8);
+// recovery, in its real order
+hit(m0 + M.rec + 0.5, 'soft', 0.16); hit(m0 + M.pcOff, 'soft', 0.38); hit(m0 + M.pcOn, 'mark', 0.6);
+hit(m0 + M.lanesBack, 'mark', 0.25); hit(m0 + M.lanesBack + 0.1, 'mark', 0.75);
+hit(m0 + M.clear, 'done', 0.84, 1); hit(m0 + M.clear + 0.1, 'type', 0.2, 0.8);
+// every station
+hit(44.4, 'type', 0.5, 0.8); FLASH.forEach(([i, ft]) => hit(44 + ft, 'pop', dotXY(i)[0] / W, 0.7)); hit(48.0, 'type', 0.5, 0.8);
+// know first
+hit(52.5, 'done', 0.5, 1.1); hit(54.0, 'type', 0.5, 0.8);
+EVENTS.hits.sort((a, b) => a[0] - b[0]);
+// 30 bars: bright for the fleet, dark when the lanes go, a build into the recovery, home on C
+EVENTS.arrangement = {
+  bars: 'C:intro C:A G:A Am:C F:C  C:B G:B  Am:A F:A G:A  Am:F F:F Am:F  Dm:C Am:C Dm:C F:C G:build  ' +
+        'C:A G:A Am:B F:B  C:B G:B Am:B G:fill  C:A F:A C:out C:out',
+};
+
+// ---- boot -------------------------------------------------------------------------------
+const SRC = {
+  'dev-opc': 'data:image/png;base64,__ASSET:assets/dev-opc.png__',
+  'dev-station': 'data:image/png;base64,__ASSET:assets/dev-station.png__',
+  'dev-camera': 'data:image/png;base64,__ASSET:assets/dev-camera.png__',
+  'dev-nvr': 'data:image/png;base64,__ASSET:assets/dev-nvr.png__',
+  welcome: 'data:image/webp;base64,__ASSET:assets/mascot-welcome.webp__',
+  worried: 'data:image/webp;base64,__ASSET:assets/mascot-worried.webp__',
+  happy: 'data:image/webp;base64,__ASSET:assets/mascot-happy.webp__',
+  look: 'data:image/webp;base64,__ASSET:assets/mascot-look.webp__',
+  tail: 'data:image/webp;base64,__ASSET:assets/mascot-tail.webp__',
+  tailcut: 'data:image/webp;base64,__ASSET:assets/mascot-tailcut.webp__',
+};
+window.DURATION = DURATION;
+window.EVENTS = EVENTS;
+window.seek = async T => render(T);
+(async () => {
+  await Promise.all(Object.entries(SRC).map(async ([k, src]) => { const i = new Image(); i.src = src; await i.decode(); IMG[k] = i; }));
+  await Promise.all([500, 600, 700, 800].map(w => document.fonts.load(`${w} 40px ${FONT}`)));
+  const q = new URLSearchParams(location.search).get('t');
+  render(q ? +q : 0);
+  window.READY = true;
+  if (location.hash === '#play') {                       // preview only
+    const t0 = performance.now();
+    const loop = () => { render(((performance.now() - t0) / 1000) % DURATION); requestAnimationFrame(loop); };
+    loop();
+  }
+})();
+</script>
+</body>
+</html>

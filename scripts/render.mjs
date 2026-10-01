@@ -5,8 +5,9 @@
 //   node scripts/render.mjs films/x/film.src.html --sheet [--from 0 --to 10 --step 0.5 --offset 0.45]
 //   node scripts/render.mjs films/x/film.src.html --check     (exit 1 if a frame depends on an earlier one)
 //
-// film.src.html may contain __ASSET:relative/path__ tokens; they are replaced by the file's base64
-// and the self-contained result is written next to it as film.html.
+// film.src.html may contain __ASSET:relative/path__ tokens (replaced by the file's base64) and
+// __TEXT:relative/path__ tokens (replaced by the file's text as a JS string literal); the
+// self-contained result is written next to it as film.html.
 import { chromium } from 'playwright';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -26,7 +27,8 @@ if (!src) { console.error('usage: render.mjs <film.src.html> [--out x.mp4 | --sh
 const dir = path.dirname(src);
 const built = src.replace(/\.src\.html$/, '.html');
 if (built !== src) fs.writeFileSync(built, fs.readFileSync(src, 'utf8')
-  .replace(/__ASSET:(.+?)__/g, (_, p) => fs.readFileSync(path.join(dir, p)).toString('base64')));
+  .replace(/__ASSET:(.+?)__/g, (_, p) => fs.readFileSync(path.join(dir, p)).toString('base64'))
+  .replace(/__TEXT:(.+?)__/g, (_, p) => JSON.stringify(fs.readFileSync(path.join(dir, p), 'utf8'))));
 
 const name = path.basename(dir);
 const out = o.out || `out/${name}.mp4`;
@@ -106,7 +108,7 @@ if (o.check) {
   await pool(times, +o.workers, async (page, t, j) =>
     write(path.join(work, `f_${String(j).padStart(4, '0')}.jpg`), await grab(page, t, 0.9, t.toFixed(2))));
   const base = path.join(path.dirname(out), `${name}.sheet`);
-  for (const f of fs.readdirSync(path.dirname(out))) if (f.startsWith(`${name}.sheet`)) fs.rmSync(path.join(path.dirname(out), f));
+  for (const f of fs.readdirSync(path.dirname(out))) if (f.startsWith(`${name}.sheet_`)) fs.rmSync(path.join(path.dirname(out), f));
   ffmpeg(['-framerate', '1', '-i', path.join(work, 'f_%04d.jpg'), '-vf', 'scale=640:360,tile=3x3:padding=4:color=black', '-q:v', '3', `${base}_%02d.jpg`]);
   console.log(`${times.length} frames -> ${base}_NN.jpg`);
 } else {
