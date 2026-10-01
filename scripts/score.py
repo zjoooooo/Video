@@ -6,7 +6,10 @@ events.json: {bpm, duration,
   cuts:  [[t, transition type]],            push | wipe | strips | iris | dot
   hits:  [[t, kind, x 0..1, amp]],          type | pop | mark | done | hero | alert | soft
   runs:  [[t, count, spacing, x0, x1]],     fast sequences
-  rolls: [[t0, t1, x]]}                     count-ups
+  rolls: [[t0, t1, x]],                     count-ups
+  arrangement: {bars, chords, drums, bass}} optional; each one updates the default below.
+    bars is a string of chord:section per bar. Sections A, B, C, D, F (dark), build, fill and out
+    have behaviour of their own (pads, bass, arpeggio, riser), so reuse those names.
 Each kind of hit has its own voice, its pitch follows the chord of the bar it lands in, and each
 scene uses a different melodic contour. Output is mastered to -14 LUFS / -1.5 dBTP.
 """
@@ -49,6 +52,13 @@ CONTOUR = [                                          # which rung of the chord l
     [0, 1, 2, 3, 4, 5, 6, 7], [5, 4, 3, 2, 1, 0, 2, 4], [0, 2, 1, 3, 2, 4, 3, 5],
     [4, 2, 3, 1, 2, 0, 1, 3], [0, 3, 1, 4, 2, 5, 3, 6],
 ]
+# A film can bring its own arrangement: its bars replace these, its chords, drums and bass add to
+# or replace entries of the same name.
+_arr = ev.get("arrangement", {})
+if "bars" in _arr: BARS = _arr["bars"].split()
+CHORD.update({k: (v[0], v[1]) for k, v in _arr.get("chords", {}).items()})
+DRUMS.update(_arr.get("drums", {}))
+BASS.update({sec: {int(k): v for k, v in steps.items()} for sec, steps in _arr.get("bass", {}).items()})
 LEVEL = dict(pad=0.18, bass=0.22, arp=0.045, kick=0.50, clap=0.20, hat=0.055, rim=0.12, snare=0.20, tom=0.30,
              type=0.30, pop=0.30, mark=0.24, done=0.22, hero=0.24, alert=0.26, soft=0.20,
              run=0.11, roll=0.09, cut=0.14)
@@ -280,17 +290,22 @@ with wave.open(raw, "wb") as w:
     w.setnchannels(2); w.setsampwidth(2); w.setframerate(SR)
     w.writeframes((y * 32767).astype("<i2").tobytes())
 
-# ---- two-pass loudnorm -------------------------------------------------------
-TARGET = "I=-14:TP=-1.5:LRA=11"
-p = subprocess.run(["ffmpeg", "-hide_banner", "-i", raw, "-af", f"loudnorm={TARGET}:print_format=json", "-f", "null", "-"],
-                   capture_output=True, text=True, check=True)
-m = json.loads(re.findall(r"\{[^{}]*\}", p.stderr)[-1])
-af = (f"loudnorm={TARGET}:measured_I={m['input_i']}:measured_TP={m['input_tp']}:measured_LRA={m['input_lra']}"
-      f":measured_thresh={m['input_thresh']}:offset={m['target_offset']}:linear=true")
-subprocess.run(["ffmpeg", "-y", "-hide_banner", "-loglevel", "error", "-i", raw, "-af", af, "-ar", str(SR), out], check=True)
+# ---- mastering: one fixed gain to -14 LUFS, then a peak limiter for the -1.5 dBTP ceiling ----------
+# (loudnorm's linear mode silently turns dynamic when the mix is too peaky for the ceiling)
+def loudness(path):
+    p = subprocess.run(["ffmpeg", "-hide_banner", "-i", path, "-af", "loudnorm=I=-14:TP=-1.5:LRA=11:print_format=json",
+                        "-f", "null", "-"], capture_output=True, text=True, check=True)
+    m = json.loads(re.findall(r"\{[^{}]*\}", p.stderr)[-1])
+    return float(m["input_i"]), float(m["input_tp"])
+I0, _ = loudness(raw)
+subprocess.run(["ffmpeg", "-y", "-hide_banner", "-loglevel", "error", "-i", raw, "-af",
+                f"volume={-14 - I0:.2f}dB,alimiter=limit=0.8:attack=1:release=50:level=0:latency=1", "-ar", str(SR), out], check=True)
+I, TP = loudness(out)
+if abs(I + 14) > 0.5 or TP > -1.5:
+    print(f"warning: the master measures {I} LUFS and {TP} dBTP; the target is -14 LUFS and at most -1.5 dBTP", file=sys.stderr)
 
 kinds = Counter(k for k, _ in played)
-print(f"wrote {out}")
+print(f"wrote {out}  ({I} LUFS, {TP} dBTP)")
 print(f"  {len(played)} hits in {len(kinds)} voices: " + ", ".join(f"{k} {v}" for k, v in kinds.most_common()))
 print(f"  {len(set(played))} distinct voice and pitch pairs, {len({m for _, m in played})} pitches")
 print(f"  drum sections: {' '.join(dict.fromkeys(s.split(':')[1] for s in BARS))}")
