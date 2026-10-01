@@ -14,11 +14,13 @@
 'use strict';
 // Frame contract: window.DURATION (seconds) and async window.seek(t).
 // Every visual value is a pure function of t; render() resets the canvas each frame.
-// Facts come from case.json (the CK36 outage of 1 Oct 2026 as recorded by the ParkOps server).
+// Facts come from case.json (the CK36 outage of 1 Oct 2026 as recorded by the ParkOps server);
+// timing comes from timeline.json, which plan.py lays out around the narration.
 // Open film.html#play for a live preview; the renderer never uses that path.
 
-const W = 1920, H = 1080, DURATION = 60;
 const CASE = JSON.parse(__TEXT:case.json__);
+const TL = JSON.parse(__TEXT:timeline.json__), CUE = TL.cue, SC = TL.scenes;
+const W = 1920, H = 1080, DURATION = TL.duration, BEAT = 60 / TL.bpm;
 const MAN = JSON.parse(__TEXT:assets/mascot.json__);
 const cv = document.getElementById('c');
 const ctx = cv.getContext('2d');
@@ -155,14 +157,15 @@ const clipFrame = (t0) => Math.floor((t - t0) * MAN.fps);
 const COLS = 20, GAP = 58, GX = W / 2 - (COLS - 1) * GAP / 2, GY = 430;
 const dotXY = i => [GX + (i % COLS) * GAP, GY + Math.floor(i / COLS) * GAP];
 // flashes: [dot, start] — a problem flagged and gone within a beat, in the scale scene
-const FLASH = Array.from({ length: 9 }, (_, k) => [Math.floor(hash(k, 7) * CASE.fleet.stations), 1.0 + k * 0.75]);
+const FLASH = Array.from({ length: 9 }, (_, k) => [Math.floor(hash(k, 7) * CASE.fleet.stations),
+  1.0 + k * BEAT * Math.max(1, Math.floor((SC.end - SC.scale - 2) / BEAT / 9))]);
 function fleet(o = {}) {
   const { appear = 0, blink = null, flashes = [] } = o;
   for (let i = 0; i < CASE.fleet.stations; i++) {
     const [x, y] = dotXY(i), c = i % COLS, r = Math.floor(i / COLS);
     const s = spring(t - (appear + (c + r) * 0.025), ...POP);
     if (s <= 0) continue;
-    const beat = ((t - c * 0.012) % 0.5 + 0.5) % 0.5;     // a wave crosses the grid on every beat
+    const beat = ((t - c * 0.012) % BEAT + BEAT) % BEAT;  // a wave crosses the grid on every beat
     let rad = 11 * s * (1 + 0.16 * Math.exp(-beat * 9)), col = C.ok;
     if (blink && i === blink[0] && t >= blink[1]) { col = C.crit; rad *= 1 + 0.5 * wobble(t - blink[1], 3, 6); }
     for (const [fi, ft] of flashes) {
@@ -177,18 +180,21 @@ function fleet(o = {}) {
 }
 
 // ---- scenes -------------------------------------------------------------------------
-function s1() {                                          // 0–10 s: the fleet, and the question
-  rise(CASE.fleet.stations + ' car park stations.', W / 2, 250, 96, { align: 'center', at: 0.4, out: 2.7 });
-  rise('All running right now.', W / 2, 250, 96, { align: 'center', at: 3.0, out: 5.6 });
-  rise('Something will break.', W / 2, 250, 96, { align: 'center', at: 6.0, out: 7.7 });
-  rise('Who knows first?', W / 2, 250, 96, { align: 'center', at: 8.0, c: C.brand });
-  fleet({ appear: 0.4, blink: [CK36_DOT, 7.0] });
-  const [x, y] = dotXY(CK36_DOT), ring = prog(t, 7.0, 7.8);
+function s1() {                                          // the fleet, and the question
+  const mid = (CUE.fleetText + CUE.questionText) / 2;
+  rise(CASE.fleet.stations + ' car park stations.', W / 2, 250, 96, { align: 'center', at: CUE.fleetText, out: mid - 0.4 });
+  rise('All running right now.', W / 2, 250, 96, { align: 'center', at: mid, out: CUE.questionText - 0.4 });
+  rise('Something will break.', W / 2, 250, 96, { align: 'center', at: CUE.questionText, out: CUE.whoText - 0.4 });
+  rise('Who knows first?', W / 2, 250, 96, { align: 'center', at: CUE.whoText, c: C.brand });
+  fleet({ appear: 0.4, blink: [CK36_DOT, CUE.blink] });
+  const [x, y] = dotXY(CK36_DOT), ring = prog(t, CUE.blink, CUE.blink + 0.8);
   if (ring > 0 && ring < 1) { ctx.beginPath(); ctx.arc(x, y, 14 + ring * 50, 0, 7); ctx.strokeStyle = C.crit;
     ctx.globalAlpha = 1 - ring; ctx.lineWidth = 4; ctx.stroke(); ctx.globalAlpha = 1; }
 }
 
-function s2() {                                          // 10–14 s: the name
+function s2() {                                          // the name; a slow push keeps it alive after Watson's wave
+  const z = 1 + 0.06 * inOutCubic(prog(t, 0, SC.map - SC.brand + SEAM));
+  ctx.translate(W / 2, 600); ctx.scale(z, z); ctx.translate(-W / 2, -600);
   watson('welcome', clipFrame(0.1), W / 2, 760, 340);
   font(120, 800); const a = ctx.measureText('ParkOps ').width, b = ctx.measureText('Watch Dog').width, x0 = W / 2 - (a + b) / 2;
   rise('ParkOps', x0, 900, 120, { w: 800, c: C.brand, at: 0.5 });
@@ -207,7 +213,7 @@ function tile(icon, cx, cy, size, state, s = 1) {      // a device: its icon in 
   if (s <= 0) return;
   ctx.save(); ctx.translate(cx, cy); ctx.scale(s, s);
   rr(-size / 2, -size / 2, size, size, 12); ctx.fillStyle = C.panel2; ctx.fill();
-  const beat = ((t % 0.5) + 0.5) % 0.5;                 // seconds since the last beat
+  const beat = ((t % BEAT) + BEAT) % BEAT;              // seconds since the last beat
   ctx.strokeStyle = state === 'crit' ? C.crit : C.border; ctx.lineWidth = state === 'crit' ? 3 + 4 * Math.exp(-beat * 9) : 1.5; ctx.stroke();
   ctx.globalAlpha = state === 'off' ? 0.45 : 1;
   ctx.drawImage(IMG[ICON[icon]], -size * 0.38, -size * 0.38, size * 0.76, size * 0.76);
@@ -230,8 +236,7 @@ function link(x0, y0, x1, y1, state, grow = 1) {
 }
 
 // One timeline for the whole map scene (local seconds from 14 s). Each state change is a real one.
-const M = { lost: 6.0, flagged: 12.0, site: 16.5, lane: 18.5, device: 20.0, rec: 22.0,
-            pcOff: 24.0, pcOn: 25.5, lanesBack: 26.5, clear: 28.0 };
+const M = Object.fromEntries(Object.entries(CUE).map(([k, v]) => [k, Array.isArray(v) ? v.map(x => x - SC.map) : v - SC.map]));
 function mapState() {
   const lanes = t < M.lost ? 'ok' : t < M.lanesBack ? 'crit' : 'ok';
   const hub = t >= M.pcOff && t < M.pcOn ? 'off' : 'ok';
@@ -239,9 +244,9 @@ function mapState() {
 }
 function clockAt() {                                     // the wall clock the scene shows
   const L = CASE.timeline, s0 = secs(L[0].at);
-  if (t < M.lost) return hms(s0 - 6 + Math.floor(clamp(t, 0, 6)));                       // ticking up to 11:03:08
-  if (t < 10) return hms(s0);
-  if (t < M.flagged) return hms(s0 + Math.floor(CASE.flagSeconds * clamp((t - 10) / 2)));  // 23 s, run fast
+  if (t < M.lost) return hms(s0 - Math.ceil(M.lost - t));                                // ticking up to 11:03:08
+  if (t < M.count0) return hms(s0);
+  if (t < M.flagged) return hms(s0 + Math.floor(CASE.flagSeconds * clamp((t - M.count0) / 2)));  // 23 s, run fast
   if (t < M.pcOff) return L[1].at;
   if (t < M.pcOn) return L[2].at;
   if (t < M.lanesBack) return L[3].at;
@@ -316,7 +321,7 @@ function alertPanel() {                                  // the notifications, a
   if (badge > 0) { ctx.save(); ctx.translate(x + PW - 40, 300); ctx.scale(badge, badge); dot(0, 0, 22, C.crit);
     label(String(CASE.alerts.length), 0, 9, 26, { w: 800, c: '#fff', align: 'center' }); ctx.restore(); }
   CASE.alerts.forEach((a, i) => {
-    const at = M.flagged + 0.5 + i * 0.5, s = outExpo(prog(t, at, at + 0.4)); if (s <= 0) return;
+    const at = M.alerts[i], s = outExpo(prog(t, at, at + 0.4)); if (s <= 0) return;
     const y = 420 + i * 104 - (1 - s) * 40;
     ctx.save(); ctx.globalAlpha = s;
     rr(x + 20, y, PW - 40, 90, 12); ctx.fillStyle = C.panel2; ctx.fill();
@@ -327,7 +332,7 @@ function alertPanel() {                                  // the notifications, a
   });
 }
 function timeline() {                                     // 11:03 → 11:59 → 12:01 → 12:04
-  const marks = [[0, M.rec + 0.5, C.crit, 'Lanes lost'], [2, M.pcOff, C.text3, 'PC restarted on site'],
+  const marks = [[0, M.rec + 0.5, C.crit, 'Lanes lost'], [2, M.pcOff, C.text3, 'PMS PC down'],
                  [3, M.pcOn, C.ok, 'PC back'], [5, M.clear, C.ok, 'All clear']];
   const g = outExpo(prog(t, M.rec, M.rec + 0.6)); if (g <= 0) return;
   const x0 = 300, x1 = 1620, y = 966;
@@ -340,10 +345,10 @@ function timeline() {                                     // 11:03 → 11:59 →
     label(cap, x, y + 76, 22, { w: 500, c: C.text3, align: 'center' });
   });
 }
-function s3() {                                          // 14–44 s: CK36, 1 Oct 2026
+function s3() {                                          // CK36, 1 Oct 2026
   // headline slot
-  rise(CASE.site.code + ' · ' + CASE.date, MX, 200, 72, { at: 0.3, out: M.lost - 0.4 });
-  rise('Both lanes lost.', MX, 200, 72, { c: C.crit, at: M.lost + 0.5, out: M.flagged - 0.4 });
+  rise(CASE.site.code + ' · ' + CASE.date, MX, 200, 72, { at: M.siteText, out: M.lost - 0.4 });
+  rise('Both lanes lost.', MX, 200, 72, { c: C.crit, at: M.lost + 0.3, out: M.flagged - 0.4 });
   rise('Flagged in ' + CASE.flagSeconds + ' seconds.', MX, 200, 72, { at: M.flagged, out: M.site - 0.5 });
   rise('Which site.', MX, 200, 72, { at: M.site, out: M.lane - 0.4 });
   rise('Which lane.', MX, 200, 72, { at: M.lane, out: M.device - 0.4 });
@@ -351,9 +356,9 @@ function s3() {                                          // 14–44 s: CK36, 1 O
   rise('All clear at ' + CASE.timeline[5].at.slice(0, 5) + '.', MX, 200, 72, { c: C.ok, at: M.clear });
   // the wall clock, and how long the system took to flag it
   const ck = clockAt();
-  if (t > 0.3) label(ck, W - MX, 200, 64, { w: 700, f: MONO, align: 'right', c: t >= M.lost && t < M.lanesBack ? C.crit : C.text });
-  const plus = Math.floor(CASE.flagSeconds * clamp((t - 10) / 2));
-  if (t >= 10 && t < M.site - 0.5) label('+' + plus + ' s', W - MX, 252, 34, { w: 700, f: MONO, align: 'right', c: C.brand });
+  if (t > M.siteText) label(ck, W - MX, 200, 64, { w: 700, f: MONO, align: 'right', c: t >= M.lost && t < M.lanesBack ? C.crit : C.text });
+  const plus = Math.floor(CASE.flagSeconds * clamp((t - M.count0) / 2));
+  if (t >= M.count0 && t < M.site - 0.5) label('+' + plus + ' s', W - MX, 252, 34, { w: 700, f: MONO, align: 'right', c: C.brand });
   // the map shifts left while the notifications are open
   const side = outExpo(prog(t, M.flagged, M.flagged + 0.6)) * (1 - inOutCubic(prog(t, M.site - 0.6, M.site)));
   const push = inOutCubic(prog(t, M.lane, M.lane + 0.8)) * (1 - inOutCubic(prog(t, M.rec - 0.6, M.rec)));
@@ -366,27 +371,30 @@ function s3() {                                          // 14–44 s: CK36, 1 O
   if (t >= M.clear) watson('happy', clipFrame(M.clear), 1480, 896, 170);
 }
 
-function s4() {                                          // 44–52 s: every station
-  rise('Every station. Every problem.', W / 2, 250, 88, { align: 'center', at: 0.4, out: 3.6 });
-  rise('Flagged in ~' + Math.round(CASE.fleet.medianFlagSeconds - 0.5) + ' s, typically.', W / 2, 250, 88, { align: 'center', at: 4.0 });
+function s4() {                                          // every station
+  rise('Every station. Every problem.', W / 2, 250, 88, { align: 'center', at: CUE.scaleText - SC.scale, out: CUE.typicalText - SC.scale - 0.4 });
+  rise('Flagged in ~' + Math.round(CASE.fleet.medianFlagSeconds - 0.5) + ' s, typically.', W / 2, 250, 88, { align: 'center', at: CUE.typicalText - SC.scale });
   fleet({ appear: -10, flashes: FLASH });
 }
 
-function s5() {                                          // 52–60 s: know first
-  rise('Know first.', W / 2, 520, 168, { w: 800, align: 'center', at: -0.25 });   // rising while the iris opens
-  const lock = outExpo(prog(t, 2.0, 2.7));
+function s5() {                                          // know first
+  const know = CUE.knowText - SC.end;
+  rise('Know first.', W / 2, 520, 168, { w: 800, align: 'center', at: know });
+  label('Narration voice is AI-generated · Music: piano polka rendered with MuseScore_General (MIT)', W / 2, 1030, 20,
+        { w: 500, c: C.text3, align: 'center' });
+  const lock = outExpo(prog(t, -0.2, 0.5));
   if (lock <= 0) return;
   font(64, 800); const a = ctx.measureText('ParkOps ').width, b = ctx.measureText('Watch Dog').width, dogW = 120;
   const x0 = W / 2 - (dogW + a + b) / 2;
   ctx.save(); ctx.globalAlpha = lock;
-  watson('rest', Math.floor((t - 2.0) * MAN.fps), x0 + dogW / 2, 760, 150);
+  watson('rest', Math.floor((t + 0.2) * MAN.fps), x0 + dogW / 2, 760, 150);
   ctx.restore();
-  rise('ParkOps', x0 + dogW + 8, 730, 64, { w: 800, c: C.brand, at: 2.0 });
-  rise('Watch Dog', x0 + dogW + 8 + a, 730, 64, { w: 800, at: 2.1 });
+  rise('ParkOps', x0 + dogW + 8, 730, 64, { w: 800, c: C.brand, at: -0.2 });
+  rise('Watch Dog', x0 + dogW + 8 + a, 730, 64, { w: 800, at: -0.1 });
 }
 
 // ---- compositor -----------------------------------------------------------------------
-const SCENES = [{ t0: 0, draw: s1 }, { t0: 10, draw: s2 }, { t0: 14, draw: s3 }, { t0: 44, draw: s4 }, { t0: 52, draw: s5 }];
+const SCENES = [{ t0: SC.fleet, draw: s1 }, { t0: SC.brand, draw: s2 }, { t0: SC.map, draw: s3 }, { t0: SC.scale, draw: s4 }, { t0: SC.end, draw: s5 }];
 const SEAMS = [{ type: 'iris', at: dotXY(CK36_DOT) }, { type: 'push', dx: -1, dy: 0 }, { type: 'wipe' }, { type: 'iris', at: [960, 520] }];
 const far = (x, y) => Math.hypot(Math.max(x, W - x), Math.max(y, H - y)) * 1.04;
 
@@ -429,44 +437,8 @@ function render(T) {
   drawScene(i, T);
 }
 
-// ---- events for the score (the same times the scenes use) ------------------------------
-const EVENTS = { bpm: 120, duration: DURATION, cuts: [], hits: [], runs: [], rolls: [] };
-SCENES.slice(1).forEach((s, k) => EVENTS.cuts.push([s.t0, SEAMS[k].type]));
-const hit = (T, kind, x = 0.5, amp = 1) => EVENTS.hits.push([+T.toFixed(3), kind, x, amp]);
-const run = (T, n, dt, x0 = 0.3, x1 = 0.7) => EVENTS.runs.push([+T.toFixed(3), n, dt, x0, x1]);
-const m0 = 14;
-// fleet and the question
-hit(0.4, 'type', 0.5, 0.9); run(0.4, 20, 0.05, 0.2, 0.8); hit(3.0, 'type', 0.5, 0.8);
-hit(6.0, 'type', 0.5, 0.8); hit(7.0, 'soft', dotXY(CK36_DOT)[0] / W, 1); hit(8.0, 'type', 0.5, 1);
-// the name
-hit(10.5, 'done', 0.5, 1); hit(11.0, 'type', 0.45, 0.8);
-// CK36: the map assembles, the clock ticks up to 11:03:08
-hit(m0 + 0.4, 'pop', 0.5); hit(m0 + 0.8, 'pop', 0.25); hit(m0 + 1.2, 'pop', 0.75); hit(m0 + 1.6, 'pop', 0.5, 0.8);
-run(m0 + 1.0, 5, 1.0, 0.85, 0.85);
-// both lanes lost
-hit(m0 + M.lost, 'hero', 0.5, 1); hit(m0 + M.lost + 0.5, 'type', 0.2, 0.9);
-// 23 seconds, counted
-run(m0 + 10, CASE.flagSeconds, 2 / CASE.flagSeconds, 0.7, 0.9);
-// flagged: the bell and the four notifications
-hit(m0 + M.flagged, 'mark', 0.8, 1); hit(m0 + M.flagged, 'type', 0.2, 0.7);
-CASE.alerts.forEach((_, i) => hit(m0 + M.flagged + 0.5 + i * 0.5, 'alert', 0.8, 1));
-// which site, lane, device
-hit(m0 + M.site, 'pop', 0.15); hit(m0 + M.lane, 'pop', 0.3); hit(m0 + M.lane + 0.05, 'pop', 0.7);
-hit(m0 + M.device, 'pop', 0.3, 0.8); hit(m0 + M.device + 0.15, 'pop', 0.7, 0.8);
-// recovery, in its real order
-hit(m0 + M.rec + 0.5, 'soft', 0.16); hit(m0 + M.pcOff, 'soft', 0.38); hit(m0 + M.pcOn, 'mark', 0.6);
-hit(m0 + M.lanesBack, 'mark', 0.25); hit(m0 + M.lanesBack + 0.1, 'mark', 0.75);
-hit(m0 + M.clear, 'done', 0.84, 1); hit(m0 + M.clear + 0.1, 'type', 0.2, 0.8);
-// every station
-hit(44.4, 'type', 0.5, 0.8); FLASH.forEach(([i, ft]) => hit(44 + ft, 'pop', dotXY(i)[0] / W, 0.7)); hit(48.0, 'type', 0.5, 0.8);
-// know first
-hit(52.5, 'done', 0.5, 1.1); hit(54.0, 'type', 0.5, 0.8);
-EVENTS.hits.sort((a, b) => a[0] - b[0]);
-// 30 bars: bright for the fleet, dark when the lanes go, a build into the recovery, home on C
-EVENTS.arrangement = {
-  bars: 'C:intro C:A G:A Am:C F:C  C:B G:B  Am:A F:A G:A  Am:F F:F Am:F  Dm:C Am:C Dm:C F:C G:build  ' +
-        'C:A G:A Am:B F:B  C:B G:B Am:B G:fill  C:A F:A C:out C:out',
-};
+// ---- events: the cuts, for render.mjs --check (the score is composed from timeline.json by music.py)
+const EVENTS = { bpm: TL.bpm, duration: DURATION, cuts: SCENES.slice(1).map((s, k) => [s.t0, SEAMS[k].type]) };
 
 // ---- boot -------------------------------------------------------------------------------
 const SRC = {

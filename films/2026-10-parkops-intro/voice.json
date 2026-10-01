@@ -1,0 +1,223 @@
+{
+ "voice": "coral",
+ "lines": [
+  {
+   "id": "fleet",
+   "text": "Right now, one hundred and ninety-three car park stations are running across our network.",
+   "dur": 5.788,
+   "phrases": [
+    [
+     0.05,
+     0.58
+    ],
+    [
+     1.21,
+     3.87
+    ],
+    [
+     4.12,
+     5.55
+    ]
+   ]
+  },
+  {
+   "id": "question",
+   "text": "Sooner or later, something breaks. The question is: who finds out first?",
+   "dur": 5.297,
+   "phrases": [
+    [
+     0.03,
+     2.16
+    ],
+    [
+     2.62,
+     3.47
+    ],
+    [
+     3.97,
+     4.71
+    ],
+    [
+     4.87,
+     5.26
+    ]
+   ]
+  },
+  {
+   "id": "brand",
+   "text": "ParkOps Watch Dog watches every one of them.",
+   "dur": 3.415,
+   "phrases": [
+    [
+     0.02,
+     0.75
+    ],
+    [
+     0.91,
+     1.61
+    ],
+    [
+     1.94,
+     3.3
+    ]
+   ]
+  },
+  {
+   "id": "site",
+   "text": "Take CK36, on the first of October.",
+   "dur": 3.075,
+   "phrases": [
+    [
+     0.03,
+     1.55
+    ],
+    [
+     1.83,
+     2.03
+    ],
+    [
+     2.19,
+     3.01
+    ]
+   ]
+  },
+  {
+   "id": "lost",
+   "text": "At eleven oh three, both lanes went dark. Two lane stations and two cameras, all at once.",
+   "dur": 6.853,
+   "phrases": [
+    [
+     0.0,
+     1.35
+    ],
+    [
+     1.63,
+     3.13
+    ],
+    [
+     3.74,
+     5.75
+    ],
+    [
+     6.05,
+     6.81
+    ]
+   ]
+  },
+  {
+   "id": "flagged",
+   "text": "Twenty-three seconds later, Watch Dog had flagged all four.",
+   "dur": 4.921,
+   "phrases": [
+    [
+     0.0,
+     1.55
+    ],
+    [
+     2.16,
+     2.77
+    ],
+    [
+     3.14,
+     3.87
+    ],
+    [
+     4.05,
+     4.8
+    ]
+   ]
+  },
+  {
+   "id": "which",
+   "text": "Which site. Which lane. Exactly which device.",
+   "dur": 3.797,
+   "phrases": [
+    [
+     0.04,
+     0.66
+    ],
+    [
+     1.12,
+     1.74
+    ],
+    [
+     2.27,
+     3.74
+    ]
+   ]
+  },
+  {
+   "id": "recovery",
+   "text": "At eleven fifty-nine, the site's PMS PC went down, and came back two minutes later. By twelve oh four, everything was green again.",
+   "dur": 9.34,
+   "phrases": [
+    [
+     0.01,
+     1.4
+    ],
+    [
+     1.7,
+     3.87
+    ],
+    [
+     4.27,
+     5.87
+    ],
+    [
+     6.54,
+     7.59
+    ],
+    [
+     8.0,
+     9.23
+    ]
+   ]
+  },
+  {
+   "id": "scale",
+   "text": "And it does this for every station, every day, typically within sixteen seconds.",
+   "dur": 5.881,
+   "phrases": [
+    [
+     0.02,
+     0.35
+    ],
+    [
+     0.54,
+     1.28
+    ],
+    [
+     1.44,
+     2.21
+    ],
+    [
+     2.63,
+     3.22
+    ],
+    [
+     3.7,
+     4.19
+    ],
+    [
+     4.34,
+     5.85
+    ]
+   ]
+  },
+  {
+   "id": "end",
+   "text": "ParkOps Watch Dog. Know first.",
+   "dur": 2.681,
+   "phrases": [
+    [
+     0.03,
+     1.24
+    ],
+    [
+     1.82,
+     2.64
+    ]
+   ]
+  }
+ ]
+}
