@@ -1,0 +1,27 @@
+{
+  "name": "video",
+  "version": "1.0.0",
+  "description": "Code-rendered films: seek(t) HTML, Playwright frames, ffmpeg encode",
+  "scripts": {
+    "film": "node scripts/render.mjs films/2026-09-it-report/film.src.html --out out/video.mp4 --sub 8 && uv run --with numpy scripts/score.py out/2026-09-it-report.events.json out/score.wav && ffmpeg -y -loglevel error -i out/video.mp4 -i out/score.wav -map 0:v -map 1:a -c:v copy -c:a aac -b:a 192k -shortest -movflags +faststart out/it-report-2026-09.mp4",
+    "sheet": "node scripts/render.mjs films/2026-09-it-report/film.src.html --sheet",
+    "check": "node scripts/render.mjs films/2026-09-it-report/film.src.html --check",
+    "qa": "uv run --with numpy scripts/qa_pops.py out/it-report-2026-09.mp4"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zjoooooo/Video.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/zjoooooo/Video/issues"
+  },
+  "homepage": "https://github.com/zjoooooo/Video#readme",
+  "devDependencies": {
+    "playwright": "^1.62.1"
+  },
+  "private": true
+}
