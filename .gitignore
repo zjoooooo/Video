@@ -1,3 +1,5 @@
 node_modules/
 out/
 films/*/film.html
+tests/fixtures/*.html
+!tests/fixtures/*.src.html

@@ -3,7 +3,7 @@
 //
 //   node scripts/render.mjs films/x/film.src.html --out out/x.mp4 [--fps 60] [--sub 4] [--workers 6]
 //   node scripts/render.mjs films/x/film.src.html --sheet [--from 0 --to 10 --step 0.5 --offset 0.45]
-//   node scripts/render.mjs films/x/film.src.html --check
+//   node scripts/render.mjs films/x/film.src.html --check     (exit 1 if a frame depends on an earlier one)
 //
 // film.src.html may contain __ASSET:relative/path__ tokens; they are replaced by the file's base64
 // and the self-contained result is written next to it as film.html.
@@ -30,9 +30,12 @@ if (built !== src) fs.writeFileSync(built, fs.readFileSync(src, 'utf8')
 
 const name = path.basename(dir);
 const out = o.out || `out/${name}.mp4`;
-const work = path.join(path.dirname(out), `${name}.work`);
-fs.rmSync(work, { recursive: true, force: true });
-fs.mkdirSync(work, { recursive: true });
+const mode = o.check ? 'check' : o.sheet ? 'sheet' : 'render';
+const work = path.join(path.dirname(out), `${name}.${mode}.work`);   // one per mode: a check never deletes a render's frames
+if (mode !== 'check') {
+  fs.rmSync(work, { recursive: true, force: true });
+  fs.mkdirSync(work, { recursive: true });
+}
 
 const browser = await chromium.launch();
 const context = await browser.newContext({ viewport: { width: 1920, height: 1080 }, deviceScaleFactor: 1 });
@@ -44,7 +47,7 @@ async function open() {
   await page.waitForFunction('window.READY === true', null, { timeout: 15000 });
   return page;
 }
-const grab = async (page, t, quality = 0.95, tag = '') => Buffer.from(await page.evaluate(async ([t, quality, tag]) => {
+const grab = async (page, t, quality = 0.95, tag = '', type = 'image/jpeg') => Buffer.from(await page.evaluate(async ([t, quality, tag, type]) => {
   await window.seek(t);
   const c = document.querySelector('canvas');
   if (tag) {                                          // QA label, contact sheets only
@@ -54,8 +57,9 @@ const grab = async (page, t, quality = 0.95, tag = '') => Buffer.from(await page
     g.fillStyle = '#fff'; g.font = '600 48px Menlo, monospace'; g.textAlign = 'left'; g.textBaseline = 'alphabetic';
     g.fillText(tag, 16, 1080 - 18); g.restore();
   }
-  return c.toDataURL('image/jpeg', quality).slice(23);
-}, [t, quality, tag]), 'base64');
+  const url = c.toDataURL(type, quality);
+  return url.slice(url.indexOf(',') + 1);
+}, [t, quality, tag, type]), 'base64');
 async function pool(jobs, n, fn) {
   let next = 0, done = 0;
   const pages = await Promise.all(Array.from({ length: Math.min(n, jobs.length) }, open));
@@ -77,14 +81,25 @@ if (events) fs.writeFileSync(path.join(path.dirname(out), `${name}.events.json`)
 await first.close();
 const FPS = +o.fps, S = +o.sub, from = +(o.from ?? 0), to = +(o.to ?? DURATION);
 
-if (o.check) {                                        // same t must give the same pixels in any order
+if (o.check) {
+  // A frame must depend on t alone: render every time once in order on one page, then again
+  // each on a fresh page, and compare lossless pixels. Times around each cut catch transitions.
+  const cuts = (events?.cuts || []).map(c => (Array.isArray(c) ? c[0] : c));
+  const times = [...new Set([
+    ...Array.from({ length: 16 }, (_, i) => DURATION * (i + 0.37) / 16),
+    ...cuts.flatMap(c => [c - 0.1, c + 0.1]),
+  ].filter(t => t >= 0 && t < DURATION).map(t => +t.toFixed(3)))].sort((x, y) => x - y);
+  const hash = async (page, t) => createHash('sha1').update(await grab(page, t, 1, '', 'image/png')).digest('hex');
   const page = await open();
-  const times = Array.from({ length: 16 }, (_, i) => +(DURATION * (i + 0.37) / 16).toFixed(3));
-  const hash = async t => createHash('sha1').update(await grab(page, t)).digest('hex');
-  const a = []; for (const t of times) a.push(await hash(t));
-  const b = []; for (const t of [...times].reverse()) b.unshift(await hash(t));
-  const bad = times.filter((_, i) => a[i] !== b[i]);
-  console.log(bad.length ? `NOT deterministic at t = ${bad.join(', ')}` : `deterministic: ${times.length} frames identical in both orders`);
+  const a = []; for (const t of times) a.push(await hash(page, t));
+  await page.close();
+  const bad = [];
+  for (const [i, t] of times.entries()) {
+    const fresh = await open();
+    if (await hash(fresh, t) !== a[i]) bad.push(t);
+    await fresh.close();
+  }
+  console.log(bad.length ? `NOT deterministic at t = ${bad.join(', ')}` : `deterministic: ${times.length} frames identical in order and on fresh pages`);
   if (bad.length) process.exitCode = 1;
 } else if (o.sheet) {
   const times = []; for (let t = from + +o.offset; t < to; t += +o.step) times.push(+t.toFixed(3));
@@ -111,4 +126,4 @@ if (o.check) {                                        // same t must give the sa
   console.log(`wrote ${out}`);
 }
 await browser.close();
-fs.rmSync(work, { recursive: true, force: true });
+if (mode !== 'check') fs.rmSync(work, { recursive: true, force: true });

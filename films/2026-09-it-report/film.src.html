@@ -269,7 +269,7 @@ function s6() {                                       // reporting tools
   for (let i = 0; i < 3; i++) {
     const s = spring(t - (2.0 + i * 0.1), ...POP); if (s <= 0) continue;
     ctx.save(); ctx.translate(R + 210, 470 + i * 72 + 28); ctx.scale(s, s);
-    rr(-210, -28, 420, 56, 14); ctx.setLineDash([16, 12]); ctx.lineDashOffset = -t * 40;
+    rr(-210, -28, 420, 56, 14); ctx.setLineDash([16, 12]); ctx.lineDashOffset = -t * 40; ctx.lineCap = 'round';
     ctx.strokeStyle = C.red; ctx.lineWidth = 4; ctx.stroke(); ctx.setLineDash([]);
     ctx.beginPath(); ctx.arc(-170, 0, 8, 0, 7); ctx.stroke();
     ctx.restore();
@@ -481,8 +481,8 @@ function transition(k, T) {
 
 function render(T) {
   T = clamp(T, 0, DURATION);
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.globalAlpha = 1;
+  ctx.reset();                                        // nothing carries over from the previous frame
+  bg();
   for (let k = 0; k < SEAMS.length; k++) {
     const cut = SCENES[k + 1].t0, half = SEAMS[k].half || SEAM;
     if (T >= cut - half && T < cut + half) return transition(k, T);
