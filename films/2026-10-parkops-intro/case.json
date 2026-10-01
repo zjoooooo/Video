@@ -1,0 +1,36 @@
+{
+  "source": "ParkOps Agent server 2.7.22 at 10.3.13.76, read-only queries on 2026-10-01 (status, notifications, agent detail). Times are Singapore time (UTC+8).",
+  "fleet": {
+    "stations": 193,
+    "medianFlagSeconds": 16.5,
+    "p90FlagSeconds": 24.9,
+    "window": "2026-09-30 19:39 to 2026-10-01 17:59",
+    "alertsInWindow": 209
+  },
+  "site": {
+    "code": "CK36",
+    "operator": "SJS",
+    "pc": "CK36_PMS",
+    "lanes": [
+      { "name": "Entry", "station": "CK36E", "camera": "ENTRY" },
+      { "name": "Exit", "station": "CK36X", "camera": "EXIT" }
+    ],
+    "others": ["BOOTH", "TOPUP", "NVR"]
+  },
+  "date": "1 Oct 2026",
+  "flagSeconds": 23,
+  "alerts": [
+    "CK36E Station unreachable",
+    "CK36X Station unreachable",
+    "CK36 ENTRY Camera unreachable",
+    "CK36 EXIT Camera unreachable"
+  ],
+  "timeline": [
+    { "at": "11:03:08", "what": "Both lanes lost", "ids": [287, 288, 289, 290] },
+    { "at": "11:03:31", "what": "Flagged", "ids": [287, 288, 289, 290] },
+    { "at": "11:59:07", "what": "PMS PC offline (restarted on site)", "ids": [291] },
+    { "at": "12:01:31", "what": "PMS PC back online", "ids": [291] },
+    { "at": "12:02:31", "what": "Lanes back", "ids": [287, 288, 289, 290] },
+    { "at": "12:04:31", "what": "All clear", "ids": [292, 293, 294, 295, 296, 297, 298] }
+  ]
+}
