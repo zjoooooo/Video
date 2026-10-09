@@ -1,0 +1,25 @@
+{
+  "model": "gpt-4o-mini-tts",
+  "voice": "coral",
+  "instructions": "Presenting a monthly IT progress report to a company's management team. Calm, clear, confident and warm. Measured pace, natural pauses between sentences. Read numbers and dates clearly. No exaggeration.",
+  "lines": [
+    { "id": "title", "text": "IT Department progress update, for the thirteenth of October, twenty twenty-six." },
+    { "id": "tracked", "text": "This month we tracked ten pieces of work." },
+    { "id": "split", "text": "Four are completed, three are in progress, and three are planned." },
+    { "id": "highlights", "text": "The highlights: WMS now runs on the Azure cloud, Watch Dog covers every SSG car park, and the new season portal is seventy-two percent done." },
+    { "id": "wms1", "text": "WMS moved to the Azure cloud from the twenty-second to the twenty-fourth of September." },
+    { "id": "wms2", "text": "Change request phase one went through user testing from the first to the seventh of October." },
+    { "id": "wms3", "text": "Once the users confirm the result, we deploy it to production." },
+    { "id": "wms4", "text": "Phase two has not started yet." },
+    { "id": "done", "text": "Also completed this month: the Central Reports server, for the car parks under Re Sustainability Solutions; the QMS enhancement; and the T twenty-four season portal, now rebranded as Res twenty-four." },
+    { "id": "portal1", "text": "The new season portal is seventy-two percent complete, on average." },
+    { "id": "portal2", "text": "The extension and rebrand, and the header and logo alignment, are done." },
+    { "id": "portal3", "text": "The DBS payment gateway and e-GIRO integration is at eighty percent, season sync at seventy, the five reports at fifty, and the credit and sale note upload to Nav at thirty." },
+    { "id": "dog1", "text": "Watch Dog monitoring is live at every SSG car park, and the rollout at Ehub has started, at ten percent." },
+    { "id": "dog2", "text": "On the O-P-Cs, UltraVNC will replace RealVNC, which needs a licence." },
+    { "id": "dog3", "text": "And at Ehub, Carbon Black will be uninstalled, as its licence has expired." },
+    { "id": "next1", "text": "Next: collect the U-A-T results and deploy phase one, finish the payment gateway and season sync, and continue the Ehub rollout." },
+    { "id": "next2", "text": "Then switch to UltraVNC, and remove Carbon Black." },
+    { "id": "end", "text": "Thank you." }
+  ]
+}

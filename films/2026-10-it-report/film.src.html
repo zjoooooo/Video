@@ -1,0 +1,416 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>IT Department Progress Update, October 2026</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #111; }
+  canvas { display: block; width: 100vw; height: 100vh; object-fit: contain; }
+</style>
+</head>
+<body>
+<canvas id="c" width="1920" height="1080"></canvas>
+<script>
+'use strict';
+// Frame contract: window.DURATION (seconds) and async window.seek(t); every value is a pure function of t
+// and render() resets the canvas each frame. Content follows Mgt_meeting_Justin_13th Oct-2026.pptx;
+// timing comes from timeline.json, which plan.py lays out around the narration.
+// Open film.html#play for a live preview; the renderer never uses that path.
+
+const TL = JSON.parse(__TEXT:timeline.json__), CUE = TL.cue, SC = TL.scenes;
+const W = 1920, H = 1080, DURATION = TL.duration, BEAT = 60 / TL.bpm;
+const cv = document.getElementById('c');
+const ctx = cv.getContext('2d');
+
+// ---- tunables: the deck's colours; Georgia and Helvetica Neue stand in for Cambria and Calibri ----
+const C = { paper: '#FFFFFF', panel: '#F7F7F7', ink: '#2B2B2B', gray: '#6E6E6E', faint: '#D8D8D8', line: '#E2E2E2',
+            green: '#1B6B50', blue: '#1F6A94', red: '#C21400', slate: '#5A5A5A', brand: '#E41E26', accent: '#F81B02' };
+const HEAD = 'Georgia, "Times New Roman", serif';
+const BODY = '"Helvetica Neue", Helvetica, Arial, sans-serif';
+const MX = 100, CW = 1720;               // content left edge and width
+const SEAM = 0.3;
+const POP = [3.2, 0.7], MOVE = [2.2, 0.85];
+
+// ---- time toolkit ---------------------------------------------------------------------------
+const clamp = (x, a = 0, b = 1) => (x < a ? a : x > b ? b : x);
+const prog = (t, a, b) => clamp((t - a) / (b - a));
+const lerp = (a, b, u) => a + (b - a) * u;
+const outExpo = u => (u >= 1 ? 1 : 1 - Math.pow(2, -10 * u));
+const inExpo = u => (u <= 0 ? 0 : Math.pow(2, 10 * u - 10));
+const inOutExpo = u => (u <= 0 ? 0 : u >= 1 ? 1 : u < 0.5 ? Math.pow(2, 20 * u - 10) / 2 : (2 - Math.pow(2, -20 * u + 10)) / 2);
+const outCubic = u => 1 - Math.pow(1 - u, 3);
+const inOutCubic = u => (u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2);
+function spring(t, f = 3, z = 0.7) {
+  if (t <= 0) return 0;
+  const w = 2 * Math.PI * f;
+  if (z < 1) { const wd = w * Math.sqrt(1 - z * z);
+    return 1 - Math.exp(-z * w * t) * (Math.cos(wd * t) + (z * w / wd) * Math.sin(wd * t)); }
+  return 1 - Math.exp(-w * t) * (1 + w * t);
+}
+
+// ---- drawing helpers (scenes read the local time `t`) ---------------------------------------------
+let t = 0;
+const font = (size, w = 600, f = BODY) => { ctx.font = `${w} ${size}px ${f}`; };
+const bg = (c = C.paper) => { ctx.fillStyle = c; ctx.fillRect(0, 0, W, H); };
+function dot(x, y, r, c) { if (r <= 0) return; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fillStyle = c; ctx.fill(); }
+function rr(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect(x, y, w, h, r); }
+function line(x0, y0, x1, y1, c, w) { ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.strokeStyle = c; ctx.lineWidth = w; ctx.lineCap = 'round'; ctx.stroke(); }
+function label(str, x, y, size, o = {}) {
+  const { w = 500, c = C.ink, align = 'left', f = BODY } = o;
+  font(size, w, f); ctx.fillStyle = c; ctx.textAlign = align; ctx.textBaseline = 'alphabetic'; ctx.fillText(str, x, y);
+}
+function width(str, size, w = 500, f = BODY) { font(size, w, f); return ctx.measureText(str).width; }
+// words rise from under the baseline inside a clip and leave upward
+function rise(str, x, y, size, o = {}) {
+  const { w = 700, c = C.ink, align = 'left', at = 0, out = 1e9, gap = 0.05, dur = 0.7, f = HEAD } = o;
+  if (t < at || t > out + 1) return;
+  font(size, w, f);
+  const words = str.split(' '), sp = ctx.measureText(' ').width, ws = words.map(s => ctx.measureText(s).width);
+  const total = ws.reduce((a, b) => a + b, 0) + sp * (words.length - 1);
+  let cx = align === 'center' ? x - total / 2 : align === 'right' ? x - total : x;
+  ctx.save(); ctx.beginPath(); ctx.rect(cx - 16, y - size * 1.05, total + 32, size * 1.4); ctx.clip();
+  ctx.fillStyle = c; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  words.forEach((s, i) => {
+    const a = outExpo(prog(t, at + i * gap, at + i * gap + dur)), b = inExpo(prog(t, out + i * gap * 0.5, out + i * gap * 0.5 + 0.3));
+    if (a > 0 && b < 1) ctx.fillText(s, cx, y + (1 - a) * size * 1.3 - b * size * 1.3);
+    cx += ws[i] + sp;
+  });
+  ctx.restore();
+}
+function pill(str, x, cy, c, s = 1, size = 20, align = 'left') {      // a status chip; x is its left (or right) edge
+  if (s <= 0) return;
+  font(size, 700, BODY); ctx.save(); ctx.letterSpacing = '1px';
+  const w = ctx.measureText(str).width + size * 1.8, h = size * 2;
+  const x0 = align === 'right' ? x - w : x;
+  ctx.translate(x0 + w / 2, cy); ctx.scale(s, s);
+  rr(-w / 2, -h / 2, w, h, h / 2); ctx.fillStyle = c; ctx.fill();
+  ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(str, 0, 1);
+  ctx.restore();
+}
+function check(x, y, s, at, c = '#fff') {                          // a stroke-drawn tick
+  const p = outCubic(prog(t, at, at + 0.3)); if (p <= 0) return;
+  const a = [x - 0.45 * s, y + 0.02 * s], b = [x - 0.12 * s, y + 0.34 * s], d = [x + 0.48 * s, y - 0.32 * s];
+  const p1 = clamp(p / 0.4), p2 = clamp((p - 0.4) / 0.6);
+  ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(lerp(a[0], b[0], p1), lerp(a[1], b[1], p1));
+  if (p2 > 0) ctx.lineTo(lerp(b[0], d[0], p2), lerp(b[1], d[1], p2));
+  ctx.strokeStyle = c; ctx.lineWidth = s * 0.2; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.stroke();
+}
+// a card rises into place; returns its reveal 0..1 so content can follow
+function card(x, y, w, h, at, o = {}) {
+  const { fill = C.panel, bar = null, border = null } = o;
+  const e = outExpo(prog(t, at, at + 0.6)); if (e <= 0) return 0;
+  ctx.save(); ctx.globalAlpha = e; ctx.translate(0, (1 - e) * 30);
+  rr(x, y, w, h, 14); ctx.fillStyle = fill; ctx.fill();
+  if (border) { ctx.strokeStyle = border; ctx.lineWidth = 2; ctx.stroke(); }
+  if (bar) { ctx.save(); rr(x, y, w, h, 14); ctx.clip(); ctx.fillStyle = bar; ctx.fillRect(x, y, 8, h); ctx.restore(); }
+  ctx.restore();
+  return e;
+}
+function bar(x, y, w, h, frac, c, at, dur = 1.0) {                 // a track and a fill that grows to frac
+  rr(x, y, w, h, h / 2); ctx.fillStyle = '#E6E6E6'; ctx.fill();
+  const u = frac * outCubic(prog(t, at, at + dur));
+  if (u > 0) { rr(x, y, Math.max(w * u, h), h, h / 2); ctx.fillStyle = c; ctx.fill(); }
+  return u;
+}
+const L = (cueTime, scene) => cueTime - SC[scene];               // a cue in a scene's local time
+
+// ---- the deck's page chrome: title, red rule, logo ----------------------------------------------------
+let chromeOn = true;
+function chrome() {
+  ctx.fillStyle = C.brand; ctx.fillRect(0, 168, 1600, 6); ctx.fillRect(1880, 168, 40, 6);
+  logo(1742, 98, 210);
+}
+function logo(cx, cy, w, s = 1) {
+  if (s <= 0) return;
+  const h = w * LOGO.height / LOGO.width;
+  ctx.save(); ctx.imageSmoothingQuality = 'high'; ctx.translate(cx, cy); ctx.scale(s, s);
+  ctx.drawImage(LOGO, -w / 2, -h / 2, w, h); ctx.restore();
+}
+const heading = (str) => rise(str, MX, 128, 62, { at: 0.15 });
+
+// ---- scenes ------------------------------------------------------------------------------------
+function sTitle() {
+  const u = inOutCubic(prog(t, 0.2, 1.4));
+  ctx.fillStyle = C.brand; ctx.fillRect(0, 168, 1600 * u, 6);
+  if (u >= 1) ctx.fillRect(1880, 168, 40, 6);
+  logo(1742, 98, 210, spring(t - 0.6, ...POP));
+  rise('IT Department', W / 2, 560, 132, { align: 'center', w: 700, at: 1.0 });
+  rise('Progress Update  ·  Justin  ·  13 October 2026', W / 2, 660, 42, { align: 'center', w: 400, f: BODY, c: C.gray, at: 2.4, gap: 0.04 });
+}
+
+const CARDS = [
+  { n: 10, c: C.slate, name: 'Works tracked', lines: [], at: 'count' },
+  { n: 4, c: C.green, name: 'Completed', lines: ['WMS to Azure · Central Reports', 'QMS enhancement · Res24 rebrand'], at: 'done' },
+  { n: 3, c: C.blue, name: 'In progress', lines: ['WMS change request ph. 1 · Season portal', 'Watch Dog (SSG done, Ehub 10%)'], at: 'prog' },
+  { n: 3, c: C.red, name: 'Pending / planned', lines: ['WMS change request ph. 2 (0%)', 'UltraVNC · Carbon Black removal'], at: 'plan' },
+];
+const HIGHLIGHTS = [['WMS migrated to the Azure cloud', 'Done, 22 – 24 Sep'],
+                    ['Watch Dog live at all SSG car parks', 'Ehub rollout started (10%)'],
+                    ['New season portal at 72% overall', 'Extension, rebrand and logo alignment done']];
+function sStatus() {
+  heading('Status at a Glance');
+  const cw = 404, gap = 34;
+  CARDS.forEach((k, i) => {
+    const at = L(CUE[k.at], 'status'), x = MX + i * (cw + gap), y = 230;
+    const e = card(x, y, cw, 270, at - 0.3, { bar: k.c }); if (e <= 0) return;
+    const n = i === 0 ? Math.round(k.n * outCubic(prog(t, at, at + 1.2))) : k.n;
+    ctx.save(); ctx.globalAlpha = e;
+    const s = i === 0 ? 1 : spring(t - at, ...POP);
+    ctx.save(); ctx.translate(x + 44, y + 120); ctx.scale(s, s); label(String(n), 0, 0, 104, { w: 700, c: k.c, f: HEAD }); ctx.restore();
+    label(k.name, x + 44, y + 172, 30, { w: 500 });
+    k.lines.forEach((l, j) => label(l, x + 44, y + 214 + j * 30, 21, { c: C.gray }));
+    ctx.restore();
+  });
+  const hl = CUE.hl.map(c => L(c, 'status'));
+  rise('Highlights', MX, 580, 36, { at: hl[0] - 0.7 });
+  HIGHLIGHTS.forEach(([a, b], i) => {
+    const y = 610 + i * 128;
+    const e = card(MX, y, CW, 104, hl[i], { fill: '#fff', border: C.line, bar: C.green }); if (e <= 0) return;
+    ctx.save(); ctx.globalAlpha = e; ctx.translate(0, (1 - e) * 30);
+    label(a, MX + 48, y + 64, 32, { w: 600 });
+    label(b, MX + CW - 40, y + 64, 28, { w: 600, c: C.green, align: 'right' });
+    ctx.restore();
+  });
+}
+
+const STEPS = [
+  { date: '22 – 24 Sep', c: C.green, chip: 'COMPLETED', text: ['WMS migrated to the', 'Azure cloud server.'], at: 'wms1' },
+  { date: '1 – 7 Oct', c: C.blue, chip: 'IN PROGRESS', text: ['Change request phase 1 UAT', 'ran 1 – 7 Oct; awaiting the', 'users’ result.'], at: 'wms2' },
+  { date: 'Next', c: C.slate, chip: 'NEXT', text: ['Deploy phase 1 to the', 'production (PRO) Azure', 'cloud server.'], at: 'wms3' },
+];
+function sWms() {
+  heading('WMS Migration & Change Requests');
+  const xs = [MX + 280, W / 2, MX + CW - 280], y = 340;
+  const tr = outExpo(prog(t, 0.2, 0.9));
+  if (tr > 0) line(xs[0], y, lerp(xs[0], xs[2], tr), y, C.faint, 6);
+  const g = inOutCubic(prog(t, L(CUE.wms2, 'wms') - 0.2, L(CUE.wms2, 'wms') + 0.6));
+  if (g > 0) line(xs[0], y, lerp(xs[0], xs[1], g), y, C.green, 6);
+  const cw = (CW - 2 * 40) / 3;
+  STEPS.forEach((st, i) => {
+    const at = L(CUE[st.at], 'wms');
+    rise(st.date, xs[i], y - 44, 38, { align: 'center', c: st.c, at: at - 0.1 });
+    dot(xs[i], y, 22 * spring(t - at, ...POP), st.c);
+    if (i === 0) check(xs[i], y, 22, at + 0.15);
+    const x = MX + i * (cw + 40), cy = 420;
+    const e = card(x, cy, cw, 300, at + 0.1, { bar: st.c }); if (e <= 0) return;
+    ctx.save(); ctx.globalAlpha = e; ctx.translate(0, (1 - e) * 30);
+    pill(st.chip, x + 44, cy + 58, st.c, 1, 20);
+    st.text.forEach((l, j) => label(l, x + 44, cy + 130 + j * 42, 31));
+    if (i === 1) {                                    // phase 1 overall: 25%
+      bar(x + 44, cy + 262, cw - 160, 12, 0.25, C.blue, at + 0.6);
+      label('25%', x + cw - 44, cy + 274, 26, { w: 700, c: C.blue, align: 'right' });
+    }
+    ctx.restore();
+  });
+  const at4 = L(CUE.wms4, 'wms');
+  const e = card(MX, 770, CW, 170, at4 - 0.2, { bar: C.accent }); if (e <= 0) return;
+  ctx.save(); ctx.globalAlpha = e; ctx.translate(0, (1 - e) * 30);
+  label('Change request phase 2', MX + 48, 842, 36, { w: 700, f: HEAD });
+  label('Not started yet (0%); it follows phase 1 going live in production.', MX + 48, 898, 30, { c: C.gray });
+  ctx.restore();
+}
+
+const DONE = [
+  ['Central Reports Server', 'Central Reports server deployed for the car parks under Re Sustainability Solutions.'],
+  ['QMS Enhancement', 'Inventory list with prices in QMS · service items as qty × price · admin report enhanced.'],
+  ['T24 Season Portal Rebranded to Res24', 'Extended, with a new logo, company header and email, 2C2P company name and SSL key.'],
+];
+function sDone() {
+  heading('Also Completed This Month');
+  DONE.forEach(([a, b], i) => {
+    const at = L(CUE.rows[i], 'done'), y = 240 + i * 250;
+    const e = card(MX, y, CW, 216, at - 0.2, { bar: C.green }); if (e <= 0) return;
+    ctx.save(); ctx.globalAlpha = e; ctx.translate(0, (1 - e) * 30);
+    label(a, MX + 52, y + 92, 44, { w: 700, f: HEAD });
+    label(b, MX + 52, y + 150, 28, { c: C.gray });
+    dot(MX + CW - 90, y + 108, 34 * spring(t - (at + 0.3), ...POP), C.green);
+    check(MX + CW - 90, y + 108, 32, at + 0.45);
+    ctx.restore();
+  });
+}
+
+const ITEMS = [
+  { k: 'a', name: 'Season portal extension & rebrand', sub: 'Completed.', pct: 100, at: 'a' },
+  { k: 'b', name: 'Payment gateway & eGIRO integration for DBS', sub: 'In progress.', pct: 80, at: 'b' },
+  { k: 'c', name: 'Season sync program', sub: 'In progress.', pct: 70, at: 'c' },
+  { k: 'd', name: 'Company header & logo alignment', sub: 'Completed.', pct: 100, at: 'd' },
+  { k: 'e', name: 'Credit note & sale note data upload to NAV', sub: 'In progress.', pct: 30, at: 'e' },
+  { k: 'f', name: 'Five reports', sub: 'GST current bills · Collection · Audit · Payment details · Refund details', pct: 50, at: 'f' },
+];
+function sPortal() {
+  heading('New Season Portal');
+  const ring = L(CUE.ring, 'portal');
+  const e0 = card(MX, 230, 460, 770, 0.2, { bar: C.blue });
+  if (e0 > 0) {
+    ctx.save(); ctx.globalAlpha = e0;
+    label('Overall progress', MX + 50, 300, 32, { w: 700, f: HEAD });
+    const cx = MX + 230, cy = 560, R = 150, u = outCubic(prog(t, ring, ring + 1.6));
+    ctx.lineCap = 'round'; ctx.lineWidth = 30;
+    ctx.beginPath(); ctx.arc(cx, cy, R, 0, 7); ctx.strokeStyle = '#E6E6E6'; ctx.stroke();
+    if (u > 0) { ctx.beginPath(); ctx.arc(cx, cy, R, -Math.PI / 2, -Math.PI / 2 + u * 0.72 * Math.PI * 2); ctx.strokeStyle = C.blue; ctx.stroke(); }
+    label(Math.round(72 * u) + '%', cx, cy + 34, 96, { w: 700, f: HEAD, c: C.blue, align: 'center' });
+    label('Average of sub-items a – f', cx, 790, 26, { c: C.gray, align: 'center' });
+    ctx.restore();
+  }
+  ITEMS.forEach((it, i) => {
+    const y = 230 + i * 128, x = MX + 500, w = CW - 500, at = L(CUE[it.at], 'portal');
+    const e = card(x, y, w, 112, ring + 0.3 + i * 0.12, { bar: it.pct === 100 ? C.green : C.blue }); if (e <= 0) return;
+    ctx.save(); ctx.globalAlpha = e; ctx.translate(0, (1 - e) * 30);
+    const col = it.pct === 100 ? C.green : C.blue;
+    dot(x + 56, y + 56, 24, col); label(it.k, x + 56, y + 65, 26, { w: 700, c: '#fff', align: 'center', f: HEAD });
+    label(it.name, x + 104, y + 50, 30, { w: 700, f: HEAD });
+    label(it.sub, x + 104, y + 88, 21, { c: C.gray });
+    const u = bar(x + w - 360, y + 50, 220, 14, it.pct / 100, col, at, 0.9);   // leaves room for "100%"
+    label(Math.round(100 * u) + '%', x + w - 36, y + 64, 28, { w: 700, c: col, align: 'right' });
+    ctx.restore();
+  });
+}
+
+function sDog() {
+  heading('Watch Dog Rollout & Other Enhancements');
+  [['SSG Car Parks', 100, C.green, 'COMPLETED', 'Deployed to all SSG car parks.', 'ssg'],
+   ['Ehub Car Park', 10, C.blue, 'IN PROGRESS', 'Rollout started.', 'ehub']].forEach(([name, pct, col, chip, status, k], i) => {
+    const at = L(CUE[k], 'dog'), x = MX + i * (CW / 2 + 20), w = CW / 2 - 20, y = 230;
+    const e = card(x, y, w, 330, at - 0.2, { bar: col }); if (e <= 0) return;
+    ctx.save(); ctx.globalAlpha = e; ctx.translate(0, (1 - e) * 30);
+    label(name, x + 48, y + 74, 42, { w: 700, f: HEAD });
+    label('Watch Dog monitoring rollout', x + 48, y + 118, 26, { c: C.gray });
+    const u = bar(x + 48, y + 210, w - 96, 16, pct / 100, col, at + 0.2, 1.4);
+    label(Math.round(100 * u) + '%', x + w - 48, y + 96, 84, { w: 700, f: HEAD, c: col, align: 'right' });
+    pill(chip, x + 48, y + 168, col, spring(t - (at + 0.3), ...POP), 18);
+    label('Status', x + 48, y + 272, 24, { w: 700, c: col });
+    label(status, x + 48, y + 308, 26);
+    ctx.restore();
+  });
+  const vnc = L(CUE.vnc, 'dog'), cb = L(CUE.cb, 'dog');
+  const e = card(MX, 610, CW, 330, vnc - 0.3, { bar: C.accent }); if (e <= 0) return;
+  ctx.save(); ctx.globalAlpha = e; ctx.translate(0, (1 - e) * 30);
+  label('Other enhancements', MX + 48, 690, 38, { w: 700, f: HEAD });
+  [['OPC remote access', 'Install UltraVNC to replace RealVNC (RealVNC needs a licence).', vnc],
+   ['Ehub car park', 'Uninstall Carbon Black (licence expired, no longer used).', cb]].forEach(([a, b, at2], j) => {
+    const s = outExpo(prog(t, at2, at2 + 0.6)); if (s <= 0) return;
+    ctx.save(); ctx.globalAlpha = s; ctx.translate((1 - s) * 40, 0);
+    const y = 770 + j * 92;
+    dot(MX + 62, y - 10, 9, C.slate);
+    label(a, MX + 90, y, 30, { w: 700 });
+    label(b, MX + 90 + width(a + '  ', 30, 700), y, 30, { c: C.gray });
+    ctx.restore();
+  });
+  ctx.restore();
+}
+
+const ACTIONS = [
+  ['This week', C.blue, 'WMS change request phase 1: collect UAT results, then deploy to production.'],
+  ['Ongoing', C.slate, 'Season portal: finish the DBS payment gateway & eGIRO (80%) and season sync (70%).'],
+  ['Ongoing', C.slate, 'Season portal: credit note & sale note upload to NAV (30%) and the five reports (50%).'],
+  ['Ongoing', C.slate, 'Watch Dog: continue the rollout at Ehub car park (10%).'],
+  ['Next', C.slate, 'OPC: install UltraVNC to replace RealVNC.'],
+  ['Next', C.slate, 'Ehub car park: uninstall Carbon Black (licence expired).'],
+];
+function sNext() {
+  heading('Next Steps');
+  rise('Immediate Actions', MX, 250, 34, { at: 0.4 });
+  ACTIONS.forEach(([tag, col, text], i) => {
+    const at = L(CUE.n[i], 'next'), y = 285 + i * 122;
+    const e = card(MX, y, CW, 100, at - 0.2, { fill: '#fff', border: C.line, bar: col }); if (e <= 0) return;
+    ctx.save(); ctx.globalAlpha = e; ctx.translate(0, (1 - e) * 30);
+    label(tag, MX + 44, y + 62, 30, { w: 700, f: HEAD, c: col });
+    label(text, MX + 260, y + 61, 29);
+    ctx.restore();
+  });
+}
+
+function sEnd() {
+  logo(W / 2, 320, 300, spring(t - 0.1, 2.6, 0.75));
+  rise('Thank you', W / 2, 640, 128, { align: 'center', at: L(CUE.thanks, 'end') - 0.3 });
+  rise('IT Department  ·  13 October 2026', W / 2, 740, 40, { align: 'center', w: 400, f: BODY, c: C.gray, at: L(CUE.thanks, 'end') + 0.5, gap: 0.04 });
+}
+
+// ---- compositor ---------------------------------------------------------------------------------------
+const SCENES = [
+  { t0: SC.title, draw: sTitle }, { t0: SC.status, draw: sStatus, chrome: 1 }, { t0: SC.wms, draw: sWms, chrome: 1 },
+  { t0: SC.done, draw: sDone, chrome: 1 }, { t0: SC.portal, draw: sPortal, chrome: 1 }, { t0: SC.dog, draw: sDog, chrome: 1 },
+  { t0: SC.next, draw: sNext, chrome: 1 }, { t0: SC.end, draw: sEnd },
+];
+// geometry, not crossfades; no two neighbours alike
+const SEAMS = [{ type: 'wipe' }, { type: 'push', dx: -1 }, { type: 'strips' }, { type: 'push', dx: -1 }, { type: 'wipe' },
+               { type: 'push', dx: -1 }, { type: 'iris', at: [W / 2, 560] }];
+const far = (x, y) => Math.hypot(Math.max(x, W - x), Math.max(y, H - y)) * 1.04;
+
+function drawScene(i, T) {
+  t = T - SCENES[i].t0;
+  const len = (SCENES[i + 1] ? SCENES[i + 1].t0 : DURATION) - SCENES[i].t0;
+  const z = 1 + 0.03 * inOutCubic(prog(t, 0, len + SEAM));   // a slow push keeps a held page alive; the chrome stays put
+  ctx.save(); bg();
+  ctx.save(); ctx.translate(W / 2, 640); ctx.scale(z, z); ctx.translate(-W / 2, -640); SCENES[i].draw(); ctx.restore();
+  if (SCENES[i].chrome && chromeOn) chrome();
+  ctx.restore();
+}
+function transition(k, T) {
+  const s = SEAMS[k], cut = SCENES[k + 1].t0, u = prog(T, cut - SEAM, cut + SEAM), e = inOutExpo(u);
+  const A = () => drawScene(k, T), B = () => drawScene(k + 1, T);
+  const shared = SCENES[k].chrome && SCENES[k + 1].chrome;   // the page chrome stays still while content moves
+  chromeOn = !shared;
+  if (s.type === 'push') {
+    ctx.save(); ctx.translate(s.dx * e * W, 0); A(); ctx.restore();
+    ctx.save(); ctx.translate(-s.dx * (1 - e) * W, 0); B(); ctx.restore();
+  } else if (s.type === 'wipe') {
+    A();
+    const slant = 420, xc = lerp(-slant, W + slant, e), xt = xc + slant / 2, xb = xc - slant / 2;
+    ctx.save(); ctx.beginPath(); ctx.moveTo(-10, -10); ctx.lineTo(xt, -10); ctx.lineTo(xb, H + 10); ctx.lineTo(-10, H + 10); ctx.closePath();
+    ctx.clip(); B(); ctx.restore();
+    if (u > 0 && u < 1) line(xt, -10, xb, H + 10, C.brand, 8);
+  } else if (s.type === 'strips') {
+    A();
+    const N = 12, sw = W / N;
+    ctx.save(); ctx.beginPath();
+    for (let i = 0; i < N; i++) {
+      const h = inOutExpo(clamp((u - i * 0.03) / (1 - (N - 1) * 0.03))) * H;
+      if (h > 0) ctx.rect(i * sw, i % 2 ? H - h : 0, sw + 0.5, h);
+    }
+    ctx.clip(); B(); ctx.restore();
+  } else if (s.type === 'iris') {
+    A();
+    const [x, y] = s.at, r = e * far(x, y);
+    if (r > 0) { ctx.save(); ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.clip(); B(); ctx.restore();
+      if (u < 1) { ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.strokeStyle = C.brand; ctx.lineWidth = 8; ctx.stroke(); } }
+  }
+  chromeOn = true;
+  if (shared) chrome();
+}
+function render(T) {
+  T = clamp(T, 0, DURATION);
+  ctx.reset(); bg();
+  for (let k = 0; k < SEAMS.length; k++) {
+    const cut = SCENES[k + 1].t0;
+    if (T >= cut - SEAM && T < cut + SEAM) return transition(k, T);
+  }
+  let i = SCENES.length - 1;
+  while (i > 0 && T < SCENES[i].t0) i--;
+  drawScene(i, T);
+}
+
+// ---- events: the cuts, for render.mjs --check (the score is composed from timeline.json by music.py) ----
+const EVENTS = { bpm: TL.bpm, duration: DURATION, cuts: SCENES.slice(1).map((s, k) => [s.t0, SEAMS[k].type]) };
+
+// ---- boot ------------------------------------------------------------------------------------------
+const LOGO = new Image();
+LOGO.src = 'data:image/png;base64,__ASSET:assets/logo-red.png__';
+window.DURATION = DURATION;
+window.EVENTS = EVENTS;
+window.seek = async T => render(T);
+(async () => {
+  await LOGO.decode();
+  await Promise.all([[400, BODY], [500, BODY], [600, BODY], [700, BODY], [700, HEAD]].map(([w, f]) => document.fonts.load(`${w} 40px ${f}`)));
+  const q = new URLSearchParams(location.search).get('t');
+  render(q ? +q : 0);
+  window.READY = true;
+  if (location.hash === '#play') {
+    const t0 = performance.now();
+    const loop = () => { render(((performance.now() - t0) / 1000) % DURATION); requestAnimationFrame(loop); };
+    loop();
+  }
+})();
+</script>
+</body>
+</html>

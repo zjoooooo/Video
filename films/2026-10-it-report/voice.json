@@ -1,0 +1,411 @@
+{
+ "voice": "coral",
+ "lines": [
+  {
+   "id": "title",
+   "text": "IT Department progress update, for the thirteenth of October, twenty twenty-six.",
+   "dur": 6.414,
+   "phrases": [
+    [
+     0.03,
+     2.48
+    ],
+    [
+     3.18,
+     3.4
+    ],
+    [
+     3.55,
+     4.71
+    ],
+    [
+     5.24,
+     6.37
+    ]
+   ]
+  },
+  {
+   "id": "tracked",
+   "text": "This month we tracked ten pieces of work.",
+   "dur": 3.429,
+   "phrases": [
+    [
+     0.04,
+     0.6
+    ],
+    [
+     1.06,
+     1.77
+    ],
+    [
+     2.07,
+     3.33
+    ]
+   ]
+  },
+  {
+   "id": "split",
+   "text": "Four are completed, three are in progress, and three are planned.",
+   "dur": 5.071,
+   "phrases": [
+    [
+     0.04,
+     1.27
+    ],
+    [
+     1.87,
+     3.24
+    ],
+    [
+     3.78,
+     4.96
+    ]
+   ]
+  },
+  {
+   "id": "highlights",
+   "text": "The highlights: WMS now runs on the Azure cloud, Watch Dog covers every SSG car park, and the new season portal is seventy-two percent done.",
+   "dur": 10.039,
+   "phrases": [
+    [
+     0.04,
+     0.81
+    ],
+    [
+     1.29,
+     3.64
+    ],
+    [
+     4.19,
+     6.48
+    ],
+    [
+     7.12,
+     8.33
+    ],
+    [
+     8.54,
+     9.99
+    ]
+   ]
+  },
+  {
+   "id": "wms1",
+   "text": "WMS moved to the Azure cloud from the twenty-second to the twenty-fourth of September.",
+   "dur": 4.93,
+   "phrases": [
+    [
+     0.09,
+     4.87
+    ]
+   ]
+  },
+  {
+   "id": "wms2",
+   "text": "Change request phase one went through user testing from the first to the seventh of October.",
+   "dur": 5.413,
+   "phrases": [
+    [
+     0.02,
+     1.61
+    ],
+    [
+     1.96,
+     3.59
+    ],
+    [
+     3.74,
+     5.31
+    ]
+   ]
+  },
+  {
+   "id": "wms3",
+   "text": "Once the users confirm the result, we deploy it to production.",
+   "dur": 4.531,
+   "phrases": [
+    [
+     0.09,
+     0.54
+    ],
+    [
+     0.72,
+     2.56
+    ],
+    [
+     2.99,
+     4.47
+    ]
+   ]
+  },
+  {
+   "id": "wms4",
+   "text": "Phase two has not started yet.",
+   "dur": 2.087,
+   "phrases": [
+    [
+     0.07,
+     2.05
+    ]
+   ]
+  },
+  {
+   "id": "done",
+   "text": "Also completed this month: the Central Reports server, for the car parks under Re Sustainability Solutions; the QMS enhancement; and the T twenty-four season portal, now rebranded as Res twenty-four.",
+   "dur": 13.969,
+   "phrases": [
+    [
+     0.0,
+     1.46
+    ],
+    [
+     2.17,
+     3.44
+    ],
+    [
+     3.75,
+     6.66
+    ],
+    [
+     7.32,
+     8.8
+    ],
+    [
+     9.41,
+     11.38
+    ],
+    [
+     11.93,
+     13.89
+    ]
+   ]
+  },
+  {
+   "id": "portal1",
+   "text": "The new season portal is seventy-two percent complete, on average.",
+   "dur": 5.767,
+   "phrases": [
+    [
+     0.1,
+     2.09
+    ],
+    [
+     2.6,
+     4.64
+    ],
+    [
+     5.0,
+     5.72
+    ]
+   ]
+  },
+  {
+   "id": "portal2",
+   "text": "The extension and rebrand, and the header and logo alignment, are done.",
+   "dur": 5.361,
+   "phrases": [
+    [
+     0.1,
+     1.8
+    ],
+    [
+     2.35,
+     4.1
+    ],
+    [
+     4.66,
+     5.18
+    ]
+   ]
+  },
+  {
+   "id": "portal3",
+   "text": "The DBS payment gateway and e-GIRO integration is at eighty percent, season sync at seventy, the five reports at fifty, and the credit and sale note upload to Nav at thirty.",
+   "dur": 13.098,
+   "phrases": [
+    [
+     0.04,
+     0.24
+    ],
+    [
+     0.39,
+     1.98
+    ],
+    [
+     2.24,
+     4.92
+    ],
+    [
+     5.55,
+     6.27
+    ],
+    [
+     6.45,
+     7.0
+    ],
+    [
+     7.65,
+     9.19
+    ],
+    [
+     9.75,
+     11.49
+    ],
+    [
+     11.68,
+     12.15
+    ],
+    [
+     12.5,
+     12.61
+    ],
+    [
+     12.76,
+     13.04
+    ]
+   ]
+  },
+  {
+   "id": "dog1",
+   "text": "Watch Dog monitoring is live at every SSG car park, and the rollout at Ehub has started, at ten percent.",
+   "dur": 7.922,
+   "phrases": [
+    [
+     0.04,
+     3.74
+    ],
+    [
+     4.46,
+     6.39
+    ],
+    [
+     6.86,
+     6.93
+    ],
+    [
+     7.08,
+     7.84
+    ]
+   ]
+  },
+  {
+   "id": "dog2",
+   "text": "On the O-P-Cs, UltraVNC will replace RealVNC, which needs a licence.",
+   "dur": 7.49,
+   "phrases": [
+    [
+     0.01,
+     1.66
+    ],
+    [
+     2.16,
+     3.31
+    ],
+    [
+     3.54,
+     5.55
+    ],
+    [
+     6.1,
+     7.45
+    ]
+   ]
+  },
+  {
+   "id": "dog3",
+   "text": "And at Ehub, Carbon Black will be uninstalled, as its licence has expired.",
+   "dur": 6.455,
+   "phrases": [
+    [
+     0.0,
+     0.49
+    ],
+    [
+     0.82,
+     1.73
+    ],
+    [
+     2.21,
+     4.37
+    ],
+    [
+     4.86,
+     6.37
+    ]
+   ]
+  },
+  {
+   "id": "next1",
+   "text": "Next: collect the U-A-T results and deploy phase one, finish the payment gateway and season sync, and continue the Ehub rollout.",
+   "dur": 10.568,
+   "phrases": [
+    [
+     0.03,
+     0.54
+    ],
+    [
+     1.0,
+     1.5
+    ],
+    [
+     1.69,
+     3.08
+    ],
+    [
+     3.39,
+     4.5
+    ],
+    [
+     5.36,
+     6.61
+    ],
+    [
+     6.87,
+     7.65
+    ],
+    [
+     8.33,
+     9.15
+    ],
+    [
+     9.4,
+     10.52
+    ]
+   ]
+  },
+  {
+   "id": "next2",
+   "text": "Then switch to UltraVNC, and remove Carbon Black.",
+   "dur": 5.03,
+   "phrases": [
+    [
+     0.12,
+     0.45
+    ],
+    [
+     0.72,
+     1.44
+    ],
+    [
+     1.75,
+     2.86
+    ],
+    [
+     3.45,
+     4.96
+    ]
+   ]
+  },
+  {
+   "id": "end",
+   "text": "Thank you.",
+   "dur": 0.603,
+   "phrases": [
+    [
+     0.07,
+     0.54
+    ]
+   ]
+  }
+ ]
+}
