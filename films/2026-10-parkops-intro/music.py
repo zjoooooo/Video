@@ -9,27 +9,23 @@ alert; a piano glissando brings the polka back, fuller, at "all clear"; it ends 
 Needs fluidsynth and MuseScore_General.sf3 (MIT; FluidR3 by Frank Wen, FluidR3Mono by Michael Cowgill,
 MuseScore_General by S. Christian Collins) in ~/Library/Audio/Sounds/Banks.
 """
-import json, pathlib, random, re, struct, subprocess, sys, wave
-import numpy as np
+import json, pathlib, sys
 
 HERE = pathlib.Path(__file__).parent
 ROOT = HERE.parent.parent
+sys.path.insert(0, str(ROOT / "scripts"))
+from narrated import BEAT, BAR, Score, mix, pitch, render
+
 OUT = pathlib.Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "out/parkops-intro.wav"
-FONT = pathlib.Path.home() / "Library/Audio/Sounds/Banks/MuseScore_General.sf3"
 TL = json.loads((HERE / "timeline.json").read_text())
 CUE, DUR = TL["cue"], TL["duration"]
-BEAT, BAR, SR = 0.5, 2.0, 48000
-rnd = random.Random(7)                                   # seeded: the same timeline gives the same score
+score = Score(seed=7)
+note = score.note
 
 # ---- instruments (General MIDI programs; channel 9 is percussion) -------------------------
 PIANO, PIZZ, CELESTA, TUBA, GLOCK = 0, 1, 2, 3, 4
 PROGRAM = {PIANO: 0, PIZZ: 45, CELESTA: 8, TUBA: 58, GLOCK: 9}
 WOOD = 76                                                # hi wood block on channel 9
-
-NAMES = {"C": 0, "D": 2, "E": 4, "F": 5, "G": 7, "A": 9, "B": 11}
-def pitch(n):                                            # "F#4" -> 66
-    m = re.fullmatch(r"([A-G])([#b]?)(-?\d)", n)
-    return 12 * (int(m[3]) + 1) + NAMES[m[1]] + {"#": 1, "b": -1, "": 0}[m[2]]
 
 CHORDS = {   # bass root, bass fifth, right-hand "pah" voicing
     "G": ("G2", "D2", ["B3", "D4", "G4"]), "C": ("C3", "G2", ["C4", "E4", "G4"]),
@@ -47,11 +43,6 @@ TUNE = [
     ("G",  [("B5", 1), ("A5", 1), ("G5", 1), ("D5", 1), ("E5", 1), ("F#5", 1), ("G5", 2)]),
     ("G",  [("G5", 2), ("D5", 2), ("G4", 3), (None, 1)]),
 ]
-
-ev = []                                                  # (seconds, channel, pitch, velocity, length)
-def note(t, ch, p, vel, length, human=True):
-    if human: t += rnd.uniform(-0.006, 0.006); vel += rnd.randint(-5, 5)
-    ev.append((max(0.0, t), ch, pitch(p) if isinstance(p, str) else p, max(1, min(127, int(vel))), length))
 
 def speaking(t):                                         # quieter playing under the narrator
     return any(l["start"] - 0.3 <= t <= l["start"] + l["dur"] + 0.2 for l in TL["lines"])
@@ -129,68 +120,10 @@ for k, p in enumerate(("D5", "E5", "F#5")): note(final - 0.375 + k * 0.125, PIAN
 for p in ("G1", "G2", "D3", "B3", "D4", "G4", "B4", "G5"): note(final, PIANO, p, 104, 2.4, human=False)
 note(final, TUBA, "G1", 96, 1.2); note(final, GLOCK, "G6", 96, 1.6)
 
-# ---- a format-0 MIDI file ------------------------------------------------------------------------
-TPQ, US_PER_Q = 480, int(60e6 / 120)
-def vlq(n):
-    out = [n & 0x7F]
-    while n > 0x7F: n >>= 7; out.insert(0, (n & 0x7F) | 0x80)
-    return bytes(out)
-msgs = [(0, bytes([0xFF, 0x51, 3]) + US_PER_Q.to_bytes(3, "big"))]
-msgs += [(0, bytes([0xC0 | ch, prog])) for ch, prog in PROGRAM.items()]
-for t, ch, p, vel, length in ev:
-    on, off = round(t * 2 * TPQ), round((t + length) * 2 * TPQ)
-    msgs += [(on, bytes([0x90 | ch, p, vel])), (max(off, on + 1), bytes([0x80 | ch, p, 0]))]
-msgs.sort(key=lambda m: (m[0], m[1][0] & 0xF0 == 0x90))   # note-offs before note-ons at the same tick
-track, last = b"", 0
-for tick, m in msgs: track += vlq(tick - last) + m; last = tick
-track += vlq(0) + bytes([0xFF, 0x2F, 0])
-mid = OUT.with_suffix(".mid")
-mid.write_bytes(b"MThd" + struct.pack(">IHHH", 6, 0, 1, TPQ) + b"MTrk" + struct.pack(">I", len(track)) + track)
-
-# ---- render, then mix under the narration ----------------------------------------------------------------
-music_wav = OUT.with_suffix(".music.wav")
-subprocess.run(["fluidsynth", "-ni", "-q", "-g", "0.6", "-r", str(SR), "-F", str(music_wav), str(FONT), str(mid)], check=True)
-def read(path):
-    with wave.open(str(path)) as w:
-        x = np.frombuffer(w.readframes(w.getnframes()), np.int16).astype(np.float32) / 32768
-        return x.reshape(-1, w.getnchannels())
-N = int(DUR * SR)
-music = np.zeros((N, 2), np.float32); m = read(music_wav)[:N]; music[: len(m)] = m
-voice = np.zeros(N, np.float32)
-vdir = ROOT / f"out/{HERE.name}.voice"
-for l in TL["lines"]:
-    clip = vdir / f"{l['id']}.wav"
-    if TL["estimated"] or not clip.exists(): continue
-    x = read(clip)[:, 0]; i = int(l["start"] * SR); x = x[: N - i]
-    voice[i: i + len(x)] += x
-# ducking: the music dips under speech (fast down, slower up)
-env = np.abs(voice); k = int(0.01 * SR)
-env = np.convolve(env, np.ones(k) / k, mode="same")
-target = np.where(env > 0.01, 0.42, 1.0).astype(np.float32)
-gain = np.empty_like(target); g = 1.0
-down, up = 1 - np.exp(-1 / (0.06 * SR)), 1 - np.exp(-1 / (0.45 * SR))
-for i, v in enumerate(target):                           # ponytail: per-sample loop, ~3 s for a minute; vectorise if films get long
-    g += (v - g) * (down if v < g else up); gain[i] = g
-bed = music * gain[:, None] * 0.9
-mix = bed + voice[:, None] * 1.0
-talk = env > 0.01                                        # how far the voice sits above the music while it speaks
-db = lambda x: 10 * np.log10(np.mean(x ** 2) + 1e-12)
-clarity = db(voice[talk]) - db(bed[talk].mean(axis=1)) if talk.any() else float("nan")
-tail = int(1.5 * SR); mix[-tail:] *= np.linspace(1, 0, tail)[:, None] ** 2
-raw = OUT.with_suffix(".raw.wav")
-with wave.open(str(raw), "wb") as w:
-    w.setnchannels(2); w.setsampwidth(2); w.setframerate(SR)
-    w.writeframes((np.clip(mix / max(1e-9, np.abs(mix).max()) * 0.89, -1, 1) * 32767).astype("<i2").tobytes())
-
-def loudness(path):
-    p = subprocess.run(["ffmpeg", "-hide_banner", "-i", str(path), "-af", "loudnorm=I=-14:TP=-1.5:print_format=json", "-f", "null", "-"],
-                       capture_output=True, text=True, check=True)
-    j = json.loads(re.findall(r"\{[^{}]*\}", p.stderr)[-1]); return float(j["input_i"]), float(j["input_tp"])
-I0, _ = loudness(raw)
-subprocess.run(["ffmpeg", "-y", "-v", "error", "-i", str(raw), "-af",
-                f"volume={-14 - I0:.2f}dB,alimiter=limit=0.7:attack=1:release=50:level=0:latency=1", "-ar", str(SR), str(OUT)], check=True)
-I, TP = loudness(OUT)
-if abs(I + 14) > 0.5 or TP > -1.5:
-    print(f"warning: the master measures {I} LUFS and {TP} dBTP; the target is -14 LUFS and at most -1.5 dBTP", file=sys.stderr)
+# ---- write, render, mix under the narration ---------------------------------------------------------------
+mid, music_wav = OUT.with_suffix(".mid"), OUT.with_suffix(".music.wav")
+score.midi(mid, PROGRAM)
+render(mid, music_wav)
+I, TP, clarity = mix(music_wav, TL, ROOT / f"out/{HERE.name}.voice", OUT)
 print(f"voice sits {clarity:.1f} dB above the music while speaking")
-print(f"wrote {OUT}  ({len(ev)} notes, {I} LUFS, {TP} dBTP{', music only: narration not generated yet' if TL['estimated'] else ''})")
+print(f"wrote {OUT}  ({len(score.ev)} notes, {I} LUFS, {TP} dBTP{', music only: narration not generated yet' if TL['estimated'] else ''})")
