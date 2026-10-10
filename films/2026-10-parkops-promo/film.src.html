@@ -369,10 +369,10 @@ function sOpen() {
   const outL = watch - 0.3;
   // each caption sits at the height of what it names, and its leader ends on that thing: the PC from above,
   // the entry camera level with it, the programs row level with it; top to bottom, so no two leaders cross
-  [['A PC in the booth', pc, 400, [LX - 30, LY - 78]], ['Cameras over every lane', cams, LY - 49, [LX - 310, LY - 64]], ['Programs that must never stop', progs, LY + 205, [LX - 350, LY + 190]]].forEach(([s, a, y, [x1, y1]]) => {
+  [['A PC in the booth', pc, 380, [[LX - 120, 395], [LX - 20, LY - 80]]], ['Cameras over every lane', cams, LY - 49, [[LX - 310, LY - 64]]], ['Programs that must never stop', progs, LY + 205, [[LX - 350, LY + 190]]]].forEach(([s, a, y, pts]) => {
     rise(s, 120, y, 44, { w: 700, at: a, out: outL });
     const u = outCubic(prog(t, a + 0.2, a + 0.7)) * (1 - prog(t, outL, outL + 0.3)), x0 = 120 + width(s, 44, 700) + 24;
-    if (u > 0 && z > 0.9) { line(x0, y - 15, lerp(x0, x1, u), lerp(y - 15, y1, u), 'rgba(129,140,248,.75)', 3); if (u >= 1) dot(x1, y1, 6, C.ind); }
+    if (u > 0 && z > 0.9) { const path = [[x0, y - 15], ...pts], [ex, ey] = pts[pts.length - 1]; poly(path, 'rgba(129,140,248,.75)', 3, u); if (u >= 1) dot(ex, ey, 6, C.ind); }
   });
   // the name, and Watson waves
   const ws = spring(t - (brand + 0.1), 2.6, 0.75);
@@ -647,11 +647,12 @@ const MAPPARTS = [   // the J71 map's pieces in the shot's CSS px, in the order 
 ];
 function sMapShot(lt) {
   const T0 = t; t = lt;
-  const w = 1120, x = 400, y = 250, push = 1 + 0.03 * prog(t, 0, 5), m = onShot(MAPSRC, x, y, w);
+  const w = 1080, x = 420, y = 250, push = 1 + 0.03 * prog(t, 0, 5), m = onShot(MAPSRC, x, y, w);
   ctx.save(); ctx.translate(960, 620); ctx.scale(push, push); ctx.translate(-960, -620);
   const [cx0, cy0] = m(14, 150), [cx1, cy1] = m(890, 725);                       // the empty card first, in the page's own colour
   ctx.save(); ctx.globalAlpha *= prog(t, 0, 0.4); ctx.shadowColor = 'rgba(0,0,0,.6)'; ctx.shadowBlur = 60; ctx.shadowOffsetY = 20;
-  rr(cx0, cy0, cx1 - cx0, cy1 - cy0, 16); ctx.fillStyle = '#f3f8fa'; ctx.fill(); ctx.restore();
+  const cg = ctx.createLinearGradient(0, cy0, 0, cy1); cg.addColorStop(0, '#feffff'); cg.addColorStop(1, '#f6fafb');   // sampled from the shot
+  rr(cx0, cy0, cx1 - cx0, cy1 - cy0, 16); ctx.fillStyle = cg; ctx.fill(); ctx.restore();
   ctx.save(); ctx.beginPath();
   MAPPARTS.forEach(([[px, py, pw, ph], at]) => {
     const u = outCubic(prog(t, at + 0.2, at + 0.7)); if (u <= 0) return;
@@ -661,7 +662,7 @@ function sMapShot(lt) {
   ctx.clip(); screen('map', MAPSRC, x, y, w, { shadow: false, edge: false }); ctx.restore();
   screen('map', MAPSRC, x, y, w, { shadow: false, a: prog(t, 2.4, 3.0) });         // then the links between, all at once
   ctx.restore();
-  rise('J71 · 5 entry lanes · 6 exit lanes · 33 monitors', 960, 1040, 28, { w: 600, c: C.mute, align: 'center', at: 1.6, gap: 0.03 });
+  rise('J71 · 5 entry lanes · 6 exit lanes · 33 monitors', 960, 1020, 28, { w: 600, c: C.mute, align: 'center', at: 1.6, gap: 0.03 });
   t = T0;
 }
 const CHIPS = [   // BL3's own device names, the parts that place them, where they go
@@ -814,7 +815,7 @@ const CMDS = [['Ping a device', 'ping_test'], ['Test a port', 'port_test'], ['Re
 function sFixTools(lt) {
   const T0 = t; t = lt;
   const cmd = CUE.cmd.map(c => L(c, 'fix')), mv = inOutCubic(prog(t, cmd[0] - 0.9, cmd[0] - 0.1));
-  const w = lerp(520, 470, mv), x = lerp(700, 1300, mv), y = lerp(232, 236, mv);
+  const w = 440, x = lerp(760, 1340, mv), y = 228;          // 440 wide: the whole sheet fits above y 1000
   screen('tools', TOOLSRC, x, y, w, { a: prog(t, 0, 0.4) });
   rise('The Tools sheet', 140, 470, 56, { w: 800, at: 0.4, out: cmd[0] - 0.9 });
   rise('on every station page', 140, 530, 34, { w: 500, c: C.mute, at: 0.6, out: cmd[0] - 0.9, gap: 0.03 });
@@ -844,7 +845,7 @@ function sFixGates(lt) {
   const T0 = t; t = lt;
   const base = L(CUE.allow, 'fix'), sh = L(CUE.shell, 'fix') - base, rf = L(CUE.refused, 'fix') - base;
   const job = L(CUE.job, 'fix') - base, who = L(CUE.who, 'fix') - base, how = L(CUE.how, 'fix') - base;
-  const gone = inOutCubic(prog(t, job - 0.5, job + 0.3));
+  const gone = inOutCubic(prog(t, job - 0.1, job + 0.6));
   ctx.save(); ctx.globalAlpha *= 1 - gone; ctx.translate(0, -gone * 300);
   // card 1: restart_service, through both gates to the PC
   const u = inOutCubic(prog(t, 0.6, 3.2)), x1 = lerp(330, 1500, u), y1 = 470;
@@ -863,27 +864,28 @@ function sFixGates(lt) {
   card(x1, y1, 'restart_service', C.ok, prog(t, 0.2, 0.5) * (1 - prog(t, 3.0, 3.3)));
   if (t >= 3.2) badge(1620, 470, 34, true, 3.2);
   if (t >= sh) card(x2, y2, 'cmd.exe /c …', C.crit, prog(t, sh, sh + 0.2));
-  if (t >= 1.2) card(x3, y3, 'gpupdate', C.warn, prog(t, 1.2, 1.4) * (1 - prog(t, hit3 + 1.8, hit3 + 2.2)));
-  [[hit, 560, 572], [hit3, 990, 692]].forEach(([h, sx, sy]) => {
-    if (t < h) return;
+  const out3 = 1 - prog(t, hit3 + 1.4, hit3 + 1.8);                  // the refused chip and its stamp leave together
+  if (t >= 1.2) card(x3, y3, 'gpupdate', C.text, prog(t, 1.2, 1.4) * out3);
+  [[hit, 560, 572, 1], [hit3, 990, 692, out3]].forEach(([h, sx, sy, a]) => {
+    if (t < h || a <= 0) return;
     const s = spring(t - h, 2.6, 0.5);
-    ctx.save(); ctx.translate(sx, sy); ctx.rotate(-0.18); ctx.scale(lerp(1.8, 1, clamp(s)), lerp(1.8, 1, clamp(s))); ctx.globalAlpha *= clamp(s * 2);
+    ctx.save(); ctx.translate(sx, sy); ctx.rotate(-0.18); ctx.scale(lerp(1.8, 1, clamp(s)), lerp(1.8, 1, clamp(s))); ctx.globalAlpha *= clamp(s * 2) * a;
     rr(-120, -36, 240, 72, 10); ctx.strokeStyle = C.crit; ctx.lineWidth = 6; ctx.stroke();
     label('REFUSED', 0, 3, 40, { w: 800, c: C.crit, align: 'center', base: 'middle' }); ctx.restore();
   });
-  rise('No open shell. Twelve command types,', 140, 920, 40, { w: 800, at: rf + 0.4, out: job - 0.4 });
-  rise('and each station decides which of them it runs.', 140, 972, 32, { w: 500, c: C.mute, at: rf + 0.7, out: job - 0.4, gap: 0.03 });
+  rise('No open shell. Twelve command types,', 140, 900, 40, { w: 800, at: sh + 0.1, out: job - 0.3 });
+  rise('and each station decides which of them it runs.', 140, 952, 32, { w: 500, c: C.mute, at: sh + 0.4, out: job - 0.3, gap: 0.03 });
   ctx.restore();
   // the record of every command: the station's real Activity list
   if (gone > 0) {
-    const ACTSRC = [0, 286, 880, 150], w = 1240, x = 340, y = 560 + (1 - gone) * 300, m = onShot(ACTSRC, x, y, w);
+    const ACTSRC = [0, 290, 480, 112], w = 1200, x = 360, y = 590 + (1 - gone) * 300, m = onShot(ACTSRC, x, y, w);   // TODAY and two rows, at a readable size
     screen('activity', ACTSRC, x, y, w, { a: gone });
-    hlShot(ACTSRC, x, y, w, [6, 321, 868, 32], job + 0.5, C.ind);
-    [['what', 170, job + 0.7, 90], ['who', 296, who, 190], ['how it ended', 380, how, 90]].forEach(([s2, px, a, lift]) => {
+    hlShot(ACTSRC, x, y, w, [6, 321, 468, 32], job + 0.7, C.ind);
+    [['what', 170, job + 0.9, 110], ['who', 296, who, 110], ['how it ended', 400, how, 210]].forEach(([s2, px, a, lift]) => {
       const [sx, sy] = m(px, 320), u = outCubic(prog(t, a, a + 0.4)); if (u <= 0) return;
       line(sx, sy - 6, sx, sy - 6 - (lift - 30) * u, C.ind, 3); pill(sx, sy - lift, s2, { size: 28, c: C.ind, fill: true, s: spring(t - (a + 0.2), ...POP) });
     });
-    rise('every command, kept with its result', 340, 900, 32, { w: 600, c: C.mute, at: how + 0.4, gap: 0.03 });
+    rise('every command, kept with its result', 360, 1000, 32, { w: 600, c: C.mute, at: how + 0.4, gap: 0.03 });
   }
   t = T0;
 }
@@ -998,9 +1000,9 @@ function sGalaxy() {
   const pull = inOutCubic(prog(t, 0, 2.6)), drift = prog(t, 2.6, fly);
   const gs = lerp(4.2, 1.42, pull) * (1 + 0.04 * drift), rot = lerp(-0.25, 0, pull) + 0.02 * drift;
   const bx = 994, by = 622, jx = 1180, jy = 770;              // BJAL's beacon (critical on 10 Oct); a star tagged J71
-  const d1 = inOutCubic(prog(t, fly - 0.2, fly + 0.9)), d2 = inOutCubic(prog(t, park - 0.9, park + 0.5));
-  const cx = lerp(lerp(960, bx, d1), jx, d2), cy = lerp(lerp(600, by, d1), jy, d2), gz = gs * Math.exp(Math.log(1.5) * d1 + Math.log(3.2) * d2);
-  const cpa = prog(t, park - 0.15, park + 0.45);
+  const d1 = inOutCubic(prog(t, fly - 0.3, fly + 0.7)), d2 = inOutCubic(prog(t, park - 0.75, park - 0.05));
+  const cx = lerp(lerp(960, bx, d1), jx, d2), cy = lerp(lerp(600, by, d1), jy, d2), gz = gs * Math.exp(Math.log(3.0) * d1 + Math.log(1.6) * d2);
+  const cpa = prog(t, park - 0.05, park + 0.55);
   if (cpa < 1) { ctx.save(); ctx.globalCompositeOperation = 'lighten'; full('galaxy', cx, cy, gz, 1, rot * (1 - d1)); ctx.restore(); }   // black lifts to navy
   const toS = (px, py) => [W / 2 + (px - cx) * gz, H / 2 + (py - cy) * gz];
   if (t >= bea && t < park - 0.4) {                           // the problem sites raise beacons
@@ -1009,7 +1011,7 @@ function sGalaxy() {
       for (let j = 0; j < 2; j++) { const u = ((t - bea) * 0.8 + j * 0.5) % 1; ctx.save(); ctx.globalAlpha *= a * (1 - u); ring(sx, sy, 16 + u * 60, C.crit, 3); ctx.restore(); }
     });
   }
-  const js = spring(t - (park - 1.1), ...POP);
+  const js = spring(t - (park - 0.55), ...POP);
   if (js > 0 && cpa < 1) {                                    // J71's star, healthy, tagged as the dashboard tags a station
     const [sx, sy] = toS(jx, jy);
     ctx.save(); ctx.globalAlpha *= 1 - cpa; dot(sx, sy, 9 * js, '#eafff6'); ring(sx, sy, 20 * js, C.ok, 3);
@@ -1025,10 +1027,12 @@ function sGalaxy() {
   const g2 = ctx.createLinearGradient(0, 0, 0, 340); g2.addColorStop(0, C.bg); g2.addColorStop(0.42, C.bg); g2.addColorStop(1, 'rgba(11,15,23,0)');
   ctx.fillStyle = g2; ctx.fillRect(0, 0, W, 340);                // solid over the product's own header and lot bar
   kicker('07 · The whole fleet', 102, 0.3);
+  ctx.save(); ctx.beginPath(); ctx.rect(0, 112, W, 400); ctx.clip();   // titles roll out under the kicker, not through it
   rise('Car Park Galaxy', 120, 190, 80, { w: 800, at: 0.3, out: park - 0.25 });
   rise('every station a star, a beacon on every problem', 124, 246, 30, { w: 500, c: C.mute, at: star, out: park - 0.25, gap: 0.03 });
   rise('Live Car Park', 120, 190, 80, { w: 800, at: park + 0.05 });
   rise('J71, drawn from its own lane and lot data', 124, 246, 30, { w: 500, c: C.mute, at: park + 0.5, gap: 0.03 });
+  ctx.restore();
   // the lot count, as the page's own panel shows it
   const fs = spring(t - free, ...POP);
   if (fs > 0) {
@@ -1079,8 +1083,8 @@ function sPeople() {
     ROLES.forEach(([nm, can], i) => {
       const a = ro + 0.3 + i * 0.9, s = spring(t - a, ...POP); if (s <= 0) return;
       const x = 140 + i * 420, y = 560 - i * 60;
-      ctx.save(); ctx.translate(x + 190, y); ctx.scale(s, s); ctx.translate(-x - 190, -y);
-      rr(x, y - 120, 380, 200, 22); ctx.fillStyle = C.panel; ctx.fill(); ctx.strokeStyle = i === 3 ? C.ind : C.line; ctx.lineWidth = i === 3 ? 3 : 2; ctx.stroke();
+      ctx.save(); ctx.translate(x + 200, y); ctx.scale(s, s); ctx.translate(-x - 200, -y);
+      rr(x, y - 120, 400, 200, 22); ctx.fillStyle = C.panel; ctx.fill(); ctx.strokeStyle = i === 3 ? C.ind : C.line; ctx.lineWidth = i === 3 ? 3 : 2; ctx.stroke();
       label(nm, x + 32, y - 52, 40, { w: 800, c: i === 3 ? C.ind : C.text }); label(can, x + 32, y - 6, 26, { w: 500, c: C.mute });
       for (let k = 0; k <= i; k++) dot(x + 44 + k * 30, y + 40, 9, C.ind);
       ctx.restore();
@@ -1128,34 +1132,34 @@ function logoPlate(cx, cy, s) {
   rr(-w / 2 - 34, -h / 2 - 26, w + 68, h + 52, 26); ctx.fillStyle = '#FFFFFF'; ctx.fill();
   ctx.drawImage(IMG.logo, -w / 2, -h / 2, w, h); ctx.restore();
 }
-const PERDAY = [14, 129, 25, 1, 0, 1, 1, 21, 69, 6, 16, 18, 10, 23, 10, 2, 5, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 3, 0, 0, 0, 0, 9, 28, 23, 28, 4, 0, 0, 0, 0, 28, 82, 36, 60, 8, 6, 18, 7, 20, 11, 3, 0, 4, 1, 19, 0, 25, 6];   // ParkOps commits per day, 20 Jun – 10 Oct 2026 (facts.json)
+const RELS = [["v1.0.0", 135], ["v1.0.1", 136], ["v1.0.2", 139], ["v1.0.3", 142], ["v1.0.4", 143], ["v1.0.5", 144], ["v1.0.6", 145], ["v1.0.7", 146], ["v1.0.8", 147], ["v1.0.9", 148], ["v1.1.0", 150], ["v1.1.1", 151], ["v1.1.2", 152], ["v1.1.3", 153], ["v1.1.4", 154], ["v1.1.5", 155], ["v1.1.6", 156], ["v1.1.7", 157], ["v1.1.8", 158], ["v1.1.9", 159], ["v1.2.0", 160], ["v1.2.1", 161], ["v1.2.2", 162], ["v1.2.3", 163], ["v1.2.4", 164], ["v1.2.5", 165], ["v1.2.6", 166], ["v1.2.7", 167], ["v1.2.8", 168], ["v1.2.9", 169], ["v1.3.0", 170], ["v1.3.1", 171], ["v1.3.2", 172], ["v1.3.3", 174], ["v1.3.4", 175], ["v1.3.5", 176], ["v1.3.6", 178], ["v1.3.7", 179], ["v1.3.8", 180], ["v1.3.9", 181], ["v1.4.0", 182], ["v1.4.1", 183], ["v1.4.2", 184], ["v1.4.3", 185], ["v1.4.4", 186], ["v1.4.5", 187], ["v1.4.6", 188], ["v1.4.7", 189], ["v1.4.8", 190], ["v1.4.9", 191], ["v1.5.0", 192], ["v1.5.1", 193], ["v1.5.2", 194], ["v1.5.3", 195], ["v1.5.4", 196], ["v1.5.5", 197], ["v1.5.6", 198], ["v1.5.7", 199], ["v1.5.8", 200], ["v1.5.9", 205], ["v1.6.0", 207], ["v1.6.1", 208], ["v1.6.2", 209], ["v1.6.3", 210], ["v1.6.4", 211], ["v1.6.5", 212], ["v1.6.6", 213], ["v1.6.7", 214], ["v1.6.8", 215], ["v1.6.9", 216], ["v1.7.0", 217], ["v1.7.1", 218], ["v1.7.2", 219], ["v1.7.3", 220], ["v1.7.4", 221], ["v1.7.5", 222], ["v1.7.6", 223], ["v1.7.7", 224], ["v1.7.8", 225], ["v1.7.9", 226], ["v1.8.0", 227], ["v1.8.1", 228], ["v1.8.2", 229], ["v1.8.3", 230], ["v1.8.4", 231], ["v1.8.5", 232], ["v1.8.6", 233], ["v1.8.7", 234], ["v1.8.8", 235], ["v1.8.9", 236], ["v1.9.0", 237], ["v1.9.1", 238], ["v1.9.2", 239], ["v1.9.3", 240], ["v1.9.4", 241], ["v1.9.5", 242], ["v1.9.6", 243], ["v1.9.7", 244], ["v1.9.8", 245], ["v1.9.9", 246], ["v2.0.0", 247], ["v2.0.1", 248], ["v2.0.2", 249], ["v2.0.3", 250], ["v2.0.4", 251], ["v2.0.5", 252], ["v2.0.6", 253], ["v2.0.7", 254], ["v2.0.8", 255], ["v2.0.9", 256], ["v2.1.0", 257], ["v2.1.1", 258], ["v2.1.2", 259], ["v2.1.3", 260], ["v2.1.4", 261], ["v2.1.5", 262], ["v2.1.6", 263], ["v2.1.7", 264], ["v2.1.8", 265], ["v2.1.9", 266], ["v2.2.0", 267], ["v2.2.1", 274], ["v2.2.2", 291], ["v2.2.3", 293], ["v2.2.4", 294], ["v2.2.5", 295], ["v2.2.6", 296], ["v2.2.7", 297], ["v2.2.8", 298], ["v2.2.9", 299], ["v2.3.0", 300], ["v2.3.1", 301], ["v2.3.2", 306], ["v2.3.3", 307], ["v2.3.4", 308], ["v2.3.5", 309], ["v2.3.6", 310], ["v2.3.7", 311], ["v2.3.8", 312], ["v2.3.9", 313], ["v2.4.0", 314], ["v2.4.1", 315], ["v2.4.2", 316], ["v2.4.3", 317], ["v2.4.4", 318], ["v2.4.5", 319], ["v2.4.6", 320], ["v2.4.7", 321], ["v2.4.8", 322], ["v2.4.9", 323], ["v2.5.0", 324], ["v2.5.1", 325], ["v2.5.2", 326], ["v2.5.3", 327], ["v2.5.4", 328], ["v2.5.5", 329], ["v2.5.6", 330], ["v2.5.7", 331], ["v2.5.8", 332], ["v2.5.9", 333], ["v2.6.0", 334], ["v2.6.1", 335], ["v2.6.2", 336], ["v2.6.3", 337], ["v2.6.4", 338], ["v2.6.5", 339], ["v2.6.6", 340], ["v2.6.7", 341], ["v2.6.8", 342], ["v2.6.9", 344], ["v2.7.0", 345], ["v2.7.1", 346], ["v2.7.2", 533], ["v2.7.3", 567], ["v2.7.4", 573], ["v2.7.5", 581], ["v2.7.6", 586], ["v2.7.7", 599], ["v2.7.8", 608], ["v2.7.9", 616], ["v2.7.10", 625], ["v2.7.11", 631], ["v2.7.12", 635], ["v2.7.13", 640], ["v2.7.14", 647], ["v2.7.15", 654], ["v2.7.16", 660], ["v2.7.17", 663], ["v2.7.18", 666], ["v2.7.19", 669], ["v2.7.20", 683], ["v2.7.21", 687], ["v2.7.22", 690], ["v2.7.23", 716], ["v2.7.24", 749], ["v2.7.25", 752], ["v2.7.26", 759], ["v2.7.27", 775]];   // every ParkOps release and the changes behind it (facts.json)
 function sBuilt() {
+  const push = 1 + 0.03 * prog(t, 0, 18); ctx.translate(960, 600); ctx.scale(push, push); ctx.translate(-960, -600);   // never quite still
   kicker('09 · Who built it');
   heading('Built In-House');
   const ih = L(CUE.inhouse, 'built'), ch = L(CUE.changes, 'built'), rl = L(CUE.releases, 'built'), ts = L(CUE.tests, 'built');
   const ls = spring(t - (ih + 0.2), 2.6, 0.75); if (ls > 0) logoPlate(202, 300, ls * 0.5);
   rise('at Re Sustainability', 300, 314, 40, { w: 700, c: C.ind, at: ih + 0.4 });
-  // every change since June, added up day by day, drawn left to right while the narrator speaks
-  const X0 = 120, X1 = 1780, BY = 940, TOP = 680, n = PERDAY.length, u = prog(t, ih + 0.3, ts + 1.4);
-  const cum = []; PERDAY.reduce((a, v, i) => (cum[i] = a + v), 0);
-  const px = i => X0 + (X1 - X0) * i / (n - 1), py = v => BY - (BY - TOP) * v / cum[n - 1];
+  // every release in order, and the changes behind it, drawn left to right while the narrator speaks
+  const X0 = 120, X1 = 1780, BY = 940, TOP = 680, n = RELS.length, u = prog(t, ih + 0.3, ts + 1.4), MAXC = 783;
+  const px = i => X0 + (X1 - X0) * i / (n - 1), py = v => BY - (BY - TOP) * v / MAXC;
   ctx.save(); ctx.globalAlpha *= prog(t, ih, ih + 0.4); line(X0, BY + 2, X1, BY + 2, C.line, 2); ctx.restore();
-  [['20 Jun', 0], ['Jul', 11], ['Aug', 42], ['Sep', 73], ['Oct', 103], ['10 Oct', n - 1]].forEach(([m, d], k) => {
-    if (d / (n - 1) > u + 0.02) return; label(m, px(d), BY + 44, 26, { w: 600, c: C.mute, align: k === 5 ? 'right' : k === 0 ? 'left' : 'center' });
+  [['v1.0', 0], ['v2.0', 100], ['v2.7', 170], ['v2.7.27', n - 1]].forEach(([m, d], k) => {
+    if (d / (n - 1) > u + 0.02) return;
+    line(px(d), BY + 2, px(d), BY + 12, C.dim, 2);
+    label(m, px(d), BY + 46, 26, { w: 700, c: C.mute, align: k === 3 ? 'right' : k === 0 ? 'left' : 'center', f: MONO });
   });
-  const last = (n - 1) * u, k0 = Math.floor(last);
+  const last = (n - 1) * u, k0 = Math.floor(last), ve = k0 < n - 1 ? lerp(RELS[k0][1], RELS[k0 + 1][1], last - k0) : RELS[n - 1][1], lx = px(last);
   if (u > 0) {
-    ctx.beginPath(); ctx.moveTo(px(0), BY);
-    for (let i = 0; i <= k0; i++) ctx.lineTo(px(i), py(cum[i]));
-    const ve = k0 < n - 1 ? lerp(cum[k0], cum[k0 + 1], last - k0) : cum[n - 1];
-    ctx.lineTo(X0 + (X1 - X0) * last / (n - 1), py(ve)); ctx.lineTo(X0 + (X1 - X0) * last / (n - 1), BY); ctx.closePath();
+    ctx.beginPath(); ctx.moveTo(px(0), BY); for (let i = 0; i <= k0; i++) ctx.lineTo(px(i), py(RELS[i][1]));
+    ctx.lineTo(lx, py(ve)); ctx.lineTo(lx, BY); ctx.closePath();
     const g = ctx.createLinearGradient(0, TOP, 0, BY); g.addColorStop(0, 'rgba(129,140,248,.35)'); g.addColorStop(1, 'rgba(129,140,248,.03)'); ctx.fillStyle = g; ctx.fill();
-    ctx.beginPath(); ctx.moveTo(px(0), py(cum[0]));
-    for (let i = 1; i <= k0; i++) ctx.lineTo(px(i), py(cum[i]));
-    ctx.lineTo(X0 + (X1 - X0) * last / (n - 1), py(ve)); ctx.strokeStyle = C.ind; ctx.lineWidth = 5; ctx.lineJoin = 'round'; ctx.stroke();
-    dot(X0 + (X1 - X0) * last / (n - 1), py(ve), 9, '#eef2ff');
+    ctx.beginPath(); ctx.moveTo(px(0), py(RELS[0][1])); for (let i = 1; i <= k0; i++) ctx.lineTo(px(i), py(RELS[i][1]));
+    ctx.lineTo(lx, py(ve)); ctx.strokeStyle = C.ind; ctx.lineWidth = 5; ctx.lineJoin = 'round'; ctx.stroke();
+    const pulse = u >= 1 ? 1 + 0.35 * (0.5 + 0.5 * Math.sin((t - ts) * 4)) : 1;
+    ring(lx, py(ve), 16 * pulse, 'rgba(238,242,255,.45)', 3); dot(lx, py(ve), 9, '#eef2ff');
   }
-  rise('changes since June, added up', X1, TOP - 24, 26, { w: 600, c: C.mute, align: 'right', at: ih + 1.0 });
+  rise('changes behind each of the 198 releases', X0, TOP - 24, 26, { w: 600, c: C.mute, at: ih + 1.0, gap: 0.03 });
   // the three numbers, counted up on their words
   [[783, 'changes', ch, C.text], [198, 'releases', rl, C.text], [900, 'automated tests on every change', ts, C.ok]].forEach(([v, s2, a, c], i) => {
     if (t < a - 0.1) return;
