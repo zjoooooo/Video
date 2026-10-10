@@ -64,7 +64,9 @@ cue["rebrand"] = beat(phrase(ph, 8, 0.78))
 # 5. new season portal
 portal = bar(e + 0.7)
 s, e, ph = say("portal1", portal + 0.5);   cue["ring"] = s
-s, e, ph = say("portal2", e + GAP);        cue["a"], cue["d"] = beat(phrase(ph, 0)), beat(inside(ph, 0, 0.5))   # "its extension…" / "…company header and logo"
+s, e, ph = say("portalDates", e + GAP)    # "testing started…" / "and is half done" / "it goes live…"
+cue["testing"], cue["half"], cue["golive"] = s, beat(phrase(ph, 1, 0.44)), beat(phrase(ph, 2, 0.68))
+s, e, ph = say("portal2", e + GAP);        cue["a"], cue["d"] = beat(phrase(ph, 0)), beat(phrase(ph, 1, 0.44))   # "its basic functions…" / "and the invoice format…"
 s, e, ph = say("portal3", e + GAP)
 # "…at eighty percent" "season sync…" "the various reports…" "and the credit and sale note upload…"
 cue["b"], cue["c"], cue["f"], cue["e"] = (beat(inside(ph, 0, 0.6)), beat(phrase(ph, 1, 0.33)),

@@ -489,17 +489,48 @@
    ]
   },
   {
-   "id": "portal2",
-   "text": "Its extension and branding, and its company header and logo, are done.",
-   "dur": 4.384,
+   "id": "portalDates",
+   "text": "Testing started on the first of October and is half done; it goes live on the first of November.",
+   "dur": 6.785,
    "phrases": [
     [
-     0.03,
-     3.53
+     0.01,
+     2.53
     ],
     [
-     3.85,
-     4.24
+     2.96,
+     4.0
+    ],
+    [
+     4.65,
+     5.78
+    ],
+    [
+     5.93,
+     6.73
+    ]
+   ]
+  },
+  {
+   "id": "portal2",
+   "text": "Its basic functions are done, and the invoice format is confirmed.",
+   "dur": 4.858,
+   "phrases": [
+    [
+     0.02,
+     1.52
+    ],
+    [
+     2.14,
+     3.52
+    ],
+    [
+     3.86,
+     4.64
+    ],
+    [
+     4.79,
+     4.8
     ]
    ]
   },

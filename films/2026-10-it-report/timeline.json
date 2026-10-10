@@ -1,7 +1,7 @@
 {
  "estimated": false,
  "bpm": 120,
- "duration": 248.0,
+ "duration": 256.0,
  "scenes": {
   "title": 0,
   "status": 10.0,
@@ -12,9 +12,9 @@
   "wmsTest": 120.0,
   "done": 144.0,
   "portal": 164.0,
-  "dog": 196.0,
-  "next": 224.0,
-  "end": 242.0
+  "dog": 204.0,
+  "next": 232.0,
+  "end": 250.0
  },
  "cue": {
   "count": 12.0,
@@ -68,27 +68,30 @@
   ],
   "rebrand": 158.0,
   "ring": 164.5,
-  "a": 172.5,
-  "d": 174.0,
-  "b": 179.0,
-  "c": 181.0,
-  "f": 183.0,
-  "e": 185.0,
-  "docs": 188.5,
-  "ssg": 196.5,
-  "ehub": 201.0,
-  "vnc": 205.0,
-  "cb": 213.5,
+  "testing": 172.0,
+  "half": 175.0,
+  "golive": 177.0,
+  "a": 180.0,
+  "d": 182.0,
+  "b": 187.0,
+  "c": 189.0,
+  "f": 191.0,
+  "e": 193.0,
+  "docs": 196.5,
+  "ssg": 204.5,
+  "ehub": 209.0,
+  "vnc": 213.0,
+  "cb": 221.5,
   "n": [
-   225.5,
-   230.0,
-   231.5,
-   233.0,
-   236.5,
-   237.5
+   233.5,
+   238.0,
+   239.5,
+   241.0,
+   244.5,
+   245.5
   ],
-  "thanks": 243.0,
-  "final": 243.0
+  "thanks": 251.0,
+  "final": 251.0
  },
  "lines": [
   {
@@ -218,56 +221,62 @@
    "text": "The new season portal, built in-house and still in development, is seventy-two percent complete, on average."
   },
   {
-   "id": "portal2",
+   "id": "portalDates",
    "start": 172.0,
-   "dur": 4.384,
-   "text": "Its extension and branding, and its company header and logo, are done."
+   "dur": 6.785,
+   "text": "Testing started on the first of October and is half done; it goes live on the first of November."
+  },
+  {
+   "id": "portal2",
+   "start": 179.5,
+   "dur": 4.858,
+   "text": "Its basic functions are done, and the invoice format is confirmed."
   },
   {
    "id": "portal3",
-   "start": 177.0,
+   "start": 185.0,
    "dur": 10.891,
    "text": "The DBS payment gateway is at eighty percent, season sync at seventy, the various reports at fifty, and the credit and sale note upload to Nav at thirty."
   },
   {
    "id": "portal4",
-   "start": 188.5,
+   "start": 196.5,
    "dur": 6.11,
    "text": "When it goes live, invoices and payment reminders will look like this, with a PayNow code to scan."
   },
   {
    "id": "dog1",
-   "start": 196.5,
+   "start": 204.5,
    "dur": 7.922,
    "text": "Watch Dog monitoring is live at every SSG car park, and the rollout at Ehub has started, at ten percent."
   },
   {
    "id": "dog2",
-   "start": 205.0,
+   "start": 213.0,
    "dur": 7.49,
    "text": "On the O-P-Cs, UltraVNC will replace RealVNC, which needs a licence."
   },
   {
    "id": "dog3",
-   "start": 213.5,
+   "start": 221.5,
    "dur": 8.063,
    "text": "And at Ehub, we will uninstall Carbon Black, an unlicensed tool left by the previous IT team."
   },
   {
    "id": "next1",
-   "start": 224.5,
+   "start": 232.5,
    "dur": 10.187,
    "text": "Next: start user testing on the twelfth and deploy phase one, finish the payment gateway and season sync, and continue the Ehub rollout."
   },
   {
    "id": "next2",
-   "start": 235.5,
+   "start": 243.5,
    "dur": 5.03,
    "text": "Then switch to UltraVNC, and remove Carbon Black."
   },
   {
    "id": "end",
-   "start": 243.0,
+   "start": 251.0,
    "dur": 0.603,
    "text": "Thank you."
   }

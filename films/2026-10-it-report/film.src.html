@@ -608,13 +608,27 @@ function sDone() {
 
 // ---- 5. six segments of a portal, named clockwise -------------------------------------------------------
 const SEG = [
-  ['Extension & branding', 100, 'a'], ['Header & logo', 100, 'd'], ['DBS payment gateway', 80, 'b'],
+  ['Basic function', 100, 'a'], ['Confirm invoice format', 100, 'd'], ['DBS payment gateway', 80, 'b'],
   ['Season sync', 70, 'c'], ['Various reports', 50, 'f'], ['Notes upload to NAV', 30, 'e'],
 ];
 function sPortal() {
   kicker('04 · Season portal');
   heading('New Season Portal');
   const ring0 = L(CUE.ring, 'portal'), cx = 960, cy = 610, R = 250, step = Math.PI * 2 / 6, gap = 0.06;
+  const tst = L(CUE.testing, 'portal'), half = L(CUE.half, 'portal'), gol = L(CUE.golive, 'portal');
+  const TX0 = 1180, TX2 = 1780, TY = 150, sl = outCubic(prog(t, tst - 0.2, tst + 0.6));
+  if (sl > 0) {
+    line(TX0, TY, lerp(TX0, TX2, sl), TY, C.line, 6);
+    const fp = 0.5 * outCubic(prog(t, half, half + 0.8));            // testing from 1 Oct, half done
+    if (fp > 0) line(TX0, TY, lerp(TX0, TX2, fp), TY, C.sky, 6);
+    dot(TX0, TY, 12 * spring(t - tst, ...POP), C.sky);
+    const gs = spring(t - gol, ...POP);
+    if (gs > 0) { dot(TX2, TY, 12 * gs, C.bg); ring(TX2, TY, 12 * gs, C.amber, 4); }
+  }
+  rise('Testing from 1 Oct', TX0 - 12, TY - 30, 28, { w: 700, at: tst });
+  rise('50% done', TX0 - 12, TY + 52, 28, { w: 800, c: C.sky, at: half + 0.2 });
+  rise('Go-live', TX2 + 12, TY - 30, 28, { w: 700, align: 'right', at: gol });
+  rise('1 Nov', TX2 + 12, TY + 52, 28, { w: 800, c: C.amber, align: 'right', at: gol + 0.15 });
   const docs = L(CUE.docs, 'portal'), dz = inOutCubic(prog(t, docs - 0.6, docs + 0.2)), lab = 1 - prog(dz, 0, 0.4);
   rise('built in-house · will run on season.resustainability.com.sg', 122, 246, 30, { w: 500, c: C.mute, at: ring0 + 0.4, gap: 0.04 });
   ctx.save(); ctx.translate(lerp(cx, 520, dz), lerp(cy, 620, dz)); ctx.scale(lerp(1, 0.62, dz), lerp(1, 0.62, dz)); ctx.translate(-cx, -cy);
