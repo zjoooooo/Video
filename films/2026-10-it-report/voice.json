@@ -662,64 +662,6 @@
    ]
   },
   {
-   "id": "next1",
-   "text": "Next: start user testing on the twelfth and deploy phase one, finish the payment gateway and season sync, and continue the Ehub rollout.",
-   "dur": 10.187,
-   "phrases": [
-    [
-     0.03,
-     0.53
-    ],
-    [
-     1.0,
-     2.74
-    ],
-    [
-     3.38,
-     4.35
-    ],
-    [
-     5.12,
-     6.31
-    ],
-    [
-     6.6,
-     7.37
-    ],
-    [
-     8.05,
-     8.82
-    ],
-    [
-     8.97,
-     10.13
-    ]
-   ]
-  },
-  {
-   "id": "next2",
-   "text": "Then switch to UltraVNC, and remove Carbon Black.",
-   "dur": 5.03,
-   "phrases": [
-    [
-     0.12,
-     0.45
-    ],
-    [
-     0.72,
-     1.44
-    ],
-    [
-     1.75,
-     2.86
-    ],
-    [
-     3.45,
-     4.96
-    ]
-   ]
-  },
-  {
    "id": "end",
    "text": "Thank you.",
    "dur": 0.603,

@@ -1,7 +1,7 @@
 {
  "estimated": false,
  "bpm": 120,
- "duration": 256.0,
+ "duration": 238.0,
  "scenes": {
   "title": 0,
   "status": 10.0,
@@ -13,8 +13,7 @@
   "done": 144.0,
   "portal": 164.0,
   "dog": 204.0,
-  "next": 232.0,
-  "end": 250.0
+  "end": 232.0
  },
  "cue": {
   "count": 12.0,
@@ -82,16 +81,8 @@
   "ehub": 209.0,
   "vnc": 213.0,
   "cb": 221.5,
-  "n": [
-   233.5,
-   238.0,
-   239.5,
-   241.0,
-   244.5,
-   245.5
-  ],
-  "thanks": 251.0,
-  "final": 251.0
+  "thanks": 233.0,
+  "final": 233.0
  },
  "lines": [
   {
@@ -263,20 +254,8 @@
    "text": "And at Ehub, we will uninstall Carbon Black, an unlicensed tool left by the previous IT team."
   },
   {
-   "id": "next1",
-   "start": 232.5,
-   "dur": 10.187,
-   "text": "Next: start user testing on the twelfth and deploy phase one, finish the payment gateway and season sync, and continue the Ehub rollout."
-  },
-  {
-   "id": "next2",
-   "start": 243.5,
-   "dur": 5.03,
-   "text": "Then switch to UltraVNC, and remove Carbon Black."
-  },
-  {
    "id": "end",
-   "start": 251.0,
+   "start": 233.0,
    "dur": 0.603,
    "text": "Thank you."
   }

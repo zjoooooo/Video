@@ -77,17 +77,10 @@ dog = bar(e + 0.7)
 s, e, ph = say("dog1", dog + 0.5);         cue["ssg"], cue["ehub"] = s, beat(phrase(ph, 1, 0.56))
 s, e, ph = say("dog2", e + GAP);           cue["vnc"] = s
 s, e, ph = say("dog3", e + GAP);           cue["cb"] = s
-# 7. next steps
-nxt = bar(e + 0.7)
-s, e, ph = say("next1", nxt + 0.5)
-# "start user testing…" "finish the payment gateway" "and season sync" "and continue the Ehub rollout"
-cue["n"] = [beat(phrase(ph, 1, 0.09)), beat(phrase(ph, 3, 0.5)), beat(phrase(ph, 4, 0.65)), beat(phrase(ph, 5, 0.79))]
-s, e, ph = say("next2", e + GAP)
-cue["n"] += [beat(phrase(ph, 1, 0.14)), beat(phrase(ph, 2, 0.35))]
-# 8. thank you
+# 7. thank you
 end = bar(e + 1.0)
 s, e, ph = say("end", end + 0.75);         cue["thanks"] = s
 cue["final"] = s
 
-P.write({"title": 0, "status": status, "wms": wms, "wmsAug": wmsAug, "wmsSep": wmsSep, "wmsCR": wmsCR, "wmsTest": wmsTest, "done": done, "portal": portal, "dog": dog, "next": nxt, "end": end},
+P.write({"title": 0, "status": status, "wms": wms, "wmsAug": wmsAug, "wmsSep": wmsSep, "wmsCR": wmsCR, "wmsTest": wmsTest, "done": done, "portal": portal, "dog": dog, "end": end},
         bar(cue["final"] + 4.0))

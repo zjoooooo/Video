@@ -35,7 +35,7 @@ LOOPS = {    # four bars per page, in the order the pages come
     "title": ["G", "D/F#", "Em", "C"], "status": ["G", "D/F#", "Em", "C"], "wms": ["C", "G", "Am", "D"],
     "wmsAug": ["G", "D/F#", "Em", "C"], "wmsSep": ["C", "G", "Am", "D"], "wmsCR": ["G", "Bm", "C", "D"], "wmsTest": ["Em", "C", "G", "D"],
     "done": ["G", "Bm", "C", "D"], "portal": ["Em", "C", "G", "D"], "dog": ["C", "G", "Am", "D"],
-    "next": ["C", "D", "Bm", "Em"], "end": ["D", "G", "G", "G"],
+    "end": ["D", "G", "G", "G"],
 }
 ORDER = sorted(SC, key=SC.get)
 
@@ -80,7 +80,7 @@ for b in range(bars):
     if s != "title":
         for p in up:
             note(t0, STRINGS, p, 46 * soft, BAR * 0.98, human=False)
-        if s in ("next", "dog"):
+        if s == "dog":
             note(t0, BASS, pitch(root) - 12, 58 * soft, 1.6)
 
 # page turns: a rolled chord on the downbeat
@@ -135,8 +135,6 @@ sparkle(CUE["rebrand"] - 1.0, GLOCK, n=2, vel=58, octave=2)      # the invoice b
 sparkle(CUE["docs"], CELESTA, n=3, vel=58)                      # the new invoice and reminder
 for key in ("vnc", "cb"):
     sparkle(CUE[key], CELESTA, vel=58)
-for at in CUE["n"]:
-    sparkle(at, CELESTA, vel=54)
 
 # ---- the end: the page turns on D, "Thank you" lands on G, and the chord rings -----------------------------
 f = end_final

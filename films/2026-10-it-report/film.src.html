@@ -746,39 +746,7 @@ function sDog() {
   ctx.restore();
 }
 
-// ---- 7. the road ahead ------------------------------------------------------------------------------------
-const STEPS = [   // in the order the narration names them
-  ['This week', 'week', 'UAT from 12 Oct', 'then deploy phase 1'],
-  ['Ongoing', 'go', 'Payment gateway', 'DBS, now 80%'],
-  ['Ongoing', 'go', 'Finish season sync', 'now at 70%'],
-  ['Ongoing', 'go', 'Ehub rollout', 'Watch Dog, now 10%'],
-  ['Next', 'next', 'Switch to UltraVNC', 'on the OPCs'],
-  ['Next', 'next', 'Remove Carbon Black', 'at Ehub'],
-];
-function sNext() {
-  kicker('06 · Next steps');
-  heading('Next Steps');
-  const n = CUE.n.map(c => L(c, 'next')), GAPX = 440, X = i => 400 + i * GAPX, RY = 600;
-  let cam = X(0);                                             // the camera walks to each milestone as it is named
-  n.slice(1).forEach(at => { cam += GAPX * inOutCubic(prog(t, at - 0.5, at + 0.3)); });
-  const over = inOutCubic(prog(t, n[5] + 1.6, n[5] + 3.0));   // then pulls back to show the whole road
-  const z = lerp(1, 0.64, over), cx = lerp(cam, (X(0) + X(5)) / 2, over), sx = x => W / 2 + (x - cx) * z;
-  line(sx(X(0) - 600), RY, sx(X(5) + 600), RY, C.line, 6);
-  const reach = n.reduce((a, at, i) => (t >= at ? X(i) : a), X(0) - 600);
-  line(sx(X(0) - 600), RY, sx(reach), RY, C.amber, 6);
-  const ts = lerp(44, 30, over), as = lerp(32, 28, over), bs = lerp(30, 26, over), mw = lerp(400, 250, over);
-  STEPS.forEach(([tag, kind, a, b], i) => {                  // text stays in screen space so it never shrinks below 26 px
-    const at = n[i], s = spring(t - at, ...POP), x = sx(X(i)), r = lerp(26, 20, over) * s;
-    if (kind === 'go') dot(x, RY, r, C.sky);
-    else { dot(x, RY, r, kind === 'week' ? C.text : C.bg); ring(x, RY, r, C.amber, 5 * s); }
-    const tc = kind === 'go' ? C.sky : kind === 'next' ? C.amber : C.text;
-    rise(tag, x, RY - lerp(70, 50, over), fit(tag, ts, 800, mw), { w: 800, c: tc, align: 'center', at });
-    rise(a, x, RY + lerp(90, 74, over), fit(a, as, 600, mw), { w: 600, align: 'center', at: at + 0.15, gap: 0.03 });
-    rise(b, x, RY + lerp(136, 110, over), fit(b, bs, 500, mw), { w: 500, c: C.mute, align: 'center', at: at + 0.25, gap: 0.03 });
-  });
-}
-
-// ---- 8. thank you ------------------------------------------------------------------------------------------
+// ---- 7. thank you ------------------------------------------------------------------------------------------
 function sEnd() {
   const th = L(CUE.thanks, 'end'), s = spring(t + 0.3, 2.6, 0.75);
   if (s > 0) logoPlate(960, 330, s);
@@ -790,10 +758,10 @@ function sEnd() {
 const SCENES = [
   { t0: SC.title, draw: sTitle }, { t0: SC.status, draw: sStatus }, { t0: SC.wms, draw: sWmsJourney }, { t0: SC.wmsAug, draw: sWmsAug }, { t0: SC.wmsSep, draw: sWmsSep },
   { t0: SC.wmsCR, draw: sWmsCR }, { t0: SC.wmsTest, draw: sWmsTest }, { t0: SC.done, draw: sDone },
-  { t0: SC.portal, draw: sPortal }, { t0: SC.dog, draw: sDog }, { t0: SC.next, draw: sNext }, { t0: SC.end, draw: sEnd },
+  { t0: SC.portal, draw: sPortal }, { t0: SC.dog, draw: sDog }, { t0: SC.end, draw: sEnd },
 ];
 // one transition for every page: the amber diagonal wipe; the iris is kept for the end card
-const SEAMS = [...Array(10)].map(() => ({ type: 'wipe' })).concat([{ type: 'iris', at: [W / 2, 560] }]);
+const SEAMS = [...Array(9)].map(() => ({ type: 'wipe' })).concat([{ type: 'iris', at: [W / 2, 560] }]);
 const far = (x, y) => Math.hypot(Math.max(x, W - x), Math.max(y, H - y)) * 1.04;
 
 function drawScene(i, T) {

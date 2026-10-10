@@ -31,8 +31,6 @@
     { "id": "dog1", "text": "Watch Dog monitoring is live at every SSG car park, and the rollout at Ehub has started, at ten percent." },
     { "id": "dog2", "text": "On the O-P-Cs, UltraVNC will replace RealVNC, which needs a licence." },
     { "id": "dog3", "text": "And at Ehub, we will uninstall Carbon Black, an unlicensed tool left by the previous IT team." },
-    { "id": "next1", "text": "Next: start user testing on the twelfth and deploy phase one, finish the payment gateway and season sync, and continue the Ehub rollout." },
-    { "id": "next2", "text": "Then switch to UltraVNC, and remove Carbon Black." },
     { "id": "end", "text": "Thank you." }
   ]
 }
