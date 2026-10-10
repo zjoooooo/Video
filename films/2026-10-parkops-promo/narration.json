@@ -28,6 +28,10 @@
       "text": "Every thirty seconds it reports in, over two channels: one for data, and one for control."
     },
     {
+      "id": "a4",
+      "text": "And all of it shows on the station's own page."
+    },
+    {
       "id": "k1",
       "text": "On the server, a health sweep checks every station, every thirty seconds."
     },

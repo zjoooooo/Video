@@ -115,7 +115,7 @@ function arrow(x0, y0, x1, y1, c, w, u, head = 16) {     // drawn on by u, head 
 }
 function pill(cx, cy, str, o = {}) {                       // a word in a pill, centred, popped by s
   const { size = 28, c = C.ind, fill = false, s = 1, w = 700, f = FONT, pad = 26 } = o;
-  if (s <= 0) return;
+  if (s <= 0.04) return;
   const bw = width(str, size, w, f) + pad * 2, bh = size * 1.9;
   ctx.save(); ctx.translate(cx, cy); ctx.scale(s, s);
   rr(-bw / 2, -bh / 2, bw, bh, bh / 2);
@@ -264,6 +264,7 @@ function watson(name, f, cx, by, h, gaze = { x: 0, y: 0 }) {
     draw(offCtx, 'tailcut', MAN.sheets.look.cut[0], 0, 0);
     offCtx.globalCompositeOperation = 'source-over';
     draw(offCtx, 'look', 0, 0, 0);
+    offCtx.clearRect(0, 0, 3, OFF.height); offCtx.clearRect(OFF.width - 3, 0, 3, OFF.height);   // scaled sprite sheets bleed the next frame's edge
     ctx.drawImage(OFF, ox, oy);
   } else {
     i = clamp(f, 0, MAN.sheets[name].n - 1);
@@ -314,7 +315,7 @@ function sOpen() {
   const progs = L(CUE.progs, 'open'), watch = L(CUE.watch, 'open'), brand = L(CUE.brand, 'open');
   const zin = inOutExpo(prog(t, zm - 0.3, zm + 1.0)), zout = inOutExpo(prog(t, watch - 0.2, watch + 1.0)), z = zin * (1 - zout);
   const [tx, ty] = opos(ZI);                                 // the camera dives into one dot, which opens into a lens on one booth
-  const sc = Math.exp(Math.log(26) * z), LX = lerp(tx, 1180, z), LY = lerp(ty, 600, z);
+  const sc = Math.exp(Math.log(26) * z), LX = lerp(tx, 1230, z), LY = lerp(ty, 600, z);
   const dimB = 1 - 0.75 * inOutCubic(prog(t, brand - 0.4, brand + 0.6));
   const sweepR = outCubic(prog(t, watch + 0.9, watch + 2.6)) * 1100;
   for (let i = 0; i < N; i++) {
@@ -341,7 +342,7 @@ function sOpen() {
     ctx.save(); ctx.beginPath(); ctx.arc(LX, LY, lr, 0, 7); ctx.fillStyle = '#0c1220'; ctx.fill(); ctx.clip();
     const k = clamp(z * 1.2);
     ctx.globalAlpha *= k;
-    const ps = spring(t - pc, ...POP), cs = spring(t - cams, ...POP);
+    const ps = spring(t - Math.min(pc, zm + 0.4), ...POP), cs = spring(t - cams, ...POP);
     [[-1, 'Entry'], [1, 'Exit']].forEach(([d, nm], j) => {
       const lx = LX + d * 250;
       poly([[lx - d * 60, LY], [LX - d * 85, LY]], C.wire, 5, outCubic(prog(t, cams + 0.2, cams + 0.7)));
@@ -355,10 +356,10 @@ function sOpen() {
     PRG.forEach((p, j) => {
       const s = spring(t - (progs + j * 0.15), ...POP); if (s <= 0) return;
       const y = LY + 160;
-      const x = LX + (j - 1) * 210;
+      const x = LX + (j - 1) * 236;
       ctx.save(); ctx.translate(x, y + 30); ctx.scale(s, s);
-      rr(-98, -24, 196, 48, 24); ctx.fillStyle = C.band; ctx.fill(); ctx.strokeStyle = C.tileLine; ctx.lineWidth = 2; ctx.stroke();
-      dot(-74, 0, 7, C.ok); label(p, -58, 1, 26, { w: 600, base: 'middle' });
+      rr(-112, -26, 224, 52, 26); ctx.fillStyle = C.band; ctx.fill(); ctx.strokeStyle = C.tileLine; ctx.lineWidth = 2; ctx.stroke();
+      dot(-86, 0, 7, C.ok); label(p, -70, 1, 26, { w: 600, base: 'middle' });
       ctx.restore();
     });
     ctx.restore();
@@ -366,9 +367,12 @@ function sOpen() {
   }
   // what is in a booth, listed beside the lens
   const outL = watch - 0.3;
-  [['A PC in the booth', pc], ['Cameras over every lane', cams], ['Programs that must never stop', progs]].forEach(([s, a], i) => {
-    rise(s, 120, 450 + i * 90, 46, { w: 700, at: a, out: outL + i * 0.05, c: i === 0 ? C.text : C.text });
-    if (t >= a && t < outL + 0.4) { ctx.save(); ctx.globalAlpha *= 1 - prog(t, outL, outL + 0.3); dot(98, 434 + i * 90, 8 * spring(t - a, ...POP), C.ind); ctx.restore(); }
+  // each caption sits at the height of what it names, and its leader ends on that thing: the PC from above,
+  // the entry camera level with it, the programs row level with it; top to bottom, so no two leaders cross
+  [['A PC in the booth', pc, 400, [LX - 30, LY - 78]], ['Cameras over every lane', cams, LY - 49, [LX - 310, LY - 64]], ['Programs that must never stop', progs, LY + 205, [LX - 350, LY + 190]]].forEach(([s, a, y, [x1, y1]]) => {
+    rise(s, 120, y, 44, { w: 700, at: a, out: outL });
+    const u = outCubic(prog(t, a + 0.2, a + 0.7)) * (1 - prog(t, outL, outL + 0.3)), x0 = 120 + width(s, 44, 700) + 24;
+    if (u > 0 && z > 0.9) { line(x0, y - 15, lerp(x0, x1, u), lerp(y - 15, y1, u), 'rgba(129,140,248,.75)', 3); if (u >= 1) dot(x1, y1, 6, C.ind); }
   });
   // the name, and Watson waves
   const ws = spring(t - (brand + 0.1), 2.6, 0.75);
@@ -379,7 +383,7 @@ function sOpen() {
   }
   const wm = outExpo(prog(t, brand + 0.5, brand + 1.4));
   if (wm > 0) { ctx.save(); ctx.beginPath(); ctx.rect(0, 0, W, 812); ctx.clip(); wordmark(960, 720 + (1 - wm) * 200, 0.8); ctx.restore(); }
-  rise('Built from the ParkOps Agent source code', 960, 880, 30, { w: 500, c: C.mute, align: 'center', at: brand + 1.6, gap: 0.03 });
+  rise('Car park station monitoring, built in-house', 960, 880, 30, { w: 500, c: C.mute, align: 'center', at: brand + 1.6, gap: 0.03 });
 }
 
 // ---- 1. the agent: eight senses, two channels, the real OPC panel --------------------------------------------
@@ -398,20 +402,20 @@ function senseBody(i, x, y, at) {                         // the live value in e
     rr(x + 28, y + 80, 240 * v / 100, 16, 8); ctx.fillStyle = C.ok; ctx.fill(); label(Math.round(v) + '%', x + 290, y + 98, 30, { w: 800, c: C.ok }); }
   if (i === 2) [['C:', 30], ['D:', 19]].forEach(([d, v], k) => { label(d, x + 28 + k * 170, y + 98, 28, { w: 700, c: C.mute, f: MONO });
     rr(x + 72 + k * 170, y + 80, 80, 16, 8); ctx.fillStyle = C.line; ctx.fill(); rr(x + 72 + k * 170, y + 80, 80 * v / 100, 16, 8); ctx.fillStyle = C.ok; ctx.fill(); });
-  if (i === 3) { label('MSSQL', x + 28, y + 98, 28, { w: 700, f: MONO }); pill(x + 270, y + 88, 'running', { size: 22, c: C.ok, pad: 16 }); }
+  if (i === 3) { label('Database', x + 28, y + 100, 28, { w: 600 }); pill(x + 270, y + 90, 'running', { size: 24, c: C.ok, pad: 16 }); }
   if (i === 4) { dot(x + 38, y + 88, 8, C.ok); label('SunPark PMS', x + 56, y + 98, 28, { w: 600 }); label('+6', x + 330, y + 98, 28, { w: 700, c: C.mute, align: 'right' }); }
   if (i === 5) { ctx.drawImage(IMG.cam, x + 26, y + 62, 54, 54); ctx.drawImage(IMG.station, x + 86, y + 62, 54, 54);
     for (let k = 0; k < 2; k++) { const u = ((tv - at) * 0.8 + k * 0.5) % 1; if (tv > at) { ctx.save(); ctx.globalAlpha *= 1 - u; ring(x + 113, y + 89, 20 + u * 36, C.ok, 3); ctx.restore(); } }
     label('answering', x + 170, y + 98, 28, { w: 600, c: C.ok }); }
-  if (i === 6) { label('1433', x + 28, y + 98, 30, { w: 700, f: MONO }); arrow(x + 130, y + 80, x + 200, y + 80, C.ok, 4, 1, 10); arrow(x + 200, y + 96, x + 130, y + 96, C.ok, 4, 1, 10);
-    label('open', x + 220, y + 98, 28, { w: 600, c: C.ok }); }
+  if (i === 6) { label('database port', x + 28, y + 100, 28, { w: 600 }); arrow(x + 230, y + 82, x + 280, y + 82, C.ok, 4, 1, 10); arrow(x + 280, y + 96, x + 230, y + 96, C.ok, 4, 1, 10);
+    label('open', x + 296, y + 100, 28, { w: 600, c: C.ok }); }
   if (i === 7) {
     const LN = ['Gate1 OK', 'Gate3 OK', 'Gate2 ERROR E-17', 'Gate1 OK', 'Gate4 OK'], k0 = L(CUE.lines, 'agent');
     ctx.save(); rr(x + 20, y + 54, 340, 60, 8); ctx.clip();
-    const sc = Math.min(2, Math.max(0, (tv - at) * 1.2)), off = (sc % 1) * 28, base = Math.floor(sc);
+    const sc = Math.min(2, Math.max(0, (tv - at) * 1.2)), off = (sc % 1) * 30, base = Math.floor(sc);
     for (let r = 0; r < 3; r++) { const s = LN[(base + r) % LN.length], bad = /ERROR/.test(s), hit = bad && tv >= k0;
-      if (hit) { rr(x + 24, y + 58 + r * 28 - off, 330, 26, 5); ctx.fillStyle = 'rgba(248,113,113,.22)'; ctx.fill(); }
-      label(s, x + 32, y + 78 + r * 28 - off, 22, { w: 600, c: hit ? C.crit : C.mute, f: MONO }); }
+      if (hit) { rr(x + 24, y + 56 + r * 30 - off, 330, 28, 5); ctx.fillStyle = 'rgba(248,113,113,.22)'; ctx.fill(); }
+      label(s, x + 32, y + 78 + r * 30 - off, 24, { w: 600, c: hit ? C.crit : C.mute, f: MONO }); }
     ctx.restore();
   }
 }
@@ -435,11 +439,11 @@ function sAgentDiagram() {
     ctx.restore(); ctx.restore();
   });
   // the PC and its agent
-  const ps = spring(t - 0.2, ...POP);
+  const ps = spring(t - 0.2, ...POP), big = inOutCubic(prog(t, sense[0] - 1.4, sense[0] - 0.2)), sz = lerp(340, 200, big), ay = lerp(AY - 40, AY, big);
   if (t >= beat0) for (let k = 0; k < 3; k++) { const u = ((t - beat0) / 2 + k / 3) % 1; ctx.save(); ctx.globalAlpha *= (1 - u) * 0.8; rr(AX - 100 - u * 60, AY - 100 - u * 60, 200 + u * 120, 200 + u * 120, 30 + u * 20); ctx.strokeStyle = C.ind; ctx.lineWidth = 3; ctx.stroke(); ctx.restore(); }
-  tile(AX, AY, ps, 'opc', { sz: 200 });
-  pill(AX, AY + 150, 'POSvc', { size: 34, c: C.ind, fill: true, s: spring(t - posvc, ...POP) });
-  rise('a small Windows service', AX, AY + 225, 28, { w: 500, c: C.mute, align: 'center', at: posvc + 0.3, out: two - 0.4, gap: 0.03 });
+  tile(AX, ay, ps, 'opc', { sz });
+  pill(AX, ay + sz / 2 + 50, 'POSvc', { size: lerp(48, 34, big), c: C.ind, fill: true, s: spring(t - posvc, ...POP) });
+  rise('a small Windows service', AX, ay + sz / 2 + lerp(140, 125, big), lerp(36, 28, big), { w: 500, c: C.mute, align: 'center', at: posvc + 0.3, out: two - 0.4, gap: 0.03 });
   pill(AX + 200, AY - 128, 'every 30 s', { size: 26, c: C.ind, s: spring(t - beat0, ...POP) * (1 - prog(t, two - 0.3, two)) });
   // two channels to the server: data over HTTP, control over the WebSocket
   const sv = spring(t - two, ...POP);
@@ -447,25 +451,28 @@ function sAgentDiagram() {
     tile(AX, 300, sv, 'server', { sz: 120 });
     rise('ParkOps server', AX + 80, 312, 28, { w: 700, c: C.mute, at: two + 0.1 });
     const top = 362, bot = AY - 102;
-    poly([[AX - 34, bot], [AX - 34, top]], C.ok, 5, outCubic(prog(t, data - 0.2, data + 0.3)));
+    poly([[AX - 34, bot], [AX - 34, top]], '#c7d2fe', 5, outCubic(prog(t, data - 0.2, data + 0.3)));
     poly([[AX + 34, bot], [AX + 34, top]], C.ind, 5, outCubic(prog(t, ctrl - 0.2, ctrl + 0.3)));
-    if (t >= data) packets([[AX - 34, bot], [AX - 34, top]], C.pkt, 140, 3, prog(t, data, data + 0.3), 7);
+    if (t >= data) packets([[AX - 34, bot], [AX - 34, top]], '#eef2ff', 140, 3, prog(t, data, data + 0.3), 7);
     if (t >= ctrl) { packets([[AX + 34, bot], [AX + 34, top]], C.ind, 120, 2, prog(t, ctrl, ctrl + 0.3), 7);
       packets([[AX + 34, top], [AX + 34, bot]], '#c7d2fe', 120, 2, prog(t, ctrl, ctrl + 0.3), 7, 60); }
-    rise('data', AX - 70, 450, 40, { w: 800, c: C.ok, align: 'right', at: data });
-    rise('metrics · checks · logs · HTTP', AX - 70, 492, 26, { w: 500, c: C.mute, align: 'right', at: data + 0.15, gap: 0.03 });
+    [[AX - 70 - 330, data], [AX + 60, ctrl]].forEach(([bx, a]) => { const e = prog(t, a - 0.1, a + 0.2); if (e > 0) { ctx.save(); ctx.globalAlpha *= e * 0.92; rr(bx, 404, 340, 104, 14); ctx.fillStyle = C.bg; ctx.fill(); ctx.restore(); } });
+    rise('data', AX - 70, 450, 40, { w: 800, c: '#c7d2fe', align: 'right', at: data });
+    rise('health · checks · logs', AX - 70, 492, 28, { w: 500, c: C.mute, align: 'right', at: data + 0.15, gap: 0.03 });
     rise('control', AX + 70, 450, 40, { w: 800, c: C.ind, at: ctrl });
-    rise('commands · settings · WebSocket', AX + 70, 492, 26, { w: 500, c: C.mute, at: ctrl + 0.15, gap: 0.03 });
+    rise('commands · settings', AX + 70, 492, 28, { w: 500, c: C.mute, at: ctrl + 0.15, gap: 0.03 });
   }
 }
-const OPCSRC = [0, 100, 1260, 730];
-function sAgentProof(lt) {
+const RAILSRC = [905, 520, 340, 278];
+function sAgentProof(lt) {                                // the real OPC panel: PC health and the programs it watches
   const T0 = t; t = lt;
-  const x = 270, y = 236, w = 1380;
-  screen('opc', OPCSRC, x, y, w);
-  hlShot(OPCSRC, x, y, w, [912, 526, 330, 300], 0.5);
-  const [px, py] = onShot(OPCSRC, x, y, w)(912, 526);
-  pill(px + 120, py - 34, 'the real OPC panel', { size: 26, c: C.ind, fill: true, s: spring(t - 0.7, ...POP) });
+  const w = 680, x = 1060, y = 250, e = outExpo(prog(t, 0, 0.8));
+  screen('opc', RAILSRC, x + (1 - e) * 120, y, w, { a: e });
+  tile(420, 560, spring(t - 0.2, ...POP), 'opc', { sz: 200 });
+  poly([[540, 560], [x - 20, 560]], C.ind, 4, outCubic(prog(t, 0.5, 1.1)), [10, 10]);
+  rise('The station page', 140, 780, 52, { w: 800, at: 0.4 });
+  rise('PC health, programs and services,', 144, 836, 30, { w: 500, c: C.mute, at: 0.6, gap: 0.03 });
+  rise('exactly as the station reports them', 144, 876, 30, { w: 500, c: C.mute, at: 0.75, gap: 0.03 });
   t = T0;
 }
 function sAgent() {
@@ -484,7 +491,7 @@ const dpos = i => [DX + SUN[i][0] * DR, DY + SUN[i][1] * DR];
 const ang = i => Math.atan2(SUN[i][1], SUN[i][0]);
 const FI = (() => { let b = 0, bd = 9; for (let i = 0; i < N; i++) { if (STAT[i] !== 'ok') continue; const d = Math.hypot(SUN[i][0] - 0.42, SUN[i][1] + 0.25); if (d < bd) { bd = d; b = i; } } return b; })();
 const GI = (() => { let b = 0, bd = 9; for (let i = 0; i < N; i++) { if (STAT[i] !== 'ok') continue; const d = Math.hypot(SUN[i][0] + 0.45, SUN[i][1] - 0.4); if (d < bd) { bd = d; b = i; } } return b; })();
-const BELLSRC = [1320, 78, 418, 470];
+const BELLSRC = [1320, 78, 418, 400];
 function sAlert() {
   kicker('02 · Know first');
   heading('Flagged in Seconds');
@@ -519,9 +526,12 @@ function sAlert() {
     pill(gx, gy - 52, t < fk + 1.7 ? 'unstable' : 'back to normal', { size: 24, c: t < fk + 1.7 ? C.warn : C.ok, pad: 16 });
     ctx.restore();
   }
+  // the right: what a sweep is, then the time to flag, then the bell
+  rise('Every 30 s', 1110, 420, 96, { w: 800, at: sw + 0.3, out: fail - 0.4 });
+  rise('a sweep checks all 240 stations', 1116, 484, 34, { w: 500, c: C.mute, at: sw + 0.6, out: fail - 0.4, gap: 0.03 });
   // the right: time to flag, then the bell
   const away = inOutCubic(prog(t, fk - 0.4, fk + 0.3));
-  ctx.save(); ctx.translate(away * 900, 0);
+  ctx.save(); ctx.globalAlpha *= 1 - away; ctx.translate(away * 80, 0);
   if (t >= flg - 0.2) {
     const v = 16.7 * outCubic(prog(t, flg, flg + 1.3));
     ctx.save(); ctx.globalAlpha *= prog(t, flg - 0.2, flg + 0.1);
@@ -531,17 +541,17 @@ function sAlert() {
   }
   rise('median time from a station’s report to the alert', 1116, 450, 28, { w: 600, c: C.mute, at: flg + 0.3, gap: 0.03 });
   rise('159 alerts · 8 – 10 Oct 2026', 1116, 490, 26, { w: 500, c: C.dim, at: flg + 0.5, gap: 0.03 });
-  const bx = 1116, by = 540, bw = 430;
+  const bx = 1116, by = 530, bw = 500;
   const be = outExpo(prog(t, bell - 0.1, bell + 0.6));
   if (be > 0) { screen('bell', BELLSRC, bx + (1 - be) * 120, by, bw, { a: be }); }
   if (t >= bell - 0.9 && t < bell + 0.1) {                  // the alert flies from the dot to the bell
     const u = inOutCubic(prog(t, bell - 0.9, bell - 0.05)), x = lerp(fx, bx + 40, u), y = lerp(fy, by + 120, u) - Math.sin(u * Math.PI) * 160;
-    dot(x - away * 900, y, 11, C.crit);
+    dot(x - away * 80, y, 11, C.crit);
   }
   hlShot(BELLSRC, bx, by, bw, [1326, 170, 406, 72], bell + 0.6, C.ind);
   [[planeIcon, 'Telegram'], [mailIcon, 'Email']].forEach(([icon, nm], k) => {
     const s = spring(t - (out + k * 0.15), ...POP); if (s <= 0) return;
-    const x = 1650, y = 600 + k * 110;
+    const x = 1650, y = 590 + k * 110;
     ctx.save(); ctx.translate(x + 100, y); ctx.scale(s, s); ctx.translate(-x - 100, -y);
     rr(x, y - 40, 210, 80, 20); ctx.fillStyle = C.panel; ctx.fill(); ctx.setLineDash([8, 6]); ctx.strokeStyle = C.mute; ctx.lineWidth = 2; ctx.stroke(); ctx.setLineDash([]);
     icon(x + 44, y, 1, C.mute); label(nm, x + 80, y + 10, 28, { w: 600, c: C.text });
@@ -551,7 +561,7 @@ function sAlert() {
   ctx.restore();
   // the rule: two sweeps in a row before an alert
   if (away > 0) {
-    ctx.save(); ctx.translate((1 - away) * 900, 0);
+    ctx.save(); ctx.globalAlpha *= away; ctx.translate((1 - away) * 80, 0);
     rise('An alert needs', 1110, 380, 52, { w: 800, at: fk + 0.1 });
     rise('two sweeps in a row', 1110, 446, 52, { w: 800, c: C.ind, at: fk + 0.25 });
     const rows = [['a flicker', [C.warn, C.ok], 'no alert', C.mute, fk + 0.9], ['a real fault', [C.crit, C.crit], 'alert', C.crit, calm]];
@@ -560,13 +570,13 @@ function sAlert() {
       rise(nm, 1110, y + 12, 32, { w: 600, c: C.text, at: a - 0.3 });
       cols.forEach((c, k) => {
         const s = spring(t - (a + k * 0.45), ...POP); if (s <= 0) return;
-        ctx.save(); ctx.translate(1420 + k * 110, y); ctx.scale(s, s);
-        rr(-44, -36, 88, 72, 14); ctx.fillStyle = C.panel; ctx.fill(); ctx.strokeStyle = C.line; ctx.lineWidth = 2; ctx.stroke();
-        dot(0, -4, 14, c); label('sweep ' + (k + 1), 0, 28, 18, { w: 600, c: C.mute, align: 'center' });
+        ctx.save(); ctx.translate(1400 + k * 130, y); ctx.scale(s, s);
+        rr(-60, -48, 120, 96, 16); ctx.fillStyle = C.panel; ctx.fill(); ctx.strokeStyle = C.line; ctx.lineWidth = 2; ctx.stroke();
+        dot(0, -12, 16, c); label('sweep ' + (k + 1), 0, 32, 26, { w: 600, c: C.mute, align: 'center' });
         ctx.restore();
       });
-      arrow(1590, y, 1640, y, C.mute, 4, outCubic(prog(t, a + 0.9, a + 1.2)), 12);
-      pill(1730, y, res, { size: 26, c: rc, fill: res === 'alert', s: spring(t - (a + 1.2), ...POP) });
+      arrow(1610, y, 1650, y, C.mute, 4, outCubic(prog(t, a + 0.9, a + 1.2)), 12);
+      pill(1740, y, res, { size: 28, c: rc, fill: res === 'alert', s: spring(t - (a + 1.2), ...POP) });
     });
     ctx.restore();
   }
@@ -599,14 +609,14 @@ function sCK36() {
   const cx = 960, cy = 560, ap = prog(t, 0.1, 0.6);
   link([[700, cy], [cx - 80, cy]], down, ap, 120, 0);
   link([[1220, cy], [cx + 80, cy]], down, ap, 120, 30);
-  link([[cx, 800], [cx, cy + 80]], 'ok', ap, 120, 60);
+  link([[cx, 800], [cx, cy + 124]], 'ok', ap, 120, 60);
   lane(200, cy - 60, 500, 'Entry', [['station', spring(t - 0.3, ...POP)], ['cam', spring(t - 0.4, ...POP)]], down, ap);
   lane(1220, cy - 60, 500, 'Exit', [['station', spring(t - 0.35, ...POP)], ['cam', spring(t - 0.45, ...POP)]], down, ap);
   tile(cx, cy, spring(t - 0.2, ...POP), 'opc', { sz: 130 });
   rise('CK36_PMS', cx, cy + 108, 26, { w: 700, c: C.mute, align: 'center', at: 0.3 });
   ctx.save(); ctx.globalAlpha *= ap; rr(cx - 230, 800, 460, 120, 22); ctx.fillStyle = C.band; ctx.fill(); ctx.strokeStyle = C.line; ctx.lineWidth = 2; ctx.stroke(); ctx.restore();
   ['BOOTH', 'TOPUP', 'NVR'].forEach((n, k) => { const x = cx - 130 + k * 130; tile(x, 846, spring(t - (0.5 + k * 0.06), ...POP), n === 'NVR' ? 'nvr' : 'cam', { sz: 72 });
-    rise(n, x, 906, 22, { w: 700, c: C.mute, align: 'center', at: 0.6 }); });
+    rise(n, x, 908, 26, { w: 700, c: C.mute, align: 'center', at: 0.6 }); });
   if (t >= dark) [[230, cy - 60], [1250, cy - 60]].forEach(([x, y]) => pill(x + 210, y - 40, 'not answering', { size: 24, c: C.crit, s: spring(t - dark, ...POP) }));
   // the clock from the loss to the flag
   const cl = prog(t, dark, flag), v = Math.round(23 * cl);
@@ -629,15 +639,29 @@ function sCK36() {
 
 // ---- 3. the station map: the real one draws itself; then how a device finds its lane ---------------------------
 const MAPSRC = [14, 150, 876, 575];
+const MAPPARTS = [   // the J71 map's pieces in the shot's CSS px, in the order they draw: the PC, entry lanes, exit lanes, the shared row
+  [[14, 150, 876, 60], 0.0], [[370, 360, 90, 100], 0.2],
+  ...[251, 313, 375, 437, 499].map((y, i) => [[50, y - 4, 300, 60], 0.5 + i * 0.22]),
+  ...[220, 282, 344, 406, 468, 530].map((y, i) => [[440, y - 4, 340, 60], 0.6 + i * 0.22]),
+  [[340, 460, 150, 220], 1.9],
+];
 function sMapShot(lt) {
   const T0 = t; t = lt;
-  const w = 1120, x = 400, y = 250, ox = x + (412 - MAPSRC[0]) * w / MAPSRC[2];
-  const u = outCubic(prog(t, 0.2, 2.0)), push = 1 + 0.03 * prog(t, 0, 5);
+  const w = 1120, x = 400, y = 250, push = 1 + 0.03 * prog(t, 0, 5), m = onShot(MAPSRC, x, y, w);
   ctx.save(); ctx.translate(960, 620); ctx.scale(push, push); ctx.translate(-960, -620);
-  ctx.save(); ctx.beginPath(); ctx.rect(ox - 120 - u * 560, 0, 240 + u * 1240, H); ctx.clip();
-  screen('map', MAPSRC, x, y, w);
-  ctx.restore(); ctx.restore();
-  rise('J71 · 5 entry lanes · 6 exit lanes · 33 monitors', 960, 1040, 28, { w: 600, c: C.mute, align: 'center', at: 1.0, gap: 0.03 });
+  const [cx0, cy0] = m(14, 150), [cx1, cy1] = m(890, 725);                       // the empty card first, in the page's own colour
+  ctx.save(); ctx.globalAlpha *= prog(t, 0, 0.4); ctx.shadowColor = 'rgba(0,0,0,.6)'; ctx.shadowBlur = 60; ctx.shadowOffsetY = 20;
+  rr(cx0, cy0, cx1 - cx0, cy1 - cy0, 16); ctx.fillStyle = '#f3f8fa'; ctx.fill(); ctx.restore();
+  ctx.save(); ctx.beginPath();
+  MAPPARTS.forEach(([[px, py, pw, ph], at]) => {
+    const u = outCubic(prog(t, at + 0.2, at + 0.7)); if (u <= 0) return;
+    const [x0, y0] = m(px, py), [x1, y1] = m(px + pw, py + ph), left = px === 50;          // entry lanes grow leftward from the PC
+    if (left) ctx.rect(lerp(x1, x0, u), y0, (x1 - x0) * u, y1 - y0); else ctx.rect(x0, y0, (x1 - x0) * u, (y1 - y0) * (px === 340 ? u : 1));
+  });
+  ctx.clip(); screen('map', MAPSRC, x, y, w, { shadow: false, edge: false }); ctx.restore();
+  screen('map', MAPSRC, x, y, w, { shadow: false, a: prog(t, 2.4, 3.0) });         // then the links between, all at once
+  ctx.restore();
+  rise('J71 · 5 entry lanes · 6 exit lanes · 33 monitors', 960, 1040, 28, { w: 600, c: C.mute, align: 'center', at: 1.6, gap: 0.03 });
   t = T0;
 }
 const CHIPS = [   // BL3's own device names, the parts that place them, where they go
@@ -657,26 +681,26 @@ function sMapNames(lt) {
   const T0 = t; t = lt;
   const base = L(CUE.entry, 'map'), ent = 0, ex = L(CUE.exit, 'map') - base, sh = L(CUE.shared, 'map') - base, nm = L(CUE.name, 'map') - base;
   const grn = L(CUE.green, 'map') - base, stop = L(CUE.stop, 'map') - base, red = L(CUE.red, 'map') - base, which = L(CUE.which, 'map') - base;
-  const cx = 960, cy = 640, xDown = t >= stop;
+  const cx = 960, cy = 690, xDown = t >= stop;
   const BAND = { entry: 200, exit: 1200 }, BW = 520;                   // the lane bands: title on the left, tiles on the right
   const DEST = { entry: [[BAND.entry + BW - 170, 'station'], [BAND.entry + BW - 66, 'cam']], exit: [[BAND.exit + BW - 170, 'station'], [BAND.exit + BW - 66, 'cam']] };
   const ea = prog(t, ent + 0.5, ent + 0.9), xa = prog(t, ex + 0.5, ex + 0.9), sa = prog(t, sh + 0.5, sh + 0.9), pk = prog(t, grn - 0.4, grn);
   link([[BAND.entry + BW, cy], [cx - 80, cy]], 'ok', ea * pk, 130, 0);
   link([[BAND.exit, cy], [cx + 80, cy]], xDown ? 'down' : 'ok', xa * pk, 130, 30);
-  link([[cx, 800], [cx, cy + 80]], 'ok', sa * pk, 130, 60);
+  link([[cx, 850], [cx, cy + 124]], 'ok', sa * pk, 130, 60);
   [[BAND.entry, 'Entry', ea, 'ok'], [BAND.exit, 'Exit', xa, xDown ? 'down' : 'ok']].forEach(([x, ti, a, st]) => {
     if (a <= 0) return; ctx.save(); ctx.globalAlpha *= a; rr(x, cy - 60, BW, 120, 22);
     ctx.fillStyle = st === 'down' ? 'rgba(248,113,113,.08)' : C.band; ctx.fill(); ctx.strokeStyle = st === 'down' ? 'rgba(248,113,113,.5)' : C.line; ctx.lineWidth = 2; ctx.stroke();
     label(ti, x + 32, cy + 10, 32, { w: 700 }); ctx.restore();
   });
-  if (sa > 0) { ctx.save(); ctx.globalAlpha *= sa; rr(cx - 160, 800, 320, 140, 22); ctx.fillStyle = C.band; ctx.fill(); ctx.strokeStyle = C.line; ctx.lineWidth = 2; ctx.stroke(); ctx.restore(); }
+  if (sa > 0) { ctx.save(); ctx.globalAlpha *= sa; rr(cx - 160, 850, 320, 150, 22); ctx.fillStyle = C.band; ctx.fill(); ctx.strokeStyle = C.line; ctx.lineWidth = 2; ctx.stroke(); ctx.restore(); }
   tile(cx, cy, spring(t + 0.4, ...POP), 'opc', { sz: 130 });
   label('BL3_PMS', cx, cy + 104, 26, { w: 700, c: C.mute, align: 'center' });
   // the names: a cloud, then each flies to where its name says
   CHIPS.forEach(([str, parts, where, img], i) => {
     const go = where === 'entry' ? ent : where === 'exit' ? ex : sh, k = where === 'shared' ? i - 4 : i % 2;
-    const r0 = Math.floor(i / 3), c0 = i % 3, x0 = 960 + (c0 - 1) * 480, y0 = 300 + r0 * 90;
-    const dx = where === 'shared' ? cx - 60 + k * 120 : DEST[where][k][0], dy = where === 'shared' ? 856 : cy;
+    const r0 = Math.floor(i / 3), c0 = i % 3, x0 = 960 + (c0 - 1) * 480, y0 = 380 + r0 * 90;
+    const dx = where === 'shared' ? cx - 60 + k * 120 : DEST[where][k][0], dy = where === 'shared' ? 906 : cy;
     const m = inOutCubic(prog(t, go + (i % 2) * 0.1, go + 0.8 + (i % 2) * 0.1));
     const s0 = spring(t + 0.6 - i * 0.06, ...POP);
     if (m < 1) {
@@ -689,19 +713,21 @@ function sMapNames(lt) {
     if (m > 0.75) {
       const down = where === 'exit' && img === 'station' && t >= red;
       tile(dx, dy, spring(t - (go + 0.75 + (i % 2) * 0.1), ...POP), img, { sz: where === 'shared' ? 80 : 88, st: down ? 'down' : 'ok' });
-      if (where === 'shared') label(str.replace('BL3 ', '').replace(' Camera', ''), dx, dy + 66, 22, { w: 700, c: C.mute, align: 'center' });
+      if (where === 'shared') label(str.replace('BL3 ', '').replace(' Camera', ''), dx, dy + 72, 26, { w: 700, c: C.mute, align: 'center' });
     }
   });
-  rise('The name says the lane', 960, 330, 60, { w: 800, align: 'center', at: nm, out: grn - 0.5 });
-  rise('checked on the live fleet: every lane station placed, 98 % of lane cameras paired', 960, 392, 30, { w: 500, c: C.mute, align: 'center', at: nm + 0.4, out: grn - 0.6, gap: 0.03 });
-  rise('Green packets: the lane answers', 960, 360, 44, { w: 700, c: C.pkt, align: 'center', at: grn + 0.2, out: stop - 0.3 });
+  rise('Another station, BL3: its devices find their lanes by name', 960, 300, 30, { w: 600, c: C.mute, align: 'center', at: -0.2, out: nm - 0.4, gap: 0.03 });
+  rise('The name says the lane', 960, 380, 60, { w: 800, align: 'center', at: nm, out: grn - 0.5 });
+  rise('checked on the live fleet: every lane station placed, 98 % of lane cameras paired', 960, 442, 30, { w: 500, c: C.mute, align: 'center', at: nm + 0.4, out: grn - 0.6, gap: 0.03 });
+  rise('Green packets: the lane answers', 960, 410, 44, { w: 700, c: C.pkt, align: 'center', at: grn + 0.2, out: stop - 0.3 });
+  rise('When a lane stops, its link breaks in red', 960, 410, 44, { w: 700, c: C.text, align: 'center', at: stop + 0.1 });
   const [wx] = DEST.exit[0];
   if (t >= which) {
     hl(wx - 56, cy - 56, 112, 112, which, C.crit, 22);
     pill(wx, cy - 112, 'BL3X Station · not answering', { size: 26, c: C.crit, fill: true, s: spring(t - (which + 0.3), ...POP) });
-    rise('as it happened on 10 Oct, 09:19 · back at 09:29', 1460, 800, 26, { w: 500, c: C.mute, align: 'center', at: which + 0.5, gap: 0.03 });
+    rise('as it happened on 10 Oct, 09:19 · back at 09:29', 1460, 850, 28, { w: 500, c: C.mute, align: 'center', at: which + 0.5, gap: 0.03 });
   }
-  if (t >= red) rise('Exit · 1 device down', 1460, 760, 30, { w: 700, c: C.crit, align: 'center', at: red + 0.2 });
+  if (t >= red) rise('Exit · 1 device down', 1460, 810, 30, { w: 700, c: C.crit, align: 'center', at: red + 0.2 });
   t = T0;
 }
 function sMap() {
@@ -715,12 +741,12 @@ function sMap() {
 }
 
 // ---- 4. look inside: the live camera and the remote screen ------------------------------------------------------
-const CAMSRC = [905, 150, 340, 272], VNCSRC = [905, 150, 340, 372];
+const CAMSRC = [905, 150, 340, 272], VNCSRC = [905, 150, 340, 300];
 function node(x, y, s, kind, name, at) {
   const sp = spring(t - at, ...POP); if (sp <= 0) return;
-  if (kind === 'browser') { ctx.save(); ctx.translate(x, y); ctx.scale(sp * s, sp * s); browserIcon(0, 0, 1); ctx.restore(); }
-  else tile(x, y, sp * s, kind, { sz: 92 });
-  rise(name, x, y + 84, 24, { w: 600, c: C.mute, align: 'center', at: at + 0.1 });
+  if (kind === 'browser') { ctx.save(); ctx.translate(x, y); ctx.scale(sp * s * 1.25, sp * s * 1.25); browserIcon(0, 0, 1); ctx.restore(); }
+  else tile(x, y, sp * s, kind, { sz: 116 });
+  rise(name, x, y + 100, 28, { w: 600, c: C.mute, align: 'center', at: at + 0.1 });
 }
 function sLook() {
   kicker('04 · Look inside');
@@ -728,40 +754,38 @@ function sLook() {
   const cam = L(CUE.cam, 'look'), live = L(CUE.live, 'look'), via = L(CUE.via, 'look'), lane = L(CUE.lane, 'look');
   const scr = L(CUE.screen, 'look'), mouse = L(CUE.mouse, 'look'), pw = L(CUE.pw, 'look'), never = L(CUE.never, 'look'), rec = L(CUE.rec, 'look');
   // row 1: camera -> server (ffmpeg) -> browser
-  const R1 = 430, R2 = 760;
-  rise('Live camera', 140, R1 - 100, 34, { w: 700, at: cam - 0.2 });
-  node(230, R1, 1, 'cam', 'J71 ENTRY1', cam); node(560, R1, 1, 'server', 'server · ffmpeg', cam + 0.3); node(890, R1, 1, 'browser', 'your browser', cam + 0.6);
-  poly([[280, R1], [510, R1]], C.wire, 4, prog(t, cam + 0.3, cam + 0.7)); poly([[610, R1], [840, R1]], C.wire, 4, prog(t, cam + 0.6, cam + 1.0));
-  rise('RTSP', 395, R1 - 22, 24, { w: 700, c: C.ind, align: 'center', at: cam + 0.5, f: MONO }); rise('MJPEG', 725, R1 - 22, 24, { w: 700, c: C.ind, align: 'center', at: cam + 0.8, f: MONO });
-  if (t >= via) { packets([[280, R1], [510, R1]], C.pkt, 160, 2, prog(t, via, via + 0.3)); packets([[610, R1], [840, R1]], C.pkt, 160, 2, prog(t, via, via + 0.3), 6, 40); }
-  // row 2: station PC <- OPC agent <- server <- browser
-  rise('Remote screen', 140, R2 - 100, 34, { w: 700, at: lane - 0.2 });
-  node(230, R2, 1, 'station', 'J71X1 · :5900', lane); node(450, R2, 1, 'opc', 'OPC agent', lane + 0.2); node(670, R2, 1, 'server', 'server', lane + 0.4); node(890, R2, 1, 'browser', 'your browser', lane + 0.6);
-  [[280, 400], [500, 620], [720, 840]].forEach(([a, b], k) => poly([[a, R2], [b, R2]], C.wire, 4, prog(t, lane + 0.2 + k * 0.2, lane + 0.6 + k * 0.2)));
-  if (t >= scr) [[280, 400], [500, 620], [720, 840]].forEach(([a, b], k) => { packets([[a, R2], [b, R2]], C.ind, 120, 2, prog(t, scr, scr + 0.3), 6, k * 20); packets([[b, R2], [a, R2]], '#c7d2fe', 120, 1, prog(t, scr, scr + 0.3), 6, k * 33); });
-  // the password: kept at the server
+  const R1 = 440, R2 = 770, X4 = [200, 440, 680, 920];
+  // row 1: the camera's picture comes through the server to your screen
+  rise('Live camera', 140, R1 - 110, 36, { w: 700, at: cam - 0.2 });
+  node(X4[0], R1, 1, 'cam', 'camera', cam); node(X4[2], R1, 1, 'server', 'server', cam + 0.3); node(X4[3], R1, 1, 'browser', 'your screen', cam + 0.6);
+  poly([[X4[0] + 66, R1], [X4[2] - 66, R1]], C.wire, 4, prog(t, cam + 0.3, cam + 0.7)); poly([[X4[2] + 66, R1], [X4[3] - 66, R1]], C.wire, 4, prog(t, cam + 0.6, cam + 1.0));
+  if (t >= via) { packets([[X4[0] + 66, R1], [X4[2] - 66, R1]], C.pkt, 160, 3, prog(t, via, via + 0.3)); packets([[X4[2] + 66, R1], [X4[3] - 66, R1]], C.pkt, 160, 2, prog(t, via, via + 0.3), 6, 40); }
+  // row 2: a lane PC's screen, through the booth PC and the server, to your screen
+  rise('Remote screen', 140, R2 - 110, 36, { w: 700, at: lane - 0.2 });
+  node(X4[0], R2, 1, 'station', 'lane PC', lane); node(X4[1], R2, 1, 'opc', 'booth PC', lane + 0.2); node(X4[2], R2, 1, 'server', 'server', lane + 0.4); node(X4[3], R2, 1, 'browser', 'your screen', lane + 0.6);
+  const segs = [[X4[0] + 66, X4[1] - 66], [X4[1] + 66, X4[2] - 66], [X4[2] + 66, X4[3] - 66]];
+  segs.forEach(([a, b], k) => poly([[a, R2], [b, R2]], C.wire, 4, prog(t, lane + 0.2 + k * 0.2, lane + 0.6 + k * 0.2)));
+  if (t >= scr) segs.forEach(([a, b], k) => { packets([[a, R2], [b, R2]], C.ind, 120, 2, prog(t, scr, scr + 0.3), 6, k * 20); packets([[b, R2], [a, R2]], '#c7d2fe', 120, 1, prog(t, scr, scr + 0.3), 6, k * 33); });
+  // the password: kept at the server, never sent on to your screen
   if (t >= pw - 0.2) {
-    const u = outCubic(prog(t, pw + 0.2, pw + 1.2)), kx = lerp(670, 768, u) - (t > pw + 1.2 ? Math.sin((t - pw - 1.2) * 18) * 4 * Math.exp(-(t - pw - 1.2) * 4) : 0);
-    ctx.save(); ctx.globalAlpha *= prog(t, pw - 0.2, pw + 0.1); keyIcon(kx - 14, R2 - 90, 1.1); ctx.restore();
+    const u = outCubic(prog(t, pw + 0.2, pw + 1.2)), kx = lerp(X4[2], X4[2] + 104, u) - (t > pw + 1.2 ? Math.sin((t - pw - 1.2) * 18) * 4 * Math.exp(-(t - pw - 1.2) * 4) : 0);
+    ctx.save(); ctx.globalAlpha *= prog(t, pw - 0.2, pw + 0.1); keyIcon(kx - 14, R2 - 104, 1.2, C.text); ctx.restore();
     const b = spring(t - (pw + 1.0), ...POP);
-    if (b > 0) { ctx.save(); ctx.translate(790, R2 - 90); ctx.scale(b, b); line(0, -46, 0, 46, C.ind, 5); lockIcon(0, -86, 0.8); ctx.restore(); }
-    rise('the station’s VNC password stays on the server', 140, R2 + 150, 28, { w: 600, c: C.warn, at: pw + 0.6, gap: 0.03 });
+    if (b > 0) { ctx.save(); ctx.translate(X4[2] + 130, R2 - 104); ctx.scale(b, b); line(0, -46, 0, 46, C.ind, 5); lockIcon(0, -86, 0.8); ctx.restore(); }
+    rise('the station’s password stays on the server', 140, R2 + 158, 30, { w: 600, c: C.text, at: pw + 0.6, gap: 0.03 });
   }
-  if (t >= never) {
-    const s = spring(t - never, ...POP);
-    ctx.save(); ctx.translate(890, R2 - 90); ctx.scale(s, s); keyIcon(-14, 0, 0.9, C.dim); line(-36, -26, 36, 26, C.crit, 6); ctx.restore();
-    rise('and never reaches the browser', 140, R2 + 194, 28, { w: 600, c: C.crit, at: never + 0.2, gap: 0.03 });
-  }
+  if (t >= never) rise('and never reaches your screen', 140, R2 + 202, 30, { w: 700, c: C.ok, at: never + 0.2, gap: 0.03 });
   // the shots: the camera card, then the remote screen
   const ce = outExpo(prog(t, live - 0.2, live + 0.6)), cOut = inOutCubic(prog(t, scr - 0.5, scr + 0.2));
   if (ce > 0 && cOut < 1) {
-    const w = 720, x = 1090 + (1 - ce) * 140 - cOut * 200;
-    const h = screen('camera', CAMSRC, x, 250, w, { a: ce * (1 - cOut) });
-    if (cOut === 0) { const bl = 0.5 + 0.5 * Math.sin(t * 6); dot(x + 34, 250 + h - 40, 9, `rgba(248,113,113,${0.5 + 0.5 * bl})`); }
+    const w = 720, x = 1110 + (1 - ce) * 140 - cOut * 200, k = 1 + 0.05 * prog(t, live, scr);   // a slow push while it plays
+    ctx.save(); ctx.translate(x + w / 2, 520); ctx.scale(k, k); ctx.translate(-x - w / 2, -520);
+    screen('camera', CAMSRC, x, 250, w, { a: ce * (1 - cOut) });
+    ctx.restore();
   }
   const ve = outExpo(prog(t, scr - 0.2, scr + 0.6));
   if (ve > 0) {
-    const w = 600, x = 1150 + (1 - ve) * 160, y = 236;
+    const w = 640, x = 1150 + (1 - ve) * 160, y = 250;
     screen('vnc', VNCSRC, x, y, w, { a: ve });
     const m = onShot(VNCSRC, x, y, w);
     if (t >= mouse) {                                       // the mouse reaches the PC: a pointer travels and clicks
@@ -769,36 +793,37 @@ function sLook() {
       const px = lerp(ax, bx, u), py = lerp(ay, by, u);
       if (t > mouse + 1.0) { const v = prog(t, mouse + 1.0, mouse + 1.6); ctx.save(); ctx.globalAlpha *= 1 - v; ring(bx, by, 10 + v * 40, C.ind, 4); ctx.restore(); }
       cursorIcon(px, py, 1.3);
-      pill(x + w / 2, y + w * 372 / 340 + 40, 'mouse and keyboard', { size: 26, c: C.ind, s: spring(t - (mouse + 0.3), ...POP) * (1 - prog(t, rec - 0.4, rec)) });
+      pill(x + w / 2, y + w * 300 / 340 + 44, 'mouse and keyboard', { size: 26, c: C.ind, s: spring(t - (mouse + 0.3), ...POP) * (1 - prog(t, rec - 0.4, rec)) });
     }
     if (t >= rec) {
-      const e = outExpo(prog(t, rec, rec + 0.6)), y2 = y + w * 372 / 340 + 18;
+      const e = outExpo(prog(t, rec, rec + 0.6)), y2 = y + w * 300 / 340 + 24;
       ctx.save(); ctx.globalAlpha *= e; ctx.translate(0, (1 - e) * 30);
       rr(x - 40, y2, w + 80, 92, 16); ctx.fillStyle = C.panel; ctx.fill(); ctx.strokeStyle = C.line; ctx.lineWidth = 2; ctx.stroke();
-      dot(x - 6, y2 + 46, 10, C.crit); label('REC', x + 12, y2 + 38, 22, { w: 800, c: C.crit });
-      label('audit', x + 12, y2 + 66, 22, { w: 600, c: C.mute });
+      dot(x - 8, y2 + 46, 10, C.crit); label('REC', x + 10, y2 + 56, 26, { w: 800, c: C.crit });
       label('Opened the screen of J71X1 Station', x + 92, y2 + 40, 26, { w: 700 });
-      label('justin · 10 Oct 2026, 14:27 · 5 s', x + 92, y2 + 72, 24, { w: 500, c: C.mute });
+      label('justin · 10 Oct 2026, 14:27 · 5 s', x + 92, y2 + 72, 26, { w: 500, c: C.mute });
       ctx.restore();
     }
   }
 }
 
 // ---- 5. safe commands: the tools; the two allow lists; the record ---------------------------------------------------
-const TOOLSRC = [1440, 30, 480, 820];
+const TOOLSRC = [1440, 10, 480, 840];
 const TOOLROWS = [[1456, 398, 448, 76], [1456, 476, 448, 76], [1456, 200, 448, 76], [1456, 754, 448, 76]];   // ping, port, restart, search logs
 const CMDS = [['Ping a device', 'ping_test'], ['Test a port', 'port_test'], ['Restart a service', 'restart_service'], ['Search a log', 'search_log']];
 function sFixTools(lt) {
   const T0 = t; t = lt;
-  const x = 1300, y = 236, w = 470, cmd = CUE.cmd.map(c => L(c, 'fix'));
-  screen('tools', TOOLSRC, x + (1 - outExpo(prog(t, 0.0, 0.7))) * 200, y, w, { a: prog(t, 0, 0.4) });
-  rise('The Tools sheet, on every station page', 140, 330, 34, { w: 600, c: C.mute, at: 0.4, gap: 0.03 });
+  const cmd = CUE.cmd.map(c => L(c, 'fix')), mv = inOutCubic(prog(t, cmd[0] - 0.9, cmd[0] - 0.1));
+  const w = lerp(520, 470, mv), x = lerp(700, 1300, mv), y = lerp(232, 236, mv);
+  screen('tools', TOOLSRC, x, y, w, { a: prog(t, 0, 0.4) });
+  rise('The Tools sheet', 140, 470, 56, { w: 800, at: 0.4, out: cmd[0] - 0.9 });
+  rise('on every station page', 140, 530, 34, { w: 500, c: C.mute, at: 0.6, out: cmd[0] - 0.9, gap: 0.03 });
   CMDS.forEach(([nm, code], i) => {
     const at = cmd[i], s = spring(t - at, ...POP); if (s <= 0) return;
-    const y0 = 420 + i * 140;
+    const y0 = 420 + [1, 2, 0, 3][i] * 140;                  // ping, port, restart, search: placed in the sheet's order
     ctx.save(); ctx.translate(140, y0); ctx.scale(s, s);
     rr(0, -50, 760, 110, 20); ctx.fillStyle = C.panel; ctx.fill(); ctx.strokeStyle = C.line; ctx.lineWidth = 2; ctx.stroke();
-    label(nm, 36, 6, 44, { w: 800 }); label(code, 36, 44, 26, { w: 600, c: C.ind, f: MONO });
+    label(nm, 36, 20, 44, { w: 800 });
     ctx.restore();
     const [, , bx0, by0] = [0, 0, ...onShot(TOOLSRC, x, y, w)(TOOLROWS[i][0], TOOLROWS[i][1] + TOOLROWS[i][3] / 2)];
     hlShot(TOOLSRC, x, y, w, TOOLROWS[i], at + 0.15, C.ind);
@@ -824,10 +849,12 @@ function sFixGates(lt) {
   // card 1: restart_service, through both gates to the PC
   const u = inOutCubic(prog(t, 0.6, 3.2)), x1 = lerp(330, 1500, u), y1 = 470;
   const pass = (gx) => clamp(1 - Math.abs(x1 - gx) / 160) * (t > 0.6 ? 1 : 0);
-  // card 2: cmd.exe, refused at the first gate
-  const hit = sh + 0.9, x2 = t < hit ? lerp(330, 640, inCubic(prog(t, sh, hit))) : 640 - 220 * outCubic(prog(t, hit, hit + 0.6)), y2 = 660;
-  const bad = t >= hit ? 1 - prog(t, hit + 0.4, hit + 1.6) : 0;
-  gate(760, 'server allow list', 0.0, pass(760), bad); gate(1180, 'station allow list', 0.15, pass(1180), 0);
+  // card 2: a raw shell line, refused at the server; card 3: a real command this station does not allow, refused at the station
+  const hit = sh + 0.9, x2 = t < hit ? lerp(330, 640, inCubic(prog(t, sh, hit))) : 640 - 220 * outCubic(prog(t, hit, hit + 0.6)), y2 = 640;
+  const hit3 = 3.2, x3 = t < hit3 ? lerp(330, 1060, inOutCubic(prog(t, 1.2, hit3))) : 1060 - 200 * outCubic(prog(t, hit3, hit3 + 0.6)), y3 = 760;   // on "its own allow list"
+  const bad = t >= hit ? 1 - prog(t, hit + 0.4, hit + 1.6) : 0, bad3 = t >= hit3 ? 1 - prog(t, hit3 + 0.4, hit3 + 1.6) : 0;
+  const pass3 = t >= 1.2 && t < hit3 ? clamp(1 - Math.abs(x3 - 760) / 160) : 0;
+  gate(760, 'server allow list', 0.0, Math.max(pass(760), pass3), bad); gate(1180, 'station allow list', 0.15, pass(1180), bad3);
   tile(1620, 560, spring(t - 0.3, ...POP), 'opc', { sz: 140, st: 'ok' });
   label('J71_PMS', 1620, 670, 26, { w: 700, c: C.mute, align: 'center' });
   const card = (x, y, str, c, a = 1) => { if (a <= 0) return; ctx.save(); ctx.globalAlpha *= a; const wd = width(str, 30, 700, MONO) + 60;
@@ -836,21 +863,27 @@ function sFixGates(lt) {
   card(x1, y1, 'restart_service', C.ok, prog(t, 0.2, 0.5) * (1 - prog(t, 3.0, 3.3)));
   if (t >= 3.2) badge(1620, 470, 34, true, 3.2);
   if (t >= sh) card(x2, y2, 'cmd.exe /c …', C.crit, prog(t, sh, sh + 0.2));
-  if (t >= hit) {
-    const s = spring(t - hit, 2.6, 0.5);
-    ctx.save(); ctx.translate(560, 590); ctx.rotate(-0.18); ctx.scale(lerp(1.8, 1, clamp(s)), lerp(1.8, 1, clamp(s))); ctx.globalAlpha *= clamp(s * 2);
+  if (t >= 1.2) card(x3, y3, 'gpupdate', C.warn, prog(t, 1.2, 1.4) * (1 - prog(t, hit3 + 1.8, hit3 + 2.2)));
+  [[hit, 560, 572], [hit3, 990, 692]].forEach(([h, sx, sy]) => {
+    if (t < h) return;
+    const s = spring(t - h, 2.6, 0.5);
+    ctx.save(); ctx.translate(sx, sy); ctx.rotate(-0.18); ctx.scale(lerp(1.8, 1, clamp(s)), lerp(1.8, 1, clamp(s))); ctx.globalAlpha *= clamp(s * 2);
     rr(-120, -36, 240, 72, 10); ctx.strokeStyle = C.crit; ctx.lineWidth = 6; ctx.stroke();
     label('REFUSED', 0, 3, 40, { w: 800, c: C.crit, align: 'center', base: 'middle' }); ctx.restore();
-  }
-  rise('No open shell.', 140, 900, 52, { w: 800, at: rf, out: job - 0.4 });
-  rise('Twelve command types. Nothing else runs.', 140, 960, 32, { w: 500, c: C.mute, at: rf + 0.3, out: job - 0.4, gap: 0.03 });
+  });
+  rise('No open shell. Twelve command types,', 140, 920, 40, { w: 800, at: rf + 0.4, out: job - 0.4 });
+  rise('and each station decides which of them it runs.', 140, 972, 32, { w: 500, c: C.mute, at: rf + 0.7, out: job - 0.4, gap: 0.03 });
   ctx.restore();
   // the record of every command: the station's real Activity list
   if (gone > 0) {
-    const ACTSRC = [0, 110, 960, 560], w = 1180, x = 370, y = 250 + (1 - gone) * 500;
+    const ACTSRC = [0, 286, 880, 150], w = 1240, x = 340, y = 560 + (1 - gone) * 300, m = onShot(ACTSRC, x, y, w);
     screen('activity', ACTSRC, x, y, w, { a: gone });
-    hlShot(ACTSRC, x, y, w, [6, 318, 948, 104], who - 0.2, C.ind);
-    pill(x + w - 150, y - 6, 'recorded: who, what, how it ended', { size: 26, c: C.ind, fill: true, s: spring(t - how, ...POP) });
+    hlShot(ACTSRC, x, y, w, [6, 321, 868, 32], job + 0.5, C.ind);
+    [['what', 170, job + 0.7, 90], ['who', 296, who, 190], ['how it ended', 380, how, 90]].forEach(([s2, px, a, lift]) => {
+      const [sx, sy] = m(px, 320), u = outCubic(prog(t, a, a + 0.4)); if (u <= 0) return;
+      line(sx, sy - 6, sx, sy - 6 - (lift - 30) * u, C.ind, 3); pill(sx, sy - lift, s2, { size: 28, c: C.ind, fill: true, s: spring(t - (a + 0.2), ...POP) });
+    });
+    rise('every command, kept with its result', 340, 900, 32, { w: 600, c: C.mute, at: how + 0.4, gap: 0.03 });
   }
   t = T0;
 }
@@ -868,38 +901,39 @@ function sFix() {
 function stamp(x, y, s, str, c) {
   if (s <= 0) return;
   ctx.save(); ctx.translate(x, y); ctx.rotate(-0.22); ctx.scale(s, s);
-  ring(0, 0, 58, c, 6); label(str, 0, 2, 22, { w: 800, c, align: 'center', base: 'middle', f: MONO });
+  ring(0, 0, 58, c, 6); label(str, 0, 2, 26, { w: 800, c, align: 'center', base: 'middle' });
   ctx.restore();
 }
 function sRelFlow(lt) {
   const T0 = t; t = lt;
   const at = k => L(CUE[k], 'release'), sign = at('sign'), key = at('key'), ship = at('ship'), sig = at('sig'), sum = at('sum');
   const bk = at('backup'), inst = at('install'), fault = at('fault'), back = at('back');
-  const X = [300, 960, 1560], IY = 420;
-  [['Release PC · offline', 0], ['ParkOps server', 1], ['Station', 2]].forEach(([s, k]) => rise(s, X[k], 310, 32, { w: 700, c: C.mute, align: 'center', at: 0.1 + k * 0.15 }));
-  const ls = spring(t - 0.2, ...POP); if (ls > 0) { ctx.save(); ctx.translate(X[0], IY); ctx.scale(ls, ls); laptopIcon(0, 0, 1); ctx.restore(); }
-  tile(X[1], IY, spring(t - 0.35, ...POP), 'server', { sz: 120 });
-  tile(X[2], IY, spring(t - 0.5, ...POP), 'opc', { sz: 120 });
-  poly([[X[0] + 110, IY], [X[1] - 80, IY]], C.wire, 4, prog(t, 0.4, 0.9), [10, 10]); poly([[X[1] + 80, IY], [X[2] - 80, IY]], C.wire, 4, prog(t, 0.6, 1.1), [10, 10]);
+  ctx.save();
+  const X = [330, 950, 1500], IY = 500;
+  [['Release PC · offline', 0], ['ParkOps server', 1], ['Station', 2]].forEach(([s, k]) => rise(s, X[k], 380, 32, { w: 700, c: C.mute, align: 'center', at: 0.1 + k * 0.15 }));
+  const ls = spring(t - 0.2, ...POP); if (ls > 0) { ctx.save(); ctx.translate(X[0], IY); ctx.scale(ls * 1.2, ls * 1.2); laptopIcon(0, 0, 1); ctx.restore(); }
+  tile(X[1], IY, spring(t - 0.35, ...POP), 'server', { sz: 140 });
+  tile(X[2], IY, spring(t - 0.5, ...POP), 'opc', { sz: 140 });
+  poly([[X[0] + 120, IY], [X[1] - 90, IY]], C.wire, 4, prog(t, 0.4, 0.9), [10, 10]); poly([[X[1] + 170, IY], [X[2] - 90, IY]], C.wire, 4, prog(t, 0.6, 1.1), [10, 10]);
   // the key stays with the release PC; the server holds none
   const ks = spring(t - (sign - 0.2), ...POP);
-  if (ks > 0) { ctx.save(); ctx.translate(X[0] + 120, IY - 80); ctx.scale(ks, ks); keyIcon(0, 0, 1.2); ctx.restore(); }
-  if (t >= key) { const s = spring(t - key, ...POP); ctx.save(); ctx.translate(X[1] + 100, IY - 80); ctx.scale(s, s); keyIcon(0, 0, 1.1, C.dim); line(-30, -26, 36, 26, C.crit, 6); ctx.restore();
-    rise('holds no signing key', X[1], IY + 110, 28, { w: 600, c: C.mute, align: 'center', at: key + 0.2 }); }
+  if (ks > 0) { ctx.save(); ctx.translate(X[0] + 150, IY - 90); ctx.scale(ks, ks); keyIcon(0, 0, 1.3, C.text); ctx.restore(); }
+  if (t >= key) { const s = spring(t - key, ...POP); ctx.save(); ctx.translate(X[1] + 128, IY); ctx.scale(s, s); keyIcon(0, 0, 1.1, C.dim); line(-30, -26, 36, 26, C.crit, 6); ctx.restore();
+    rise('holds no signing key', X[1], IY + 124, 28, { w: 600, c: C.mute, align: 'center', at: key + 0.2 }); }
   // the package: signed beside the laptop, then carried to the station
-  const mv = inOutCubic(prog(t, ship, ship + 1.4)), PY = 620;
+  const mv = inOutCubic(prog(t, ship, ship + 1.4)), PY = 730;
   const px = mv < 0.5 ? lerp(X[0], X[1], mv * 2) : lerp(X[1], X[2] - 200, (mv - 0.5) * 2);
   const pkS = spring(t - (sign - 0.4), ...POP);
   if (t < inst) {
     boxIcon(px, PY, pkS, C.ind, C.tile, 'v2');
-    stamp(px + 92, PY - 30, spring(t - (sign + 0.9), 2.6, 0.5), 'Ed25519', C.ok);
+    stamp(px + 92, PY - 30, spring(t - (sign + 0.9), 2.6, 0.5), 'SIGNED', C.ok);
   }
   rise('signed', X[0], PY + 110, 30, { w: 700, c: C.ok, align: 'center', at: sign + 1.0, out: ship - 0.2 });
   // at the station: two checks, then v1 steps aside as a backup, v2 goes in, fails, and v1 comes back
-  [['Signature', sig], ['Checksum · SHA-256', sum]].forEach(([s, a], k) => {
-    const y = 770 + k * 64; badge(X[2] - 330, y, 20, true, a); rise(s, X[2] - 298, y + 10, 28, { w: 600, at: a + 0.05 });
+  [['Signature', sig], ['Nothing altered', sum]].forEach(([s, a], k) => {
+    const y = 850 + k * 60; badge(X[2] - 350, y, 20, true, a); rise(s, X[2] - 318, y + 10, 28, { w: 600, at: a + 0.05 });
   });
-  const SLOT = [X[2] + 40, PY], BK = [X[2] + 230, PY + 40];
+  const SLOT = [X[2] + 40, PY], BK = [X[2] + 210, PY + 40];
   const aside = inOutCubic(prog(t, bk, bk + 0.7)) * (1 - inOutCubic(prog(t, back, back + 0.8)));
   const v1x = lerp(SLOT[0], BK[0], aside), v1y = lerp(SLOT[1], BK[1], aside), v1s = lerp(1, 0.8, aside);
   boxIcon(v1x, v1y, spring(t - 0.7, ...POP) * v1s, C.mute, C.tile, 'v1');
@@ -916,46 +950,31 @@ function sRelFlow(lt) {
   if (t >= back) {                                          // rewind arrows, then the all-clear
     const r = prog(t, back, back + 0.9); ctx.save(); ctx.globalAlpha *= 1 - prog(t, back + 0.9, back + 1.2);
     ctx.beginPath(); ctx.arc(SLOT[0], SLOT[1], 92, -0.5 - r * 6, 1.8 - r * 6); ctx.strokeStyle = C.ok; ctx.lineWidth = 5; ctx.stroke(); ctx.restore();
-    pill(SLOT[0] + 100, 960, 'rolled back by itself', { size: 30, c: C.ok, fill: true, s: spring(t - (back + 0.6), ...POP) });
+    pill(SLOT[0] + 110, 880, 'rolled back by itself', { size: 30, c: C.ok, fill: true, s: spring(t - (back + 0.6), ...POP) });
   }
+  ctx.restore();
   t = T0;
 }
-function sRelSelf(lt) {
+function sRelSelf(lt) {                                  // the agent updates itself: three steps, each lit as it is said
   const T0 = t; t = lt;
   const base = L(CUE.self, 'release'), sw = L(CUE.swap, 'release') - base, wt = L(CUE.wait, 'release') - base, rs = L(CUE.restore, 'release') - base;
-  rise('The agent updates itself', 140, 330, 52, { w: 800, at: 0.1 });
-  rise('signed and checked like any release; a helper does the swap', 144, 380, 28, { w: 500, c: C.mute, at: 0.4, gap: 0.03 });
-  const SX = 380, SY = 600;
-  const ps = spring(t - 0.3, ...POP);
-  if (ps > 0) { ctx.save(); ctx.translate(SX, SY); ctx.scale(ps, ps); rr(-170, -80, 340, 160, 24); ctx.fillStyle = C.panel; ctx.fill(); ctx.strokeStyle = C.line; ctx.lineWidth = 2; ctx.stroke();
-    label('Windows service', 0, -18, 26, { w: 600, c: C.mute, align: 'center' }); label('POSvc', 0, 36, 48, { w: 800, align: 'center' }); ctx.restore(); }
-  const us = spring(t - 1.6, ...POP);
-  if (us > 0) { poly([[SX + 180, SY], [SX + 290, SY]], C.ind, 4, prog(t, 1.4, 1.9), [10, 10]); pill(SX + 400, SY, 'updater.exe', { size: 30, c: C.ind, fill: true, s: us, f: MONO });
-    rise('detached: it outlives the service stop', SX + 400, SY + 70, 26, { w: 600, c: C.mute, align: 'center', at: 2.0, gap: 0.03 }); }
-  // the swap: the new exe in, the old one kept as .old
-  const m = inOutCubic(prog(t, sw, sw + 1.0));
-  if (t >= sw - 0.4) [0, 1].forEach(i => {
-    const a = prog(t, sw - 0.4, sw), y = lerp(SY + 150 + i * 70, SY + 150 + (1 - i) * 70, m), x = SX + Math.sin(m * Math.PI) * (i ? -70 : 70);
-    const name = m > 0.5 ? (i === 0 ? 'POSvc.exe' : 'POSvc.exe.old') : (i === 0 ? 'POSvc.exe · new' : 'POSvc.exe');
-    ctx.save(); ctx.globalAlpha *= a * ps; const wd = 300;
-    rr(x - wd / 2, y - 27, wd, 54, 12); ctx.fillStyle = i === 0 ? 'rgba(129,140,248,.18)' : C.tile; ctx.fill(); ctx.strokeStyle = i === 0 ? C.ind : C.tileLine; ctx.lineWidth = 2; ctx.stroke();
-    label(name, x, y + 2, 26, { w: 700, c: i === 0 ? C.ind : C.mute, align: 'center', base: 'middle', f: MONO });
+  rise('The agent updates itself', 140, 330, 56, { w: 800, at: 0.1 });
+  rise('the same signature and checks as any release', 144, 384, 30, { w: 500, c: C.mute, at: 0.4, gap: 0.03 });
+  const STEPS = [['1', 'Swap in', 'the new version', sw, C.ind], ['2', 'Wait', 'up to 60 s for it to start', wt, C.ind], ['3', 'If it doesn’t', 'put the old one back', rs, C.ok]];
+  STEPS.forEach(([n, ti, sub2, at, c], i) => {
+    const x = 140 + i * 570, y = 470, s = spring(t - (0.5 + i * 0.15), ...POP); if (s <= 0) return;
+    const lit = clamp((t - at) / 0.3);
+    ctx.save(); ctx.translate(x + 250, y + 170); ctx.scale(s, s); ctx.translate(-x - 250, -y - 170);
+    rr(x, y, 500, 340, 26); ctx.fillStyle = lit > 0.5 ? '#141c33' : C.panel; ctx.fill(); ctx.strokeStyle = lit > 0.5 ? c : C.line; ctx.lineWidth = lit > 0.5 ? 4 : 2; ctx.stroke();
+    dot(x + 70, y + 76, 34, lit > 0.5 ? c : C.line); label(n, x + 70, y + 78, 36, { w: 800, c: lit > 0.5 ? C.ink : C.mute, align: 'center', base: 'middle' });
+    label(ti, x + 40, y + 190, 52, { w: 800, c: lit > 0.5 ? C.text : C.mute }); label(sub2, x + 40, y + 240, 30, { w: 500, c: C.mute });
+    if (i < 2) arrow(x + 510, y + 170, x + 560, y + 170, lit > 0.5 ? c : C.dim, 4, 1, 12);
     ctx.restore();
-  });
-  // the wait for RUNNING: up to 60 s; then the two outcomes
-  const RX = 1060, ws = spring(t - wt, ...POP);
-  if (ws > 0) {
-    poly([[SX + 500, SY], [RX - 96, SY]], C.wire, 4, prog(t, wt, wt + 0.3));
-    ctx.save(); ctx.translate(RX, SY); ctx.scale(ws, ws);
-    ring(0, 0, 86, C.line, 10);
-    const f = prog(t, wt, wt + 1.6); ctx.beginPath(); ctx.arc(0, 0, 86, -Math.PI / 2, -Math.PI / 2 + f * 2 * Math.PI * 0.35); ctx.strokeStyle = C.ind; ctx.lineWidth = 10; ctx.lineCap = 'round'; ctx.stroke();
-    label('RUNNING?', 0, -4, 30, { w: 800, align: 'center', base: 'middle' }); label('up to 60 s', 0, 32, 24, { w: 600, c: C.mute, align: 'center', base: 'middle' });
-    ctx.restore();
-  }
-  [[480, C.ok, 'yes', 'done; .old kept for next time', wt + 1.4], [720, C.crit, 'no', 'put .old back, start again', rs]].forEach(([y, c, ans, s, a]) => {
-    poly([[RX + 100, SY], [RX + 160, SY], [RX + 160, y], [RX + 220, y]], c, 4, outCubic(prog(t, a - 0.3, a + 0.2)));
-    pill(RX + 280, y, ans, { size: 28, c, fill: true, s: spring(t - a, ...POP) });
-    rise(s, RX + 340, y + 11, 30, { w: 600, c: C.text, at: a + 0.15, gap: 0.03 });
+    // a small picture in each card: two files trading places; a ring that fills; the old file coming home
+    const px = x + 380, py = y + 80;
+    if (i === 0) { const m = inOutCubic(prog(t, sw, sw + 1.0)); boxIcon(px - 40 + 80 * m, py - 10 * Math.sin(m * Math.PI), 0.5 * s, C.ind, C.tile, ''); boxIcon(px + 40 - 80 * m, py + 10 * Math.sin(m * Math.PI), 0.5 * s, C.mute, C.tile, ''); }
+    if (i === 1) { ring(px, py, 40 * s, C.line, 8); const f = prog(t, wt, wt + 1.8); if (f > 0) { ctx.beginPath(); ctx.arc(px, py, 40, -Math.PI / 2, -Math.PI / 2 + f * 2 * Math.PI); ctx.strokeStyle = C.ind; ctx.lineWidth = 8; ctx.stroke(); } }
+    if (i === 2 && t >= rs) badge(px, py, 34, true, rs + 0.3);
   });
   t = T0;
 }
@@ -970,49 +989,47 @@ function sRelease() {
 }
 
 // ---- 7. the whole fleet: Car Park Galaxy, then one car park, live ---------------------------------------------------
-function vignette(a = 1) {
-  const g = ctx.createLinearGradient(0, H * 0.45, 0, H); g.addColorStop(0, 'rgba(11,15,23,0)'); g.addColorStop(1, `rgba(11,15,23,${0.92 * a})`);
-  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-  const g2 = ctx.createLinearGradient(0, 0, 0, 260); g2.addColorStop(0, `rgba(11,15,23,${0.85 * a})`); g2.addColorStop(1, 'rgba(11,15,23,0)');
-  ctx.fillStyle = g2; ctx.fillRect(0, 0, W, 260);
-}
-const CPS = () => lerp(1.04, 1.1, prog(t, L(CUE.park, 'galaxy'), L(CUE.park, 'galaxy') + 9));   // the car park's slow push
+const CPS = () => lerp(1.0, 1.05, prog(t, L(CUE.park, 'galaxy'), L(CUE.park, 'galaxy') + 9));   // the car park's slow push
+const CPX = 880, CPY = 470;                             // the lot sits low and right, clear of the header
 function sGalaxy() {
   const bec = L(CUE.become, 'galaxy'), star = L(CUE.star, 'galaxy'), bea = L(CUE.beacon, 'galaxy'), fly = L(CUE.fly, 'galaxy');
   const park = L(CUE.park, 'galaxy'), parts = L(CUE.parts, 'galaxy'), free = L(CUE.free, 'galaxy');
-  // the galaxy: pull back from one star, drift; then dive at a beacon into the patrol view
+  // the galaxy: pull back from the core and drift; fly toward BJAL's beacon; then on to J71's star, and through it
   const pull = inOutCubic(prog(t, 0, 2.6)), drift = prog(t, 2.6, fly);
   const gs = lerp(4.2, 1.42, pull) * (1 + 0.04 * drift), rot = lerp(-0.25, 0, pull) + 0.02 * drift;
-  const dive = inOutExpo(prog(t, fly - 0.2, fly + 0.9));
-  const bx = 994, by = 622;                                   // BJAL's beacon, critical on 10 Oct
-  const cx = lerp(960, bx, dive), cy = lerp(600, by, dive);
-  if (t < park + 0.4) {
-    full('galaxy', cx, cy, gs * Math.exp(Math.log(3.5) * dive), 1 - prog(t, fly + 0.5, fly + 0.9), rot * (1 - dive));
-    full('galaxy-beacon', 1040, 420, lerp(2.4, 1.6, outCubic(prog(t, fly + 0.5, park))), prog(t, fly + 0.5, fly + 0.9));
-  }
-  // the beacons: the problem sites raise them
-  if (t >= bea && t < fly) {
-    const toS = (px, py) => [W / 2 + ((px - cx) * gs), H / 2 + ((py - cy) * gs)];
-    [[bx, by, C.crit], [772, 766, C.crit]].forEach(([px, py, c], k) => {
-      const [sx, sy] = toS(px, py); const a = spring(t - (bea + k * 0.2), ...POP);
-      for (let j = 0; j < 2; j++) { const u = ((t - bea) * 0.8 + j * 0.5) % 1; ctx.save(); ctx.globalAlpha *= a * (1 - u); ring(sx, sy, 16 + u * 60, c, 3); ctx.restore(); }
+  const bx = 994, by = 622, jx = 1180, jy = 770;              // BJAL's beacon (critical on 10 Oct); a star tagged J71
+  const d1 = inOutCubic(prog(t, fly - 0.2, fly + 0.9)), d2 = inOutCubic(prog(t, park - 0.9, park + 0.5));
+  const cx = lerp(lerp(960, bx, d1), jx, d2), cy = lerp(lerp(600, by, d1), jy, d2), gz = gs * Math.exp(Math.log(1.5) * d1 + Math.log(3.2) * d2);
+  const cpa = prog(t, park - 0.15, park + 0.45);
+  if (cpa < 1) { ctx.save(); ctx.globalCompositeOperation = 'lighten'; full('galaxy', cx, cy, gz, 1, rot * (1 - d1)); ctx.restore(); }   // black lifts to navy
+  const toS = (px, py) => [W / 2 + (px - cx) * gz, H / 2 + (py - cy) * gz];
+  if (t >= bea && t < park - 0.4) {                           // the problem sites raise beacons
+    [[bx, by], [772, 766]].forEach(([px, py], k) => {
+      const [sx, sy] = toS(px, py), a = spring(t - (bea + k * 0.2), ...POP);
+      for (let j = 0; j < 2; j++) { const u = ((t - bea) * 0.8 + j * 0.5) % 1; ctx.save(); ctx.globalAlpha *= a * (1 - u); ring(sx, sy, 16 + u * 60, C.crit, 3); ctx.restore(); }
     });
   }
-  // the live car park
-  const pe = outExpo(prog(t, park - 0.4, park + 0.5));
-  if (pe > 0) {
-    ctx.save(); ctx.beginPath(); ctx.arc(960, 540, pe * 1200, 0, 7); ctx.clip();
-    bg(); full('carpark', 960, 600, CPS(), 1);
-    ctx.restore();
-    if (pe < 1) ring(960, 540, pe * 1200, C.ind, 6);
+  const js = spring(t - (park - 1.1), ...POP);
+  if (js > 0 && cpa < 1) {                                    // J71's star, healthy, tagged as the dashboard tags a station
+    const [sx, sy] = toS(jx, jy);
+    ctx.save(); ctx.globalAlpha *= 1 - cpa; dot(sx, sy, 9 * js, '#eafff6'); ring(sx, sy, 20 * js, C.ok, 3);
+    pill(sx + 70, sy - 40, 'J71', { size: 28, c: C.ok, fill: true, s: js }); ctx.restore();
   }
-  vignette(1);
-  ctx.save(); ctx.letterSpacing = '2px'; rise('07 · THE WHOLE FLEET', 120, 102, 26, { w: 700, c: C.ind, at: 0.4, gap: 0.03 }); ctx.restore();
-  rise('Car Park Galaxy', 120, 900, 96, { w: 800, at: bec, out: park - 0.6 });
-  rise('every station a star · four arms · a beacon on every problem', 126, 960, 30, { w: 500, c: C.mute, at: star, out: park - 0.6, gap: 0.03 });
-  rise('Live car park', 120, 900, 96, { w: 800, at: park + 0.3 });
-  rise('J71, drawn from its own lane and lot data', 126, 960, 30, { w: 500, c: C.mute, at: park + 0.6, gap: 0.03 });
-  // the lot count, as the page's HUD shows it
+  // the live car park: pushed through from the star
+  if (cpa > 0) {
+    ctx.save(); ctx.globalAlpha *= cpa;
+    full('carpark', CPX, CPY, CPS() * lerp(1.35, 1, outCubic(cpa)), 1);
+    ctx.restore();
+  }
+  // the header, over a scrim
+  const g2 = ctx.createLinearGradient(0, 0, 0, 340); g2.addColorStop(0, C.bg); g2.addColorStop(0.42, C.bg); g2.addColorStop(1, 'rgba(11,15,23,0)');
+  ctx.fillStyle = g2; ctx.fillRect(0, 0, W, 340);                // solid over the product's own header and lot bar
+  kicker('07 · The whole fleet', 102, 0.3);
+  rise('Car Park Galaxy', 120, 190, 80, { w: 800, at: 0.3, out: park - 0.25 });
+  rise('every station a star, a beacon on every problem', 124, 246, 30, { w: 500, c: C.mute, at: star, out: park - 0.25, gap: 0.03 });
+  rise('Live Car Park', 120, 190, 80, { w: 800, at: park + 0.05 });
+  rise('J71, drawn from its own lane and lot data', 124, 246, 30, { w: 500, c: C.mute, at: park + 0.5, gap: 0.03 });
+  // the lot count, as the page's own panel shows it
   const fs = spring(t - free, ...POP);
   if (fs > 0) {
     ctx.save(); ctx.translate(1560, 300); ctx.scale(fs, fs);
@@ -1020,17 +1037,17 @@ function sGalaxy() {
     const n = Math.round(155 * outCubic(prog(t, free + 0.1, free + 1.2)));
     label(String(n), -200, 6, 96, { w: 800, c: C.ok }); label('free', -200 + width(String(n), 96, 800) + 16, 6, 40, { w: 700, c: C.text });
     label('of 450 lots · live', -200, 62, 28, { w: 600, c: C.mute });
-    rr(-200, 80, 400, 12, 6); ctx.fillStyle = C.crit; ctx.fill(); rr(-200, 80, 400 * n / 450, 12, 6); ctx.fillStyle = C.ok; ctx.fill();
+    rr(-200, 80, 400, 12, 6); ctx.fillStyle = C.dim; ctx.fill(); rr(-200, 80, 400 * n / 450, 12, 6); ctx.fillStyle = C.ok; ctx.fill();
     ctx.restore();
   }
   if (t >= parts) {
-    [['lanes and gantries', 440, 650, -1], ['every lot, free or taken', 800, 440, 1]].forEach(([s, qx, qy, d], k) => {
-      const a = parts + k * 0.3, u = outCubic(prog(t, a, a + 0.5)); if (u <= 0) return;
-      const px = W / 2 + (qx - 960) * CPS(), py = H / 2 + (qy - 600) * CPS();
+    [['lanes and gantries', 585, 612, -1, -1, parts], ['the booth', 747, 755, 1, 1, parts + 0.9], ['every lot, free or taken', 900, 420, 1, -1, free - 0.4]].forEach(([s, qx, qy, d, up, a]) => {
+      const u = outCubic(prog(t, a, a + 0.5)); if (u <= 0) return;
+      const px = W / 2 + (qx - CPX) * CPS(), py = H / 2 + (qy - CPY) * CPS();
       dot(px, py, 9 * u, C.ind); ring(px, py, 18 * u, C.ind, 3);
-      const lx = px + d * 40, ly = py - 110;
-      line(px, py - 18, lerp(px, lx, u), lerp(py - 18, ly, u), C.ind, 3);
-      pill(lx + d * 0, ly - 30, s, { size: 26, c: C.text, s: spring(t - (a + 0.3), ...POP) });
+      const lx = px + d * 50, ly = py + up * 110;
+      line(px, py + up * 18, lerp(px, lx, u), lerp(py + up * 18, ly, u), C.ind, 3);
+      pill(lx, ly + up * 30, s, { size: 28, c: C.text, s: spring(t - (a + 0.3), ...POP) });
     });
   }
 }
@@ -1046,9 +1063,9 @@ function sPeople() {
   // the sign-in screen, as a screen
   const se = outExpo(prog(t, si - 0.2, si + 0.6)), so = inOutCubic(prog(t, ro - 0.3, ro + 0.4));
   if (se > 0 && so < 1) {
-    const w = 1060, x = 760 + so * 1000, y = 300, k = 1 + 0.04 * prog(t, si, ro);
+    const w = 1060, x = 760 + so * 120, y = 300, k = 1 + 0.04 * prog(t, si, ro);
     ctx.save(); ctx.translate(x + w / 2, y + 300); ctx.scale(k, k); ctx.translate(-x - w / 2, -y - 300);
-    screen('signin', SIGNSRC, x, y, w, { a: se });
+    screen('signin', SIGNSRC, x, y, w, { a: se * (1 - so) });
     ctx.restore();
     ctx.save(); ctx.globalAlpha *= 1 - so;
     rise('One account each', 140, 520, 56, { w: 800, at: si + 0.3 });
@@ -1063,21 +1080,21 @@ function sPeople() {
       const a = ro + 0.3 + i * 0.9, s = spring(t - a, ...POP); if (s <= 0) return;
       const x = 140 + i * 420, y = 560 - i * 60;
       ctx.save(); ctx.translate(x + 190, y); ctx.scale(s, s); ctx.translate(-x - 190, -y);
-      rr(x, y - 120, 380, 200 + i * 60, 22); ctx.fillStyle = C.panel; ctx.fill(); ctx.strokeStyle = i === 3 ? C.ind : C.line; ctx.lineWidth = i === 3 ? 3 : 2; ctx.stroke();
+      rr(x, y - 120, 380, 200, 22); ctx.fillStyle = C.panel; ctx.fill(); ctx.strokeStyle = i === 3 ? C.ind : C.line; ctx.lineWidth = i === 3 ? 3 : 2; ctx.stroke();
       label(nm, x + 32, y - 52, 40, { w: 800, c: i === 3 ? C.ind : C.text }); label(can, x + 32, y - 6, 26, { w: 500, c: C.mute });
       for (let k = 0; k <= i; k++) dot(x + 44 + k * 30, y + 40, 9, C.ind);
       ctx.restore();
     });
     if (t >= sco - 0.3) {                                   // a lens over the fleet; outside it, a station does not exist
-      const lx = lerp(420, 700, inOutCubic(prog(t, sco, sco + 1.4))), ly = 900, lr = 150;
+      const lx = lerp(420, 700, inOutCubic(prog(t, sco, sco + 1.4))), ly = 820, lr = 120;
       for (let i = 0; i < 18; i++) {
-        const x = 150 + i * 62, y = ly + (i % 2 ? 20 : -20), inside = Math.hypot(x - lx, y - ly) < lr;
+        const x = 150 + i * 56, y = ly + (i % 2 ? 20 : -20), inside = Math.hypot(x - lx, y - ly) < lr;
         const a = spring(t - (sco - 0.3 + i * 0.02), ...POP);
         ctx.save(); ctx.globalAlpha *= inside ? 1 : lerp(1, 0.18, prog(t, sco + 0.6, sco + 1.2)); dot(x, y, 10 * a, C.ok); ctx.restore();
       }
       ring(lx, ly, lr * spring(t - sco, ...POP), C.ind, 5);
-      rise('Outside your scope, a station answers 404,', 1290, 890, 30, { w: 700, at: sco + 0.9, gap: 0.03 });
-      rise('as if it never existed', 1290, 934, 30, { w: 700, c: C.ind, at: sco + 1.1, gap: 0.03 });
+      rise('Each person sees only their own stations.', 1180, 806, 32, { w: 700, at: sco + 0.9, gap: 0.03 });
+      rise('The rest simply don’t exist for them.', 1180, 852, 32, { w: 700, c: C.ind, at: sco + 1.1, gap: 0.03 });
     }
     ctx.restore();
   }
@@ -1088,19 +1105,19 @@ function sPeople() {
     ctx.save(); ctx.beginPath(); ctx.rect(0, 0, W, y + h * lerp(0.42, 1, rows) + 40); ctx.clip();
     screen('audit', AUDSRC, x, y, w);
     ctx.restore();
-    hlShot(AUDSRC, x, y, w, [1052, 330, 172, 66], rep, C.ind);
-    const [ex0, , , ey1] = hlShot(AUDSRC, x, y, w, [1400, 282, 108, 36], exp, C.ok);
+    hlShot(AUDSRC, x, y, w, [1058, 334, 160, 58], rep, C.ind); hlShot(AUDSRC, x, y, w, [1238, 334, 142, 58], rep + 0.3, C.ind);
+    const [ex0, ey0, ex1, ey1] = hlShot(AUDSRC, x, y, w, [1400, 282, 108, 36], exp, C.ok);
     rise('Every sign-in', 140, 400, 52, { w: 800, at: au + 0.2 });
     rise('every command', 140, 470, 52, { w: 800, at: au + 0.45 });
     rise('every camera view', 140, 540, 52, { w: 800, at: au + 0.7 });
     rise('every remote session', 140, 610, 52, { w: 800, c: C.ind, at: au + 0.95 });
     rise('by person, car park, period and result', 144, 680, 30, { w: 500, c: C.mute, at: rep, gap: 0.03 });
-    const cs = spring(t - (exp + 0.4), ...POP);
-    if (cs > 0) { ctx.save(); ctx.translate(520, 860); ctx.scale(cs, cs);
+    const fl = inOutCubic(prog(t, exp + 0.3, exp + 1.1));     // the file lifts out of the button and lands at the left
+    if (t >= exp + 0.3) { const fx = lerp((ex0 + ex1) / 2, 520, fl), fy = lerp((ey0 + ey1) / 2, 860, fl) - Math.sin(fl * Math.PI) * 160, fsc = lerp(0.3, 1, fl);
+      ctx.save(); ctx.translate(fx, fy); ctx.scale(fsc, fsc);
       rr(-60, -76, 120, 152, 12); ctx.fillStyle = C.panel; ctx.fill(); ctx.strokeStyle = C.ok; ctx.lineWidth = 4; ctx.stroke();
-      label('CSV', 0, 8, 36, { w: 800, c: C.ok, align: 'center', base: 'middle' }); ctx.restore();
-      ctx.save(); ctx.setLineDash([6, 8]); line(ex0, ey1 + 6, 590, 820, 'rgba(52,211,153,.6)', 3); ctx.restore();
-      rise('ready for Excel', 140, 870, 34, { w: 700, c: C.ok, at: exp + 0.6 }); }
+      label('CSV', 0, 8, 36, { w: 800, c: C.ok, align: 'center', base: 'middle' }); ctx.restore(); }
+    rise('ready for Excel', 140, 870, 34, { w: 700, c: C.ok, at: exp + 1.0 });
   }
 }
 
@@ -1111,25 +1128,41 @@ function logoPlate(cx, cy, s) {
   rr(-w / 2 - 34, -h / 2 - 26, w + 68, h + 52, 26); ctx.fillStyle = '#FFFFFF'; ctx.fill();
   ctx.drawImage(IMG.logo, -w / 2, -h / 2, w, h); ctx.restore();
 }
+const PERDAY = [14, 129, 25, 1, 0, 1, 1, 21, 69, 6, 16, 18, 10, 23, 10, 2, 5, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 3, 0, 0, 0, 0, 9, 28, 23, 28, 4, 0, 0, 0, 0, 28, 82, 36, 60, 8, 6, 18, 7, 20, 11, 3, 0, 4, 1, 19, 0, 25, 6];   // ParkOps commits per day, 20 Jun – 10 Oct 2026 (facts.json)
 function sBuilt() {
-  kicker('09 · Built in-house');
+  kicker('09 · Who built it');
+  heading('Built In-House');
   const ih = L(CUE.inhouse, 'built'), ch = L(CUE.changes, 'built'), rl = L(CUE.releases, 'built'), ts = L(CUE.tests, 'built');
-  const ls = spring(t - (ih + 0.1), 2.6, 0.75); if (ls > 0) logoPlate(300, 300, ls * 0.8);
-  rise('Built in-house at', 520, 285, 56, { w: 800, at: ih + 0.2 });
-  rise('Re Sustainability', 520, 352, 56, { w: 800, c: C.ind, at: ih + 0.4 });
-  const NUM = [[783, 'changes', ch], [198, 'releases', rl], [900, 'automated tests', ts]];
-  NUM.forEach(([n, s, a], i) => {
-    const x = 180 + i * 560, v = Math.round(n * outCubic(prog(t, a, a + 1.4)));
-    if (t < a - 0.1) return;
-    ctx.save(); ctx.globalAlpha *= prog(t, a - 0.1, a + 0.2);
-    label(String(v), x, 680, 190, { w: 800, c: i === 2 ? C.ok : C.text });
-    ctx.restore();
-    rise(s, x + 8, 750, 40, { w: 700, c: C.mute, at: a + 0.3 });
+  const ls = spring(t - (ih + 0.2), 2.6, 0.75); if (ls > 0) logoPlate(202, 300, ls * 0.5);
+  rise('at Re Sustainability', 300, 314, 40, { w: 700, c: C.ind, at: ih + 0.4 });
+  // every change since June, added up day by day, drawn left to right while the narrator speaks
+  const X0 = 120, X1 = 1780, BY = 940, TOP = 680, n = PERDAY.length, u = prog(t, ih + 0.3, ts + 1.4);
+  const cum = []; PERDAY.reduce((a, v, i) => (cum[i] = a + v), 0);
+  const px = i => X0 + (X1 - X0) * i / (n - 1), py = v => BY - (BY - TOP) * v / cum[n - 1];
+  ctx.save(); ctx.globalAlpha *= prog(t, ih, ih + 0.4); line(X0, BY + 2, X1, BY + 2, C.line, 2); ctx.restore();
+  [['20 Jun', 0], ['Jul', 11], ['Aug', 42], ['Sep', 73], ['Oct', 103], ['10 Oct', n - 1]].forEach(([m, d], k) => {
+    if (d / (n - 1) > u + 0.02) return; label(m, px(d), BY + 44, 26, { w: 600, c: C.mute, align: k === 5 ? 'right' : k === 0 ? 'left' : 'center' });
   });
-  rise('since 20 June 2026 · every change checked by the tests · v2.7.27 today', 188, 880, 30, { w: 500, c: C.dim, at: ts + 1.0, gap: 0.03 });
-  // a commit strip along the bottom: one tick per change
-  const u = prog(t, ch - 0.2, ts + 1.4);
-  for (let i = 0; i < 783 * u; i++) { const x = 120 + i * (1680 / 783), h = 8 + hash(i, 7) * 26; ctx.fillStyle = i % 4 === 0 ? C.ind : C.line; ctx.fillRect(x, 1000 - h, 1.4, h); }
+  const last = (n - 1) * u, k0 = Math.floor(last);
+  if (u > 0) {
+    ctx.beginPath(); ctx.moveTo(px(0), BY);
+    for (let i = 0; i <= k0; i++) ctx.lineTo(px(i), py(cum[i]));
+    const ve = k0 < n - 1 ? lerp(cum[k0], cum[k0 + 1], last - k0) : cum[n - 1];
+    ctx.lineTo(X0 + (X1 - X0) * last / (n - 1), py(ve)); ctx.lineTo(X0 + (X1 - X0) * last / (n - 1), BY); ctx.closePath();
+    const g = ctx.createLinearGradient(0, TOP, 0, BY); g.addColorStop(0, 'rgba(129,140,248,.35)'); g.addColorStop(1, 'rgba(129,140,248,.03)'); ctx.fillStyle = g; ctx.fill();
+    ctx.beginPath(); ctx.moveTo(px(0), py(cum[0]));
+    for (let i = 1; i <= k0; i++) ctx.lineTo(px(i), py(cum[i]));
+    ctx.lineTo(X0 + (X1 - X0) * last / (n - 1), py(ve)); ctx.strokeStyle = C.ind; ctx.lineWidth = 5; ctx.lineJoin = 'round'; ctx.stroke();
+    dot(X0 + (X1 - X0) * last / (n - 1), py(ve), 9, '#eef2ff');
+  }
+  rise('changes since June, added up', X1, TOP - 24, 26, { w: 600, c: C.mute, align: 'right', at: ih + 1.0 });
+  // the three numbers, counted up on their words
+  [[783, 'changes', ch, C.text], [198, 'releases', rl, C.text], [900, 'automated tests on every change', ts, C.ok]].forEach(([v, s2, a, c], i) => {
+    if (t < a - 0.1) return;
+    const x = 120 + i * 520, k = Math.round(v * outCubic(prog(t, a, a + 1.4)));
+    ctx.save(); ctx.globalAlpha *= prog(t, a - 0.1, a + 0.2); label(String(k), x, 500, 150, { w: 800, c }); ctx.restore();
+    rise(s2, x + 6, 552, 32, { w: 700, c: C.mute, at: a + 0.3, gap: 0.03 });
+  });
 }
 
 // ---- 10. the end card -----------------------------------------------------------------------------------------------------
@@ -1139,7 +1172,7 @@ function sEnd() {
   const wm = outExpo(prog(t, 0.6, 1.5));
   if (wm > 0) { ctx.save(); ctx.beginPath(); ctx.rect(0, 0, W, 750); ctx.clip(); wordmark(960, 670 + (1 - wm) * 200, 0.7); ctx.restore(); }
   rise('Know first.', 960, 850, 72, { w: 800, c: C.ind, align: 'center', at: fin - 0.15 });
-  rise('Narration is an AI-generated voice  ·  Built in-house at Re Sustainability', 960, 1030, 26, { w: 500, c: C.dim, align: 'center', at: fin + 1.0, gap: 0.02 });
+  rise('Narration is an AI-generated voice  ·  Built in-house at Re Sustainability', 960, 1030, 28, { w: 500, c: C.mute, align: 'center', at: fin + 1.0, gap: 0.02 });
 }
 
 // ---- compositor --------------------------------------------------------------------------------------------------------------
@@ -1156,14 +1189,14 @@ function drawScene(i, T) {
   ctx.save(); bg(); SCENES[i].draw(); ctx.restore();
 }
 function transition(k, T) {
-  const s = SEAMS[k], cut = SCENES[k + 1].t0, u = prog(T, cut - SEAM, cut + SEAM), e = inOutExpo(u);
+  const s = SEAMS[k], cut = SCENES[k + 1].t0, u = prog(T, cut - SEAM, cut + SEAM), e = s.type === 'wipe' ? inOutCubic(u) : inOutExpo(u);
   const A = () => drawScene(k, T), B = () => drawScene(k + 1, T);
   if (s.type === 'wipe') {
     A();
     const slant = 420, xc = lerp(-slant, W + slant, e), xt = xc + slant / 2, xb = xc - slant / 2;
     ctx.save(); ctx.beginPath(); ctx.moveTo(-10, -10); ctx.lineTo(xt, -10); ctx.lineTo(xb, H + 10); ctx.lineTo(-10, H + 10); ctx.closePath();
     ctx.clip(); B(); ctx.restore();
-    if (u > 0 && u < 1) line(xt, -10, xb, H + 10, C.ind, 6);
+    if (u > 0 && u < 1) { ctx.save(); ctx.shadowColor = C.ind; ctx.shadowBlur = 40; line(xt, -10, xb, H + 10, 'rgba(129,140,248,.85)', 14); ctx.restore(); }
   } else if (s.type === 'iris') {
     A();
     const [x, y] = s.at, r = e * far(x, y);
@@ -1200,7 +1233,7 @@ window.seek = async T => render(T);
     load('opc', 'data:image/jpeg;base64,__ASSET:assets/shots/opc.jpg__', SHOT), load('bell', 'data:image/jpeg;base64,__ASSET:assets/shots/bell.jpg__', SHOT),
     load('map', 'data:image/jpeg;base64,__ASSET:assets/shots/map.jpg__', SHOT), load('camera', 'data:image/jpeg;base64,__ASSET:assets/shots/camera.jpg__', SHOT),
     load('vnc', 'data:image/jpeg;base64,__ASSET:assets/shots/vnc.jpg__', SHOT), load('tools', 'data:image/jpeg;base64,__ASSET:assets/shots/tools.jpg__', SHOT),
-    load('galaxy', 'data:image/jpeg;base64,__ASSET:assets/shots/galaxy.jpg__', SHOT), load('galaxy-beacon', 'data:image/jpeg;base64,__ASSET:assets/shots/galaxy-beacon.jpg__', SHOT),
+    load('galaxy', 'data:image/jpeg;base64,__ASSET:assets/shots/galaxy.jpg__', SHOT),
     load('carpark', 'data:image/jpeg;base64,__ASSET:assets/shots/carpark.jpg__', SHOT), load('signin', 'data:image/jpeg;base64,__ASSET:assets/shots/signin.jpg__', SHOT),
     load('audit', 'data:image/jpeg;base64,__ASSET:assets/shots/audit.jpg__', SHOT), load('activity', 'data:image/jpeg;base64,__ASSET:assets/shots/activity.jpg__', SHOT),
   ]);

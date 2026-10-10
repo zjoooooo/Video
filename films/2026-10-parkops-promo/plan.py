@@ -32,8 +32,8 @@ s, e, ph = say("a2", e + GAP)
 cue["sense"] = [at(ph, i, f) for i, f in ((1, .1), (2, .2), (3, .3), (4, .4))] + [inside(ph, 4, .6)] + [at(ph, i, f) for i, f in ((5, .55), (6, .72), (7, .8))]
 cue["lines"] = at(ph, 8, 0.92)
 s, e, ph = say("a3", e + GAP);   cue["beat"], cue["report"], cue["two"], cue["data"], cue["ctrl"] = s, at(ph, 2, .3), at(ph, 3, .45), at(ph, 4, .65), at(ph, 5, .85)
-cue["panel"] = beat(e + 0.3)                             # the real OPC panel, held
-alert = bar(cue["panel"] + 3.0)
+s, e, ph = say("a4", e + GAP + 0.2);   cue["panel"] = beat(s - 0.4)   # the real OPC panel
+alert = bar(e + 1.4)
 # 2. know first: the sweep, a failure, the bell; a flicker; then CK36
 s, e, ph = say("k1", alert + 0.5);   cue["sweep"] = s
 s, e, ph = say("k2", e + GAP);   cue["fail"], cue["flagged"], cue["bell"], cue["out"] = s, at(ph, 1, .2), at(ph, 3, .45), at(ph, 4, .7)

@@ -16,10 +16,6 @@ async function settle(page, ms = 120000) {                   // the rail's card 
 }
 
 const SHOTS = {
-  async fleet({ page, shot }) {
-    await page.goto(`${BASE}/dashboard`); await page.waitForTimeout(3500);
-    await shot('fleet');
-  },
   async bell({ page, shot }) {
     await page.goto(`${BASE}/dashboard`); await page.waitForTimeout(3000);
     await page.click('#po-bell'); await page.waitForTimeout(1500);
@@ -61,8 +57,6 @@ const SHOTS = {
     await page.evaluate(() => document.querySelectorAll('input').forEach(i => { i.value = ''; i.dispatchEvent(new Event('input', { bubbles: true })); i.blur(); }));   // the browser autofills the search box with the username
     await page.waitForTimeout(1500);
     await shot('galaxy', { quality: 92 });
-    await page.keyboard.press('n'); await page.waitForTimeout(6000);   // patrol to the first problem site: its beacon card opens
-    await shot('galaxy-beacon', { quality: 92 });
   },
   async carpark({ page, shot }) {
     await page.goto(`${BASE}/carpark?station=${J71}`); await page.waitForTimeout(7000);
@@ -71,8 +65,6 @@ const SHOTS = {
   async reports({ page, shot }) {
     await page.goto(`${BASE}/dashboard?admin=reports&tab=audit`); await page.waitForTimeout(4000);
     await shot('audit');
-    await page.goto(`${BASE}/dashboard?admin=reports&tab=alerts`); await page.waitForTimeout(4000);
-    await shot('alerts');
   },
   async signin({ page, shot }) {                              // a fresh, signed-out context shows the sign-in card
     const ctx = await page.context().browser().newContext({ viewport: { width: 1920, height: 1080 }, deviceScaleFactor: 2, ignoreHTTPSErrors: true });
