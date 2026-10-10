@@ -2,9 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>IT Department Progress Update, October 2026</title>
+<title>IT Department, October 2026</title>
 <style>
-  html, body { margin: 0; height: 100%; background: #111; }
+  html, body { margin: 0; height: 100%; background: #0E1B2C; }
   canvas { display: block; width: 100vw; height: 100vh; object-fit: contain; }
 </style>
 </head>
@@ -13,25 +13,25 @@
 <script>
 'use strict';
 // Frame contract: window.DURATION (seconds) and async window.seek(t); every value is a pure function of t
-// and render() resets the canvas each frame. Content follows Mgt_meeting_Justin_13th Oct-2026.pptx;
-// timing comes from timeline.json, which plan.py lays out around the narration.
+// and render() resets the canvas each frame. The content is the October report; the look is the film's
+// own, one visual idea per page. Timing comes from timeline.json, laid out around the narration.
 // Open film.html#play for a live preview; the renderer never uses that path.
 
 const TL = JSON.parse(__TEXT:timeline.json__), CUE = TL.cue, SC = TL.scenes;
-const W = 1920, H = 1080, DURATION = TL.duration, BEAT = 60 / TL.bpm;
+const MAN = JSON.parse(__TEXT:assets/mascot.json__);
+const W = 1920, H = 1080, DURATION = TL.duration;
 const cv = document.getElementById('c');
 const ctx = cv.getContext('2d');
 
-// ---- tunables: the deck's colours; Georgia and Helvetica Neue stand in for Cambria and Calibri ----
-const C = { paper: '#FFFFFF', panel: '#F7F7F7', ink: '#2B2B2B', gray: '#6E6E6E', faint: '#D8D8D8', line: '#E2E2E2',
-            green: '#1B6B50', blue: '#1F6A94', red: '#C21400', slate: '#5A5A5A', brand: '#E41E26', accent: '#F81B02' };
-const HEAD = 'Georgia, "Times New Roman", serif';
-const BODY = '"Helvetica Neue", Helvetica, Arial, sans-serif';
-const MX = 100, CW = 1720;               // content left edge and width
-const SEAM = 0.3;
-const POP = [3.2, 0.7], MOVE = [2.2, 0.85];
+// ---- tunables ----------------------------------------------------------------------------------------
+// mint = done, sky = in progress, amber = planned / next (and the film's accent), coral = a licence problem
+const C = { bg: '#0E1B2C', bg2: '#15293F', line: '#2A3F57', dim: '#36506B', text: '#F3EFE6', mute: '#8FA3B8',
+            mint: '#4FD1A1', sky: '#5AB8F0', amber: '#F6B73C', coral: '#F2795B', ink: '#0E1B2C' };
+const FONT = '"Avenir Next", "Helvetica Neue", Arial, sans-serif';
+const SEAM = 0.35;
+const POP = [3.0, 0.7], MOVE = [1.8, 0.85];
 
-// ---- time toolkit ---------------------------------------------------------------------------
+// ---- time toolkit ----------------------------------------------------------------------------------------
 const clamp = (x, a = 0, b = 1) => (x < a ? a : x > b ? b : x);
 const prog = (t, a, b) => clamp((t - a) / (b - a));
 const lerp = (a, b, u) => a + (b - a) * u;
@@ -39,6 +39,7 @@ const outExpo = u => (u >= 1 ? 1 : 1 - Math.pow(2, -10 * u));
 const inExpo = u => (u <= 0 ? 0 : Math.pow(2, 10 * u - 10));
 const inOutExpo = u => (u <= 0 ? 0 : u >= 1 ? 1 : u < 0.5 ? Math.pow(2, 20 * u - 10) / 2 : (2 - Math.pow(2, -20 * u + 10)) / 2);
 const outCubic = u => 1 - Math.pow(1 - u, 3);
+const inCubic = u => u * u * u;
 const inOutCubic = u => (u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2);
 function spring(t, f = 3, z = 0.7) {
   if (t <= 0) return 0;
@@ -47,28 +48,30 @@ function spring(t, f = 3, z = 0.7) {
     return 1 - Math.exp(-z * w * t) * (Math.cos(wd * t) + (z * w / wd) * Math.sin(wd * t)); }
   return 1 - Math.exp(-w * t) * (1 + w * t);
 }
+const hash = (a, b = 0) => { let h = (a * 374761393 + b * 668265263) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
 
-// ---- drawing helpers (scenes read the local time `t`) ---------------------------------------------
+// ---- drawing helpers (scenes read the local time `t`) ---------------------------------------------------
 let t = 0;
-const font = (size, w = 600, f = BODY) => { ctx.font = `${w} ${size}px ${f}`; };
-const bg = (c = C.paper) => { ctx.fillStyle = c; ctx.fillRect(0, 0, W, H); };
+const font = (size, w = 600) => { ctx.font = `${w} ${size}px ${FONT}`; };
+const bg = () => { ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H); };
 function dot(x, y, r, c) { if (r <= 0) return; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fillStyle = c; ctx.fill(); }
+function ring(x, y, r, c, w) { if (r <= 0) return; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.strokeStyle = c; ctx.lineWidth = w; ctx.stroke(); }
 function rr(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect(x, y, w, h, r); }
 function line(x0, y0, x1, y1, c, w) { ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.strokeStyle = c; ctx.lineWidth = w; ctx.lineCap = 'round'; ctx.stroke(); }
 function label(str, x, y, size, o = {}) {
-  const { w = 500, c = C.ink, align = 'left', f = BODY } = o;
-  font(size, w, f); ctx.fillStyle = c; ctx.textAlign = align; ctx.textBaseline = 'alphabetic'; ctx.fillText(str, x, y);
+  const { w = 500, c = C.text, align = 'left', base = 'alphabetic' } = o;
+  font(size, w); ctx.fillStyle = c; ctx.textAlign = align; ctx.textBaseline = base; ctx.fillText(str, x, y);
 }
-function width(str, size, w = 500, f = BODY) { font(size, w, f); return ctx.measureText(str).width; }
-// words rise from under the baseline inside a clip and leave upward
-function rise(str, x, y, size, o = {}) {
-  const { w = 700, c = C.ink, align = 'left', at = 0, out = 1e9, gap = 0.05, dur = 0.7, f = HEAD } = o;
+function width(str, size, w = 500) { font(size, w); return ctx.measureText(str).width; }
+const fit = (str, size, w, maxW) => Math.min(size, size * maxW / width(str, size, w));   // shrink to fit a width
+function rise(str, x, y, size, o = {}) {                 // words rise out of a mask and leave upward
+  const { w = 700, c = C.text, align = 'left', at = 0, out = 1e9, gap = 0.05, dur = 0.7 } = o;
   if (t < at || t > out + 1) return;
-  font(size, w, f);
+  font(size, w);
   const words = str.split(' '), sp = ctx.measureText(' ').width, ws = words.map(s => ctx.measureText(s).width);
   const total = ws.reduce((a, b) => a + b, 0) + sp * (words.length - 1);
   let cx = align === 'center' ? x - total / 2 : align === 'right' ? x - total : x;
-  ctx.save(); ctx.beginPath(); ctx.rect(cx - 16, y - size * 1.05, total + 32, size * 1.4); ctx.clip();
+  ctx.save(); ctx.beginPath(); ctx.rect(cx - 20, y - size * 1.05, total + 40, size * 1.4); ctx.clip();
   ctx.fillStyle = c; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
   words.forEach((s, i) => {
     const a = outExpo(prog(t, at + i * gap, at + i * gap + dur)), b = inExpo(prog(t, out + i * gap * 0.5, out + i * gap * 0.5 + 0.3));
@@ -77,331 +80,481 @@ function rise(str, x, y, size, o = {}) {
   });
   ctx.restore();
 }
-function pill(str, x, cy, c, s = 1, size = 20, align = 'left') {      // a status chip; x is its left (or right) edge
-  if (s <= 0) return;
-  font(size, 700, BODY); ctx.save(); ctx.letterSpacing = '1px';
-  const w = ctx.measureText(str).width + size * 1.8, h = size * 2;
-  const x0 = align === 'right' ? x - w : x;
-  ctx.translate(x0 + w / 2, cy); ctx.scale(s, s);
-  rr(-w / 2, -h / 2, w, h, h / 2); ctx.fillStyle = c; ctx.fill();
-  ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(str, 0, 1);
-  ctx.restore();
-}
-function check(x, y, s, at, c = '#fff') {                          // a stroke-drawn tick
+// every page carries the same header: a numbered amber kicker over an 80 px title, already rising as the page arrives
+const kicker = (str, y = 102, at = -0.5) => rise(str.toUpperCase(), 120, y, 26, { w: 700, c: C.amber, at, gap: 0.03 });
+const heading = (str, y = 190, at = -0.45, c = C.text, x = 120) => rise(str, x, y, 80, { w: 800, c, at });
+function check(x, y, s, at, c = C.ink, wid = 0.2) {
   const p = outCubic(prog(t, at, at + 0.3)); if (p <= 0) return;
   const a = [x - 0.45 * s, y + 0.02 * s], b = [x - 0.12 * s, y + 0.34 * s], d = [x + 0.48 * s, y - 0.32 * s];
   const p1 = clamp(p / 0.4), p2 = clamp((p - 0.4) / 0.6);
   ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(lerp(a[0], b[0], p1), lerp(a[1], b[1], p1));
   if (p2 > 0) ctx.lineTo(lerp(b[0], d[0], p2), lerp(b[1], d[1], p2));
-  ctx.strokeStyle = c; ctx.lineWidth = s * 0.2; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.stroke();
+  ctx.strokeStyle = c; ctx.lineWidth = s * wid; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.stroke();
 }
-// a card rises into place; returns its reveal 0..1 so content can follow
-function card(x, y, w, h, at, o = {}) {
-  const { fill = C.panel, bar = null, border = null } = o;
-  const e = outExpo(prog(t, at, at + 0.6)); if (e <= 0) return 0;
-  ctx.save(); ctx.globalAlpha = e; ctx.translate(0, (1 - e) * 30);
-  rr(x, y, w, h, 14); ctx.fillStyle = fill; ctx.fill();
-  if (border) { ctx.strokeStyle = border; ctx.lineWidth = 2; ctx.stroke(); }
-  if (bar) { ctx.save(); rr(x, y, w, h, 14); ctx.clip(); ctx.fillStyle = bar; ctx.fillRect(x, y, 8, h); ctx.restore(); }
-  ctx.restore();
-  return e;
-}
-function bar(x, y, w, h, frac, c, at, dur = 1.0) {                 // a track and a fill that grows to frac
-  rr(x, y, w, h, h / 2); ctx.fillStyle = '#E6E6E6'; ctx.fill();
-  const u = frac * outCubic(prog(t, at, at + dur));
-  if (u > 0) { rr(x, y, Math.max(w * u, h), h, h / 2); ctx.fillStyle = c; ctx.fill(); }
-  return u;
-}
-const L = (cueTime, scene) => cueTime - SC[scene];               // a cue in a scene's local time
-
-// ---- the deck's page chrome: title, red rule, logo ----------------------------------------------------
-let chromeOn = true;
-function chrome() {
-  ctx.fillStyle = C.brand; ctx.fillRect(0, 168, 1600, 6); ctx.fillRect(1880, 168, 40, 6);
-  logo(1742, 98, 210);
-}
-function logo(cx, cy, w, s = 1) {
-  if (s <= 0) return;
-  const h = w * LOGO.height / LOGO.width;
-  ctx.save(); ctx.imageSmoothingQuality = 'high'; ctx.translate(cx, cy); ctx.scale(s, s);
+const L = (cueTime, scene) => cueTime - SC[scene];      // a cue in a scene's local time
+const pct = (u, n) => Math.round(n * u) + '%';
+function logoPlate(cx, cy, s) {
+  const w = 260, h = w * LOGO.height / LOGO.width;
+  ctx.save(); ctx.translate(cx, cy); ctx.scale(s, s);
+  rr(-w / 2 - 34, -h / 2 - 26, w + 68, h + 52, 26); ctx.fillStyle = '#FFFFFF'; ctx.fill();
   ctx.drawImage(LOGO, -w / 2, -h / 2, w, h); ctx.restore();
 }
-const heading = (str) => rise(str, MX, 128, 62, { at: 0.15 });
 
-// ---- scenes ------------------------------------------------------------------------------------
+// Watson, from the dashboard's sprite sheet (the welcome wave), pupils painted over the blank eyes;
+// `look` slides the pupils sideways (fraction of the eye's radius, + is right)
+const IMG = {};
+function watson(f, cx, by, h, look = 0) {
+  const st = MAN.base, k = h / (st[3] - st[1]), ox = cx - (st[2] - st[0]) * k / 2, oy = by - h;
+  const s = MAN.sheets.welcome, [fw, fh] = s.frame, i = clamp(f, 0, s.n - 1);
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(IMG.welcome, (i % MAN.cols) * fw, Math.floor(i / MAN.cols) * fh, fw, fh,
+    ox + (s.box[0] - st[0]) * k, oy + (s.box[1] - st[1]) * k, (s.box[2] - s.box[0]) * k, (s.box[3] - s.box[1]) * k);
+  const fk = (s.box[2] - s.box[0]) / fw;
+  (s.eyes[i] || []).forEach(e => {
+    const rx = e[2] * fk * k / 2, ry = e[3] * fk * k / 2;
+    const ex = ox + (s.box[0] - st[0] + e[0] * fk) * k + rx, ey = oy + (s.box[1] - st[1] + e[1] * fk) * k + ry, px = ex + rx * look;
+    ctx.save(); ctx.beginPath(); ctx.ellipse(ex, ey, rx + 0.5, ry + 0.5, 0, 0, 7); ctx.clip();
+    ctx.fillStyle = '#241810'; ctx.beginPath(); ctx.ellipse(px, ey, rx * 0.85, ry * 0.85, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.9)'; ctx.beginPath(); ctx.arc(px - rx * 0.25, ey - ry * 0.3, rx * 0.22, 0, 7); ctx.fill();
+    ctx.restore();
+  });
+}
+
+function shadow(cx, by, k = 1) {                          // a soft contact shadow under Watson's paws
+  ctx.save(); ctx.filter = 'blur(3px)'; ctx.beginPath(); ctx.ellipse(cx - 42 * k, by - 12 * k, 100 * k, 12 * k, 0, 0, 7);
+  ctx.fillStyle = 'rgba(0,0,0,.4)'; ctx.fill(); ctx.restore();
+}
+
+// ---- 1. October ------------------------------------------------------------------------------------------
 function sTitle() {
-  const u = inOutCubic(prog(t, 0.2, 1.4));
-  ctx.fillStyle = C.brand; ctx.fillRect(0, 168, 1600 * u, 6);
-  if (u >= 1) ctx.fillRect(1880, 168, 40, 6);
-  logo(1742, 98, 210, spring(t - 0.6, ...POP));
-  rise('IT Department', W / 2, 560, 132, { align: 'center', w: 700, at: 1.0 });
-  rise('Progress Update  ·  Justin  ·  13 October 2026', W / 2, 660, 42, { align: 'center', w: 400, f: BODY, c: C.gray, at: 2.4, gap: 0.04 });
+  const u = inOutExpo(prog(t, 0.2, 1.4));
+  if (u > 0) line(960 - 700 * u, 600, 960 + 700 * u, 600, C.amber, 4);
+  ctx.save(); ctx.beginPath(); ctx.rect(0, 0, W, 598); ctx.clip();            // the word rises out of the line
+  const r = outExpo(prog(t, 0.9, 2.2));
+  if (r > 0) { font(250, 800); ctx.save(); ctx.letterSpacing = '6px'; ctx.fillStyle = C.text; ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic'; ctx.fillText('October', 960, 560 + (1 - r) * 300); ctx.restore(); }
+  ctx.restore();
+  rise('2026', 960, 690, 64, { align: 'center', w: 600, c: C.amber, at: 2.6 });
+  rise('IT Department  ·  progress update  ·  13 October', 960, 780, 40, { align: 'center', w: 500, c: C.mute, at: 3.4, gap: 0.04 });
+  const ls = spring(t - 3.8, 2.6, 0.75);                    // the logo, to bookend the end card
+  if (ls > 0) { const ph = (260 * LOGO.height / LOGO.width + 52) * 0.45; logoPlate(120 + 74, 90 + ph / 2, 0.45 * ls); }
 }
 
-const CARDS = [
-  { n: 10, c: C.slate, name: 'Works tracked', lines: [], at: 'count' },
-  { n: 4, c: C.green, name: 'Completed', lines: ['WMS to Azure · Central Reports', 'QMS enhancement · Res24 rebrand'], at: 'done' },
-  { n: 3, c: C.blue, name: 'In progress', lines: ['WMS change request ph. 1 · Season portal', 'Watch Dog (SSG done, Ehub 10%)'], at: 'prog' },
-  { n: 3, c: C.red, name: 'Pending / planned', lines: ['WMS change request ph. 2 (0%)', 'UltraVNC · Carbon Black removal'], at: 'plan' },
+// ---- 2. ten pieces of work, sorted; then three highlights in type ---------------------------------------
+const TILES = [
+  ['WMS on Azure', 0], ['Central Reports', 0], ['QMS', 0], ['Res24 rebrand', 0],
+  ['WMS change req. 1', 1], ['Season portal', 1], ['Watch Dog', 1],
+  ['WMS change req. 2', 2], ['UltraVNC', 2], ['Carbon Black removal', 2],
 ];
-const HIGHLIGHTS = [['WMS migrated to the Azure cloud', 'Done, 22 – 24 Sep'],
-                    ['Watch Dog live at all SSG car parks', 'Ehub rollout started (10%)'],
-                    ['New season portal at 72% overall', 'Extension, rebrand and logo alignment done']];
+const GROUPS = [['done', C.mint, 'completed', 4], ['prog', C.sky, 'in progress', 3], ['plan', C.amber, 'planned', 3]];
+function sortScene() {
+  const count = L(CUE.count, 'status');
+  rise('This month', 960, 470, 150, { w: 800, align: 'center', at: -0.3, out: count - 0.9 });
+  const landed = TILES.filter((_, i) => t >= count - 0.6 + i * 0.12 + 0.35).length;
+  if (t >= count - 0.6) {
+    font(220, 800); ctx.fillStyle = C.amber; ctx.textAlign = 'right'; ctx.textBaseline = 'alphabetic';
+    const e = 1 - inExpo(prog(t, L(CUE.done, 'status') - 0.5, L(CUE.done, 'status')));
+    ctx.save(); ctx.globalAlpha = e; ctx.fillText(String(landed), 860, 400); ctx.restore();
+  }
+  rise('pieces of work', 900, 395, 72, { at: count - 0.2, out: L(CUE.done, 'status') - 0.6 });
+  const idx = [0, 0, 0];
+  TILES.forEach(([name, g], i) => {
+    const drop = spring(t - (count - 0.6 + i * 0.12), ...POP); if (drop <= 0) return;
+    const j = idx[g]++, G = GROUPS[g], go = L(CUE[G[0]], 'status'), m = spring(t - go, ...MOVE);
+    const x0 = 960 + (i - 4.5) * 150, y0 = 600;
+    const gx = 150 + g * 580, gy = 420 + j * 96;
+    const wNow = lerp(120, 460, m), hNow = lerp(120, 76, m);
+    const x = lerp(x0, gx + 230, m), y = lerp(y0 - (1 - drop) * 500, gy, m);
+    ctx.save(); ctx.translate(x, y);
+    rr(-wNow / 2, -hNow / 2, wNow, hNow, 18);
+    if (g === 2 && m > 0.5) { ctx.strokeStyle = G[1]; ctx.lineWidth = 3; ctx.stroke(); }
+    else { ctx.fillStyle = m > 0.5 ? G[1] : C.dim; ctx.fill(); }
+    if (m > 0.7) { ctx.globalAlpha = prog(m, 0.7, 1); label(name, -wNow / 2 + 28, 2, 30, { w: 600, c: g === 2 ? C.amber : C.ink, base: 'middle' }); }
+    ctx.restore();
+  });
+  GROUPS.forEach(([key, col, name, n], g) => {
+    const at = L(CUE[key], 'status'), x = 150 + g * 580 + 6;
+    const s = spring(t - (at + 0.3), ...POP); if (s <= 0) return;
+    ctx.save(); ctx.translate(x, 350); ctx.scale(s, s);
+    label(String(n), 0, 0, 120, { w: 800, c: col }); label(name, 92, -8, 40, { w: 600, c: C.text });
+    ctx.restore();
+  });
+}
+function hl1(lt) {                                          // WMS, an arrow, Azure, a check
+  t = lt;
+  const X0 = 160, Y = 520, ay = Y - 70, ax = X0 + width('WMS', 200, 800) + 50, aw = 150, zx = ax + aw + 50;
+  rise('WMS', X0, Y, 200, { w: 800, at: 0.1 });
+  const a = outCubic(prog(t, 0.35, 0.8));
+  if (a > 0) { const tip = ax + aw * a; line(ax, ay, tip, ay, C.sky, 14); line(tip, ay, tip - 38, ay - 38, C.sky, 14); line(tip, ay, tip - 38, ay + 38, C.sky, 14); }
+  rise('Azure', zx, Y, 200, { w: 800, c: C.sky, at: 0.55 });
+  const cx = zx + width('Azure', 200, 800) + 110, s = spring(t - 1.2, ...POP);
+  if (s > 0) { dot(cx, ay, 62 * s, C.mint); check(cx, ay, 58, 1.3, C.ink); }
+  rise('now runs on the Azure cloud', X0 + 6, Y + 110, 56, { w: 500, c: C.mute, at: 0.5, gap: 0.04 });
+}
+function hl2(lt) {                                          // every SSG car park lights up; Watson says hello
+  t = lt;
+  for (let r = 0; r < 7; r++) for (let c = 0; c < 22; c++) {
+    const x = 160 + c * 75 + (r % 2) * 37, y = 640 + r * 52, on = t > 0.4 + (c + r) * 0.04;
+    dot(x, y, on ? 11 : 7, on ? C.mint : C.dim);
+  }
+  rise('Watch Dog', 160, 420, 160, { w: 800, at: 0.1 });
+  rise('covers every SSG car park', 166, 520, 56, { w: 500, c: C.mute, at: 0.5, gap: 0.04 });
+  const s = spring(t - 0.6, 2.6, 0.7);
+  if (s > 0) { ctx.save(); ctx.translate(1480, 600); ctx.scale(s, s); ctx.translate(-1480, -600);
+    shadow(1480, 600, 430 / 440); watson(Math.floor((t - 0.6) * MAN.fps), 1480, 600, 430, -0.2); ctx.restore(); }
+}
+function hl3(lt) {                                          // the new season portal at 72%
+  t = lt;
+  const u = outCubic(prog(t, 0.3, 1.8));
+  ctx.save(); ctx.globalAlpha = prog(t, 0.2, 0.5);
+  label(pct(u, 72), 1780, 640, 300, { w: 800, c: C.sky, align: 'right' });
+  ctx.restore();
+  rise('New season', 160, 470, 130, { w: 800, at: 0.1 });
+  rise('portal', 160, 600, 130, { w: 800, at: 0.2 });
+  rise('done, on average', 166, 700, 50, { w: 500, c: C.mute, at: 0.6, gap: 0.04 });
+}
 function sStatus() {
-  heading('Status at a Glance');
-  const cw = 404, gap = 34;
-  CARDS.forEach((k, i) => {
-    const at = L(CUE[k.at], 'status'), x = MX + i * (cw + gap), y = 230;
-    const e = card(x, y, cw, 270, at - 0.3, { bar: k.c }); if (e <= 0) return;
-    const n = i === 0 ? Math.round(k.n * outCubic(prog(t, at, at + 1.2))) : k.n;
-    ctx.save(); ctx.globalAlpha = e;
-    const s = i === 0 ? 1 : spring(t - at, ...POP);
-    ctx.save(); ctx.translate(x + 44, y + 120); ctx.scale(s, s); label(String(n), 0, 0, 104, { w: 700, c: k.c, f: HEAD }); ctx.restore();
-    label(k.name, x + 44, y + 172, 30, { w: 500 });
-    k.lines.forEach((l, j) => label(l, x + 44, y + 214 + j * 30, 21, { c: C.gray }));
-    ctx.restore();
-  });
+  const T0 = t;
+  kicker('01 · At a glance');
   const hl = CUE.hl.map(c => L(c, 'status'));
-  rise('Highlights', MX, 580, 36, { at: hl[0] - 0.7 });
-  HIGHLIGHTS.forEach(([a, b], i) => {
-    const y = 610 + i * 128;
-    const e = card(MX, y, CW, 104, hl[i], { fill: '#fff', border: C.line, bar: C.green }); if (e <= 0) return;
-    ctx.save(); ctx.globalAlpha = e; ctx.translate(0, (1 - e) * 30);
-    label(a, MX + 48, y + 64, 32, { w: 600 });
-    label(b, MX + CW - 40, y + 64, 28, { w: 600, c: C.green, align: 'right' });
-    ctx.restore();
-  });
+  const cuts = [hl[0] - 0.6, hl[1] - 0.6, hl[2] - 0.6];    // inside the page: a vertical push between beats
+  const parts = [sortScene, () => hl1(T0 - cuts[0]), () => hl2(T0 - cuts[1]), () => hl3(T0 - cuts[2])];
+  let k = 0; while (k < 3 && T0 >= cuts[k] + 0.4) k++;
+  const inCut = k < 3 && T0 >= cuts[k] && T0 < cuts[k] + 0.4;
+  if (!inCut) { parts[k](); t = T0; return; }
+  const e = inOutExpo(prog(T0, cuts[k], cuts[k] + 0.4));
+  ctx.save(); ctx.translate(0, -e * H); t = T0; parts[k](); ctx.restore();
+  ctx.save(); ctx.translate(0, (1 - e) * H); t = T0; parts[k + 1](); ctx.restore();
+  t = T0;
 }
 
-const STEPS = [
-  { date: '22 – 24 Sep', c: C.green, chip: 'COMPLETED', text: ['WMS migrated to the', 'Azure cloud server.'], at: 'wms1' },
-  { date: '1 – 7 Oct', c: C.blue, chip: 'IN PROGRESS', text: ['Change request phase 1 UAT', 'ran 1 – 7 Oct; awaiting the', 'users’ result.'], at: 'wms2' },
-  { date: 'Next', c: C.slate, chip: 'NEXT', text: ['Deploy phase 1 to the', 'production (PRO) Azure', 'cloud server.'], at: 'wms3' },
-];
-function sWms() {
-  heading('WMS Migration & Change Requests');
-  const xs = [MX + 280, W / 2, MX + CW - 280], y = 340;
-  const tr = outExpo(prog(t, 0.2, 0.9));
-  if (tr > 0) line(xs[0], y, lerp(xs[0], xs[2], tr), y, C.faint, 6);
-  const g = inOutCubic(prog(t, L(CUE.wms2, 'wms') - 0.2, L(CUE.wms2, 'wms') + 0.6));
-  if (g > 0) line(xs[0], y, lerp(xs[0], xs[1], g), y, C.green, 6);
-  const cw = (CW - 2 * 40) / 3;
-  STEPS.forEach((st, i) => {
-    const at = L(CUE[st.at], 'wms');
-    rise(st.date, xs[i], y - 44, 38, { align: 'center', c: st.c, at: at - 0.1 });
-    dot(xs[i], y, 22 * spring(t - at, ...POP), st.c);
-    if (i === 0) check(xs[i], y, 22, at + 0.15);
-    const x = MX + i * (cw + 40), cy = 420;
-    const e = card(x, cy, cw, 300, at + 0.1, { bar: st.c }); if (e <= 0) return;
-    ctx.save(); ctx.globalAlpha = e; ctx.translate(0, (1 - e) * 30);
-    pill(st.chip, x + 44, cy + 58, st.c, 1, 20);
-    st.text.forEach((l, j) => label(l, x + 44, cy + 130 + j * 42, 31));
-    if (i === 1) {                                    // phase 1 overall: 25%
-      bar(x + 44, cy + 262, cw - 160, 12, 0.25, C.blue, at + 0.6);
-      label('25%', x + cw - 44, cy + 274, 26, { w: 700, c: C.blue, align: 'right' });
-    }
-    ctx.restore();
-  });
-  const at4 = L(CUE.wms4, 'wms');
-  const e = card(MX, 770, CW, 170, at4 - 0.2, { bar: C.accent }); if (e <= 0) return;
-  ctx.save(); ctx.globalAlpha = e; ctx.translate(0, (1 - e) * 30);
-  label('Change request phase 2', MX + 48, 842, 36, { w: 700, f: HEAD });
-  label('Not started yet (0%); it follows phase 1 going live in production.', MX + 48, 898, 30, { c: C.gray });
+// ---- 3. WMS: into the cloud, then one line from user testing to production ------------------------------
+function cloud(cx, cy, s, a) {
+  if (a <= 0) return;
+  const k = s * outExpo(a);
+  ctx.save(); ctx.translate(cx, cy); ctx.scale(k, k);
+  ctx.beginPath();                                       // a thick stroke under the fill leaves only the outline
+  [[-150, 40, 90], [-40, -30, 120], [100, 10, 100], [190, 60, 70], [0, 70, 110]].forEach(([x, y, r]) => { ctx.moveTo(x + r, y); ctx.arc(x, y, r, 0, 7); });
+  ctx.lineWidth = 10; ctx.strokeStyle = C.sky; ctx.stroke();
+  ctx.fillStyle = C.bg2; ctx.fill();
   ctx.restore();
 }
-
-const DONE = [
-  ['Central Reports Server', 'Central Reports server deployed for the car parks under Re Sustainability Solutions.'],
-  ['QMS Enhancement', 'Inventory list with prices in QMS · service items as qty × price · admin report enhanced.'],
-  ['T24 Season Portal Rebranded to Res24', 'Extended, with a new logo, company header and email, 2C2P company name and SSL key.'],
-];
-function sDone() {
-  heading('Also Completed This Month');
-  DONE.forEach(([a, b], i) => {
-    const at = L(CUE.rows[i], 'done'), y = 240 + i * 250;
-    const e = card(MX, y, CW, 216, at - 0.2, { bar: C.green }); if (e <= 0) return;
-    ctx.save(); ctx.globalAlpha = e; ctx.translate(0, (1 - e) * 30);
-    label(a, MX + 52, y + 92, 44, { w: 700, f: HEAD });
-    label(b, MX + 52, y + 150, 28, { c: C.gray });
-    dot(MX + CW - 90, y + 108, 34 * spring(t - (at + 0.3), ...POP), C.green);
-    check(MX + CW - 90, y + 108, 32, at + 0.45);
-    ctx.restore();
-  });
+function rack(x, y, s) {
+  ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
+  rr(-80, -100, 160, 200, 14); ctx.fillStyle = C.bg2; ctx.fill(); ctx.strokeStyle = C.sky; ctx.lineWidth = 4; ctx.stroke();
+  for (let i = 0; i < 4; i++) { line(-52, -64 + i * 44, 30, -64 + i * 44, C.dim, 8); dot(50, -64 + i * 44, 6, C.mint); }
+  ctx.restore();
 }
-
-const ITEMS = [
-  { k: 'a', name: 'Season portal extension & rebrand', sub: 'Completed.', pct: 100, at: 'a' },
-  { k: 'b', name: 'Payment gateway & eGIRO integration for DBS', sub: 'In progress.', pct: 80, at: 'b' },
-  { k: 'c', name: 'Season sync program', sub: 'In progress.', pct: 70, at: 'c' },
-  { k: 'd', name: 'Company header & logo alignment', sub: 'Completed.', pct: 100, at: 'd' },
-  { k: 'e', name: 'Credit note & sale note data upload to NAV', sub: 'In progress.', pct: 30, at: 'e' },
-  { k: 'f', name: 'Five reports', sub: 'GST current bills · Collection · Audit · Payment details · Refund details', pct: 50, at: 'f' },
-];
-function sPortal() {
-  heading('New Season Portal');
-  const ring = L(CUE.ring, 'portal');
-  const e0 = card(MX, 230, 460, 770, 0.2, { bar: C.blue });
-  if (e0 > 0) {
-    ctx.save(); ctx.globalAlpha = e0;
-    label('Overall progress', MX + 50, 300, 32, { w: 700, f: HEAD });
-    const cx = MX + 230, cy = 560, R = 150, u = outCubic(prog(t, ring, ring + 1.6));
-    ctx.lineCap = 'round'; ctx.lineWidth = 30;
-    ctx.beginPath(); ctx.arc(cx, cy, R, 0, 7); ctx.strokeStyle = '#E6E6E6'; ctx.stroke();
-    if (u > 0) { ctx.beginPath(); ctx.arc(cx, cy, R, -Math.PI / 2, -Math.PI / 2 + u * 0.72 * Math.PI * 2); ctx.strokeStyle = C.blue; ctx.stroke(); }
-    label(Math.round(72 * u) + '%', cx, cy + 34, 96, { w: 700, f: HEAD, c: C.blue, align: 'center' });
-    label('Average of sub-items a – f', cx, 790, 26, { c: C.gray, align: 'center' });
+function sWms() {
+  const w1 = L(CUE.wms1, 'wms'), w2 = L(CUE.wms2, 'wms'), w3 = L(CUE.wms3, 'wms'), w4 = L(CUE.wms4, 'wms');
+  kicker('02 · WMS');
+  heading('WMS moved to Azure');
+  rise('22 – 24 September', 122, 250, 36, { w: 500, c: C.mute, at: -0.2, gap: 0.04 });
+  // the migration fills the page, then the cloud steps back to the start of the line
+  const g = inOutCubic(prog(t, w2 - 1.0, w2 - 0.25)), z = lerp(1, 0.5, g), CX = lerp(1380, 300, g), CYc = 600;
+  ctx.save(); ctx.translate(CX, CYc); ctx.scale(z, z); ctx.translate(-1380, -600);
+  cloud(1380, 600, 1.3, prog(t, 0.1, 0.6));
+  const u = inOutCubic(prog(t, w1 + 0.3, w1 + 2.0)), path = v => [lerp(540, 1380, v), lerp(640, 600, v) - Math.sin(v * Math.PI) * 240];
+  for (let k = 1; k <= 7; k++) {                           // packets trail the flight
+    const v = u - k * 0.035; if (u <= 0 || u >= 1 || v <= 0) continue;
+    const [px, py] = path(v); dot(px, py, 9 - k, C.sky);
+  }
+  const [x, y] = path(u);
+  rack(x, y, lerp(1.4, 0.8, u));
+  if (u >= 1) { dot(1590, 460, 46 * spring(t - (w1 + 2.0), ...POP), C.mint); check(1590, 460, 44, w1 + 2.1, C.ink); }
+  ctx.restore();
+  if (u <= 0) label('WMS', 540, 840, 44, { w: 700, align: 'center' });
+  ctx.save(); ctx.globalAlpha = prog(t, 0.3, 0.6);           // the caption shrinks with the cloud but stays readable
+  label('Azure cloud', CX, lerp(890, 760, g), lerp(44, 30, g), { w: 600, c: C.sky, align: 'center' });
+  ctx.restore();
+  // change request phase 1: seven days of user testing, then production, then phase 2, on one line
+  const RY = 600, cn = outCubic(prog(t, w2 - 0.1, w2 + 0.4));
+  if (cn > 0) line(476, RY, lerp(476, 516, cn), RY, C.mint, 4);
+  rise('Change request · phase 1', 520, 500, 44, { w: 700, at: w2 - 0.1 });
+  for (let d = 0; d < 7; d++) {
+    const s = spring(t - (w2 + d * 0.06), ...POP); if (s <= 0) continue;
+    const on = t > w2 + 0.6 + d * 0.28;
+    ctx.save(); ctx.translate(520 + d * 96 + 42, RY); ctx.scale(s, s);
+    rr(-42, -42, 84, 84, 14); ctx.fillStyle = on ? C.sky : C.bg2; ctx.fill();
+    if (!on) { ctx.strokeStyle = C.line; ctx.lineWidth = 3; ctx.stroke(); }
+    label(String(d + 1), 0, 3, 36, { w: 700, c: on ? C.ink : C.mute, align: 'center', base: 'middle' });
     ctx.restore();
   }
-  ITEMS.forEach((it, i) => {
-    const y = 230 + i * 128, x = MX + 500, w = CW - 500, at = L(CUE[it.at], 'portal');
-    const e = card(x, y, w, 112, ring + 0.3 + i * 0.12, { bar: it.pct === 100 ? C.green : C.blue }); if (e <= 0) return;
-    ctx.save(); ctx.globalAlpha = e; ctx.translate(0, (1 - e) * 30);
-    const col = it.pct === 100 ? C.green : C.blue;
-    dot(x + 56, y + 56, 24, col); label(it.k, x + 56, y + 65, 26, { w: 700, c: '#fff', align: 'center', f: HEAD });
-    label(it.name, x + 104, y + 50, 30, { w: 700, f: HEAD });
-    label(it.sub, x + 104, y + 88, 21, { c: C.gray });
-    const u = bar(x + w - 360, y + 50, 220, 14, it.pct / 100, col, at, 0.9);   // leaves room for "100%"
-    label(Math.round(100 * u) + '%', x + w - 36, y + 64, 28, { w: 700, c: col, align: 'right' });
+  rise('1 – 7 Oct · user testing', 520, 690, 30, { w: 500, c: C.mute, at: w2 + 0.4, gap: 0.03 });
+  rise('awaiting the users’ result' + '.'.repeat(1 + Math.floor((t * 2) % 3)), 520, 742, 32, { w: 600, c: C.sky, at: w2 + 2.8, gap: 0.03 });
+  const a = outCubic(prog(t, w3, w3 + 0.5));
+  if (a > 0) { const ex = lerp(1210, 1290, a); line(1210, RY, ex, RY, C.mute, 5); line(ex, RY, ex - 16, RY - 16, C.mute, 5); line(ex, RY, ex - 16, RY + 16, C.mute, 5); }
+  const pe = outExpo(prog(t, w3 + 0.3, w3 + 0.9));
+  if (pe > 0) {                                            // the next step: dashes march while it waits
+    ctx.save(); ctx.globalAlpha = pe; ctx.translate((1 - pe) * 40, 0);
+    ctx.setLineDash([14, 10]); ctx.lineDashOffset = -t * 24;
+    rr(1310, RY - 70, 250, 140, 18); ctx.strokeStyle = C.mint; ctx.lineWidth = 4; ctx.stroke(); ctx.setLineDash([]);
+    label('Production', 1435, RY - 4, 38, { w: 700, align: 'center' });
+    label('next', 1435, RY + 40, 28, { w: 600, c: C.mint, align: 'center' });
+    ctx.restore();
+  }
+  const p2 = outExpo(prog(t, w4, w4 + 0.7));
+  if (p2 > 0) {
+    ctx.save(); ctx.globalAlpha = p2; ctx.translate((1 - p2) * 40, 0);
+    rr(1600, RY - 70, 220, 140, 18); ctx.strokeStyle = C.amber; ctx.lineWidth = 3; ctx.stroke();
+    label('Phase 2', 1710, RY - 4, 38, { w: 700, align: 'center' });
+    label('not started', 1710, RY + 40, 28, { w: 600, c: C.amber, align: 'center' });
+    ctx.restore();
+  }
+}
+
+// ---- 4. done, done, done --------------------------------------------------------------------------------
+const DONE = [
+  ['Central Reports server', 'for the car parks under Re Sustainability Solutions'],
+  ['QMS enhancement', 'inventory prices · service qty × price · admin report'],
+  ['T24 is now Res24', 'season portal rebranded: logo, header and email, 2C2P name, SSL key'],
+];
+function sDone() {
+  kicker('03 · Completed');
+  heading('Also completed');
+  heading('this month', 190, -0.35, C.mint, 120 + width('Also completed ', 80, 800));
+  const at = CUE.rows.map(c => L(c, 'done')), settle = at[2] + 3.0, lands = at.map(a => a + 0.55), arrive = lands.map(a => a + 1.2);
+  // the tally on the right: a third of the ring per item, as its stamp flies in
+  const RX = 1480, RYc = 470, RR = 150, ap = spring(t - 0.3, 2.6, 0.7);   // empty from the start, it counts the items in
+  if (ap > 0) {
+    const shown = arrive.filter(x => t >= x).length;
+    const pulse = 1 + 0.08 * Math.max(0, ...arrive.map(x => (t >= x ? Math.sin(Math.min(1, (t - x) / 0.35) * Math.PI) : 0)));
+    ctx.save(); ctx.translate(RX, RYc); ctx.scale(ap * pulse, ap * pulse);
+    ctx.lineWidth = 26; ctx.lineCap = 'butt';
+    for (let k = 0; k < 3; k++) {
+      const a0 = -Math.PI / 2 + k * 2 * Math.PI / 3 + 0.04, span = 2 * Math.PI / 3 - 0.08, f = outCubic(prog(t, arrive[k], arrive[k] + 0.5));
+      ctx.beginPath(); ctx.arc(0, 0, RR, a0, a0 + span); ctx.strokeStyle = C.line; ctx.stroke();
+      if (f > 0) { ctx.beginPath(); ctx.arc(0, 0, RR, a0, a0 + span * f); ctx.strokeStyle = C.mint; ctx.stroke(); }
+    }
+    label(String(shown), 0, -14, 150, { w: 800, align: 'center', base: 'middle' });
+    label('completed', 0, 76, 30, { w: 600, c: C.mint, align: 'center' });
+    ctx.restore();
+  }
+  DONE.forEach(([title, sub], i) => {
+    const t0 = at[i] - 0.5; if (t < t0) return;
+    const leave = i < 2 ? at[i + 1] - 1.0 : settle;           // to the list when the next one arrives
+    const m = inOutCubic(prog(t, leave, leave + 0.8)), big = outExpo(prog(t, t0, t0 + 0.6));
+    const ly = 340 + i * 140, x = lerp(120, 220, m) + (1 - big) * 60, y = lerp(860, ly, m);
+    ctx.save(); ctx.globalAlpha = big;
+    label(title, x, y, lerp(110, 66, m), { w: 800 });
+    label(sub, x + 4, y + lerp(72, 44, m), lerp(40, 30, m), { w: 500, c: C.mute });
+    ctx.restore();
+    const ck = spring(t - (leave + 0.7), ...POP);                // the list's check, once the title has settled
+    if (ck > 0) { dot(150, ly - 24, 34 * ck, C.mint); check(150, ly - 24, 30, leave + 0.75, C.ink); }
+    // the stamp: slams in beside the big title, then flies into the tally (it stays right of the titles)
+    const st = spring(t - lands[i], 2.6, 0.55), fl = inCubic(prog(t, lands[i] + 0.7, arrive[i]));
+    if (st <= 0 || fl >= 1) return;
+    const sc = lerp(1.7, 1, clamp(st)) * (1 - fl);
+    ctx.save(); ctx.translate(lerp(1660, RX, fl), lerp(830, RYc, fl)); ctx.rotate(-0.2 * (1 - fl)); ctx.scale(sc, sc);
+    ring(0, 0, 110, C.mint, 10);
+    label('DONE', 0, 4, 52, { w: 800, c: C.mint, align: 'center', base: 'middle' });
     ctx.restore();
   });
 }
 
+// ---- 5. six segments of a portal, named clockwise -------------------------------------------------------
+const SEG = [
+  ['Extension & rebrand', 100, 'a'], ['Header & logo', 100, 'd'], ['DBS gateway & eGIRO', 80, 'b'],
+  ['Season sync', 70, 'c'], ['Five reports', 50, 'f'], ['Notes upload to NAV', 30, 'e'],
+];
+function sPortal() {
+  kicker('04 · Season portal');
+  heading('New season portal');
+  const ring0 = L(CUE.ring, 'portal'), cx = 960, cy = 610, R = 250, step = Math.PI * 2 / 6, gap = 0.06;
+  rise('average across six parts', 122, 246, 30, { w: 500, c: C.mute, at: ring0 + 0.4, gap: 0.04 });
+  SEG.forEach(([name, p, key], i) => {
+    const a0 = -Math.PI / 2 + i * step + gap / 2, span = step - gap;
+    const tr = outCubic(prog(t, ring0 - 0.2 + i * 0.08, ring0 + 0.4 + i * 0.08)); if (tr <= 0) return;
+    const at = L(CUE[key], 'portal'), lit = clamp((t - at) / 0.3), col = p === 100 ? C.mint : C.sky;
+    ctx.lineCap = 'butt'; ctx.lineWidth = 58;
+    ctx.beginPath(); ctx.arc(cx, cy, R, a0, a0 + span * tr); ctx.strokeStyle = C.line; ctx.stroke();
+    const f = (p / 100) * outCubic(prog(t, ring0 + 0.4 + i * 0.08, ring0 + 1.4 + i * 0.08));   // every part at its value, dim
+    if (f > 0) {
+      ctx.save(); ctx.globalAlpha = lerp(0.35, 1, lit); ctx.lineWidth = 58 + 12 * (t >= at ? spring(t - at, ...POP) : 0);
+      ctx.beginPath(); ctx.arc(cx, cy, R, a0, a0 + span * f); ctx.strokeStyle = col; ctx.stroke(); ctx.restore();
+    }
+    const mid = a0 + span / 2, lx = cx + Math.cos(mid) * (R + 75), ly = cy + Math.sin(mid) * (R + 75);
+    const align = Math.cos(mid) > 0.2 ? 'left' : Math.cos(mid) < -0.2 ? 'right' : 'center';
+    ctx.save(); ctx.globalAlpha = tr;
+    label(name, lx, ly - 6, 30, { w: 600, c: lit > 0.5 ? C.text : C.mute, align });
+    ctx.globalAlpha = tr * lit; label(p + '%', lx, ly + 36, 30, { w: 800, c: col, align });
+    ctx.restore();
+  });
+  const u = outCubic(prog(t, ring0 + 0.4, ring0 + 1.9));
+  if (t >= ring0 - 0.2) {
+    label(pct(u, 72), cx, cy - 10, 128, { w: 800, align: 'center', base: 'middle' });
+    label('complete', cx, cy + 72, 30, { w: 500, c: C.mute, align: 'center' });
+  }
+}
+
+// ---- 6. Watch Dog, then two housekeeping swaps --------------------------------------------------------------
+const SSG = [], EHUB = [];
+for (let r = -6; r <= 6; r++) for (let c = -8; c <= 8; c++) {
+  const x = c * 30 + (r & 1) * 15, y = r * 27;
+  if (x * x / (250 * 250) + y * y / (170 * 170) < 1) SSG.push([x, y]);
+  if (x * x / (150 * 150) + y * y / (130 * 130) < 1) EHUB.push([x, y]);
+}
+const EHUB_ON = EHUB.map((p, i) => i).sort((a, b) => hash(a, 3) - hash(b, 3)).slice(0, Math.round(EHUB.length * 0.1));
+function monitor(x, y, c) {
+  rr(x, y, 150, 100, 12); ctx.strokeStyle = c; ctx.lineWidth = 7; ctx.stroke();
+  line(x + 75, y + 100, x + 75, y + 128, c, 7); line(x + 40, y + 132, x + 110, y + 132, c, 7);
+}
+function shield(x, y) {
+  ctx.beginPath(); ctx.moveTo(x, y - 75); ctx.lineTo(x + 62, y - 50); ctx.lineTo(x + 56, y + 20);
+  ctx.quadraticCurveTo(x + 40, y + 60, x, y + 82); ctx.quadraticCurveTo(x - 40, y + 60, x - 56, y + 20);
+  ctx.lineTo(x - 62, y - 50); ctx.closePath(); ctx.strokeStyle = C.mute; ctx.lineWidth = 7; ctx.lineJoin = 'round'; ctx.stroke();
+}
 function sDog() {
-  heading('Watch Dog Rollout & Other Enhancements');
-  [['SSG Car Parks', 100, C.green, 'COMPLETED', 'Deployed to all SSG car parks.', 'ssg'],
-   ['Ehub Car Park', 10, C.blue, 'IN PROGRESS', 'Rollout started.', 'ehub']].forEach(([name, pct, col, chip, status, k], i) => {
-    const at = L(CUE[k], 'dog'), x = MX + i * (CW / 2 + 20), w = CW / 2 - 20, y = 230;
-    const e = card(x, y, w, 330, at - 0.2, { bar: col }); if (e <= 0) return;
-    ctx.save(); ctx.globalAlpha = e; ctx.translate(0, (1 - e) * 30);
-    label(name, x + 48, y + 74, 42, { w: 700, f: HEAD });
-    label('Watch Dog monitoring rollout', x + 48, y + 118, 26, { c: C.gray });
-    const u = bar(x + 48, y + 210, w - 96, 16, pct / 100, col, at + 0.2, 1.4);
-    label(Math.round(100 * u) + '%', x + w - 48, y + 96, 84, { w: 700, f: HEAD, c: col, align: 'right' });
-    pill(chip, x + 48, y + 168, col, spring(t - (at + 0.3), ...POP), 18);
-    label('Status', x + 48, y + 272, 24, { w: 700, c: col });
-    label(status, x + 48, y + 308, 26);
+  const ssg = L(CUE.ssg, 'dog'), ehub = L(CUE.ehub, 'dog'), vnc = L(CUE.vnc, 'dog'), cb = L(CUE.cb, 'dog');
+  const pan = inOutCubic(prog(t, vnc - 0.9, vnc - 0.1));
+  ctx.save(); ctx.translate(0, -pan * H);
+  // the rollout, with Watson on the floor watching the car parks light up (he waves again when Ehub starts)
+  kicker('05 · Watch Dog');
+  heading('Watch Dog');
+  const ws = spring(t - 0.1, 2.6, 0.7), br = 1 + 0.006 * (1 - Math.cos(2 * Math.PI * 0.4 * t));
+  if (ws > 0) {
+    ctx.save(); ctx.translate(330, 900); ctx.scale(ws, ws); ctx.translate(-330, -900);
+    shadow(330, 900);
+    ctx.translate(330, 900); ctx.scale(br, br); ctx.translate(-330, -900);
+    watson(Math.floor((t >= ehub ? t - ehub : t - 0.2) * MAN.fps), 330, 900, 440, 0.25);
     ctx.restore();
+  }
+  [[SSG, 960, 560, C.mint, 'SSG car parks', '100%', ssg], [EHUB, 1580, 560, C.sky, 'Ehub', '10%', ehub]].forEach(([pts, ox, oy, col, name, val, at], g) => {
+    pts.forEach(([x, y], i) => {
+      const s = spring(t - (0.3 + g * 0.3 + hash(i, g) * 0.6), ...POP);
+      const on = g === 0 ? t > at + 0.6 + (Math.hypot(x, y) / 300) * 1.4 : EHUB_ON.includes(i) && t > at + 0.4 + hash(i, 9) * 0.6;
+      dot(ox + x, oy + y, (on ? 9 : 6) * s, on ? col : C.dim);
+    });
+    rise(name, ox, oy + 250, 40, { w: 700, align: 'center', at: at });
+    rise(val, ox, oy + 310, 46, { w: 800, c: col, align: 'center', at: at + 0.4 });
   });
-  const vnc = L(CUE.vnc, 'dog'), cb = L(CUE.cb, 'dog');
-  const e = card(MX, 610, CW, 330, vnc - 0.3, { bar: C.accent }); if (e <= 0) return;
-  ctx.save(); ctx.globalAlpha = e; ctx.translate(0, (1 - e) * 30);
-  label('Other enhancements', MX + 48, 690, 38, { w: 700, f: HEAD });
-  [['OPC remote access', 'Install UltraVNC to replace RealVNC (RealVNC needs a licence).', vnc],
-   ['Ehub car park', 'Uninstall Carbon Black (licence expired, no longer used).', cb]].forEach(([a, b, at2], j) => {
-    const s = outExpo(prog(t, at2, at2 + 0.6)); if (s <= 0) return;
-    ctx.save(); ctx.globalAlpha = s; ctx.translate((1 - s) * 40, 0);
-    const y = 770 + j * 92;
-    dot(MX + 62, y - 10, 9, C.slate);
-    label(a, MX + 90, y, 30, { w: 700 });
-    label(b, MX + 90 + width(a + '  ', 30, 700), y, 30, { c: C.gray });
+  // other enhancements, below: two before -> after rows; the old name is struck and dimmed once the new one lands
+  const y0 = H;
+  kicker('05 · Housekeeping', y0 + 102, vnc - 0.9);
+  heading('Other enhancements', y0 + 190, vnc - 0.85);
+  const swap = (top, where, icon, from, note, to, arrowAt, strikeAt) => {
+    rr(120, top, 1680, 200, 28); ctx.fillStyle = C.bg2; ctx.fill();
+    label(where, 340, top + 52, 28, { w: 600, c: C.mute });
+    ctx.save(); ctx.globalAlpha *= lerp(1, 0.45, inOutCubic(prog(t, strikeAt + 0.5, strikeAt + 1.0)));
+    ctx.save(); ctx.translate(220, top + 100); ctx.scale(0.8, 0.8); icon(); ctx.restore();
+    label(from, 340, top + 132, 72, { w: 800 });
+    label(note, 344, top + 176, 30, { w: 600, c: C.coral });
+    const sk = outCubic(prog(t, strikeAt, strikeAt + 0.4));
+    if (sk > 0) line(330, top + 108, lerp(330, 350 + width(from, 72, 800), sk), top + 108, C.coral, 7);
     ctx.restore();
-  });
+    const ar = outCubic(prog(t, arrowAt, arrowAt + 0.4)), ay = top + 110;
+    if (ar > 0) { const tip = lerp(1000, 1110, ar); line(1000, ay, tip, ay, C.amber, 7); line(tip, ay, tip - 20, ay - 20, C.amber, 7); line(tip, ay, tip - 20, ay + 20, C.amber, 7); }
+    rise(to, 1160, top + 132, 72, { w: 800, at: arrowAt + 0.2 });
+    rise('planned', 1164, top + 176, 30, { w: 600, c: C.amber, at: arrowAt + 0.35 });
+  };
+  swap(y0 + lerp(530, 400, inOutCubic(prog(t, cb - 0.6, cb))), 'OPC remote access', () => monitor(-75, -66, C.mute),
+       'RealVNC', 'needs a licence', 'UltraVNC', vnc + 1.4, vnc + 2.2);
+  const ce = outCubic(prog(t, cb - 0.1, cb + 0.5));
+  if (ce > 0) {
+    ctx.save(); ctx.globalAlpha = ce;
+    swap(y0 + 660 + (1 - ce) * 40, 'Ehub car park', () => shield(0, 0), 'Carbon Black', 'licence expired', 'Uninstall', cb + 1.2, cb + 1.8);
+    ctx.restore();
+  }
   ctx.restore();
 }
 
-const ACTIONS = [
-  ['This week', C.blue, 'WMS change request phase 1: collect UAT results, then deploy to production.'],
-  ['Ongoing', C.slate, 'Season portal: finish the DBS payment gateway & eGIRO (80%) and season sync (70%).'],
-  ['Ongoing', C.slate, 'Season portal: credit note & sale note upload to NAV (30%) and the five reports (50%).'],
-  ['Ongoing', C.slate, 'Watch Dog: continue the rollout at Ehub car park (10%).'],
-  ['Next', C.slate, 'OPC: install UltraVNC to replace RealVNC.'],
-  ['Next', C.slate, 'Ehub car park: uninstall Carbon Black (licence expired).'],
+// ---- 7. the road ahead ------------------------------------------------------------------------------------
+const STEPS = [   // in the order the narration names them
+  ['This week', 'week', 'Collect UAT results', 'and deploy phase 1'],
+  ['Ongoing', 'go', 'Finish DBS gateway', '& eGIRO, now 80%'],
+  ['Ongoing', 'go', 'Finish season sync', 'now at 70%'],
+  ['Ongoing', 'go', 'Ehub rollout', 'Watch Dog, now 10%'],
+  ['Next', 'next', 'Switch to UltraVNC', 'on the OPCs'],
+  ['Next', 'next', 'Remove Carbon Black', 'at Ehub'],
 ];
 function sNext() {
-  heading('Next Steps');
-  rise('Immediate Actions', MX, 250, 34, { at: 0.4 });
-  ACTIONS.forEach(([tag, col, text], i) => {
-    const at = L(CUE.n[i], 'next'), y = 285 + i * 122;
-    const e = card(MX, y, CW, 100, at - 0.2, { fill: '#fff', border: C.line, bar: col }); if (e <= 0) return;
-    ctx.save(); ctx.globalAlpha = e; ctx.translate(0, (1 - e) * 30);
-    label(tag, MX + 44, y + 62, 30, { w: 700, f: HEAD, c: col });
-    label(text, MX + 260, y + 61, 29);
-    ctx.restore();
+  kicker('06 · Next steps');
+  heading('Next steps');
+  const n = CUE.n.map(c => L(c, 'next')), GAPX = 440, X = i => 400 + i * GAPX, RY = 600;
+  let cam = X(0);                                             // the camera walks to each milestone as it is named
+  n.slice(1).forEach(at => { cam += GAPX * inOutCubic(prog(t, at - 0.5, at + 0.3)); });
+  const over = inOutCubic(prog(t, n[5] + 1.6, n[5] + 3.0));   // then pulls back to show the whole road
+  const z = lerp(1, 0.64, over), cx = lerp(cam, (X(0) + X(5)) / 2, over), sx = x => W / 2 + (x - cx) * z;
+  line(sx(X(0) - 600), RY, sx(X(5) + 600), RY, C.line, 6);
+  const reach = n.reduce((a, at, i) => (t >= at ? X(i) : a), X(0) - 600);
+  line(sx(X(0) - 600), RY, sx(reach), RY, C.amber, 6);
+  const ts = lerp(44, 30, over), as = lerp(32, 28, over), bs = lerp(30, 26, over), mw = lerp(400, 250, over);
+  STEPS.forEach(([tag, kind, a, b], i) => {                  // text stays in screen space so it never shrinks below 26 px
+    const at = n[i], s = spring(t - at, ...POP), x = sx(X(i)), r = lerp(26, 20, over) * s;
+    if (kind === 'go') dot(x, RY, r, C.sky);
+    else { dot(x, RY, r, kind === 'week' ? C.text : C.bg); ring(x, RY, r, C.amber, 5 * s); }
+    const tc = kind === 'go' ? C.sky : kind === 'next' ? C.amber : C.text;
+    rise(tag, x, RY - lerp(70, 50, over), fit(tag, ts, 800, mw), { w: 800, c: tc, align: 'center', at });
+    rise(a, x, RY + lerp(90, 74, over), fit(a, as, 600, mw), { w: 600, align: 'center', at: at + 0.15, gap: 0.03 });
+    rise(b, x, RY + lerp(136, 110, over), fit(b, bs, 500, mw), { w: 500, c: C.mute, align: 'center', at: at + 0.25, gap: 0.03 });
   });
 }
 
+// ---- 8. thank you ------------------------------------------------------------------------------------------
 function sEnd() {
-  logo(W / 2, 320, 300, spring(t - 0.1, 2.6, 0.75));
-  rise('Thank you', W / 2, 640, 128, { align: 'center', at: L(CUE.thanks, 'end') - 0.3 });
-  rise('IT Department  ·  13 October 2026', W / 2, 740, 40, { align: 'center', w: 400, f: BODY, c: C.gray, at: L(CUE.thanks, 'end') + 0.5, gap: 0.04 });
+  const th = L(CUE.thanks, 'end'), s = spring(t + 0.3, 2.6, 0.75);
+  if (s > 0) logoPlate(960, 330, s);
+  rise('Thank you', 960, 660, 150, { w: 800, align: 'center', at: th - 0.3 });
+  rise('IT Department  ·  October 2026', 960, 760, 40, { w: 500, c: C.mute, align: 'center', at: th + 0.5, gap: 0.04 });
 }
 
-// ---- compositor ---------------------------------------------------------------------------------------
+// ---- compositor --------------------------------------------------------------------------------------------
 const SCENES = [
-  { t0: SC.title, draw: sTitle }, { t0: SC.status, draw: sStatus, chrome: 1 }, { t0: SC.wms, draw: sWms, chrome: 1 },
-  { t0: SC.done, draw: sDone, chrome: 1 }, { t0: SC.portal, draw: sPortal, chrome: 1 }, { t0: SC.dog, draw: sDog, chrome: 1 },
-  { t0: SC.next, draw: sNext, chrome: 1 }, { t0: SC.end, draw: sEnd },
+  { t0: SC.title, draw: sTitle }, { t0: SC.status, draw: sStatus }, { t0: SC.wms, draw: sWms }, { t0: SC.done, draw: sDone },
+  { t0: SC.portal, draw: sPortal }, { t0: SC.dog, draw: sDog }, { t0: SC.next, draw: sNext }, { t0: SC.end, draw: sEnd },
 ];
-// geometry, not crossfades; no two neighbours alike
-const SEAMS = [{ type: 'wipe' }, { type: 'push', dx: -1 }, { type: 'strips' }, { type: 'push', dx: -1 }, { type: 'wipe' },
-               { type: 'push', dx: -1 }, { type: 'iris', at: [W / 2, 560] }];
+// one transition for every page: the amber diagonal wipe; the iris is kept for the end card
+const SEAMS = [...Array(6)].map(() => ({ type: 'wipe' })).concat([{ type: 'iris', at: [W / 2, 560] }]);
 const far = (x, y) => Math.hypot(Math.max(x, W - x), Math.max(y, H - y)) * 1.04;
 
 function drawScene(i, T) {
   t = T - SCENES[i].t0;
-  const len = (SCENES[i + 1] ? SCENES[i + 1].t0 : DURATION) - SCENES[i].t0;
-  const z = 1 + 0.03 * inOutCubic(prog(t, 0, len + SEAM));   // a slow push keeps a held page alive; the chrome stays put
-  ctx.save(); bg();
-  ctx.save(); ctx.translate(W / 2, 640); ctx.scale(z, z); ctx.translate(-W / 2, -640); SCENES[i].draw(); ctx.restore();
-  if (SCENES[i].chrome && chromeOn) chrome();
-  ctx.restore();
+  ctx.save(); bg(); SCENES[i].draw(); ctx.restore();
 }
 function transition(k, T) {
   const s = SEAMS[k], cut = SCENES[k + 1].t0, u = prog(T, cut - SEAM, cut + SEAM), e = inOutExpo(u);
   const A = () => drawScene(k, T), B = () => drawScene(k + 1, T);
-  const shared = SCENES[k].chrome && SCENES[k + 1].chrome;   // the page chrome stays still while content moves
-  chromeOn = !shared;
-  if (s.type === 'push') {
-    ctx.save(); ctx.translate(s.dx * e * W, 0); A(); ctx.restore();
-    ctx.save(); ctx.translate(-s.dx * (1 - e) * W, 0); B(); ctx.restore();
-  } else if (s.type === 'wipe') {
+  if (s.type === 'wipe') {
     A();
     const slant = 420, xc = lerp(-slant, W + slant, e), xt = xc + slant / 2, xb = xc - slant / 2;
     ctx.save(); ctx.beginPath(); ctx.moveTo(-10, -10); ctx.lineTo(xt, -10); ctx.lineTo(xb, H + 10); ctx.lineTo(-10, H + 10); ctx.closePath();
     ctx.clip(); B(); ctx.restore();
-    if (u > 0 && u < 1) line(xt, -10, xb, H + 10, C.brand, 8);
-  } else if (s.type === 'strips') {
-    A();
-    const N = 12, sw = W / N;
-    ctx.save(); ctx.beginPath();
-    for (let i = 0; i < N; i++) {
-      const h = inOutExpo(clamp((u - i * 0.03) / (1 - (N - 1) * 0.03))) * H;
-      if (h > 0) ctx.rect(i * sw, i % 2 ? H - h : 0, sw + 0.5, h);
-    }
-    ctx.clip(); B(); ctx.restore();
+    if (u > 0 && u < 1) line(xt, -10, xb, H + 10, C.amber, 6);
   } else if (s.type === 'iris') {
     A();
     const [x, y] = s.at, r = e * far(x, y);
     if (r > 0) { ctx.save(); ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.clip(); B(); ctx.restore();
-      if (u < 1) { ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.strokeStyle = C.brand; ctx.lineWidth = 8; ctx.stroke(); } }
+      if (u < 1) ring(x, y, r, C.amber, 6); }
   }
-  chromeOn = true;
-  if (shared) chrome();
 }
 function render(T) {
   T = clamp(T, 0, DURATION);
   ctx.reset(); bg();
-  for (let k = 0; k < SEAMS.length; k++) {
+  let done = false;
+  for (let k = 0; k < SEAMS.length && !done; k++) {
     const cut = SCENES[k + 1].t0;
-    if (T >= cut - SEAM && T < cut + SEAM) return transition(k, T);
+    if (T >= cut - SEAM && T < cut + SEAM) { transition(k, T); done = true; }
   }
-  let i = SCENES.length - 1;
-  while (i > 0 && T < SCENES[i].t0) i--;
-  drawScene(i, T);
+  if (!done) { let i = SCENES.length - 1; while (i > 0 && T < SCENES[i].t0) i--; drawScene(i, T); }
+  // how far through: an amber line on a faint track, a tick at each page
+  ctx.fillStyle = C.line; ctx.fillRect(0, H - 4, W, 4);
+  ctx.fillStyle = C.amber; ctx.fillRect(0, H - 4, W * T / DURATION, 4);
+  ctx.fillStyle = C.mute; SCENES.slice(1).forEach(s => ctx.fillRect(Math.round(W * s.t0 / DURATION) - 1, H - 12, 2, 12));
 }
 
 // ---- events: the cuts, for render.mjs --check (the score is composed from timeline.json by music.py) ----
 const EVENTS = { bpm: TL.bpm, duration: DURATION, cuts: SCENES.slice(1).map((s, k) => [s.t0, SEAMS[k].type]) };
 
-// ---- boot ------------------------------------------------------------------------------------------
+// ---- boot ----------------------------------------------------------------------------------------------------
 const LOGO = new Image();
 LOGO.src = 'data:image/png;base64,__ASSET:assets/logo-red.png__';
 window.DURATION = DURATION;
 window.EVENTS = EVENTS;
 window.seek = async T => render(T);
 (async () => {
-  await LOGO.decode();
-  await Promise.all([[400, BODY], [500, BODY], [600, BODY], [700, BODY], [700, HEAD]].map(([w, f]) => document.fonts.load(`${w} 40px ${f}`)));
+  const wel = new Image(); wel.src = 'data:image/webp;base64,__ASSET:assets/mascot-welcome.webp__';
+  await Promise.all([LOGO.decode(), wel.decode()]); IMG.welcome = wel;
+  await Promise.all([500, 600, 700, 800].map(w => document.fonts.load(`${w} 40px ${FONT}`)));
   const q = new URLSearchParams(location.search).get('t');
   render(q ? +q : 0);
   window.READY = true;
