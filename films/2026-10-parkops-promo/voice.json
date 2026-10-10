@@ -1,0 +1,776 @@
+{
+ "voice": "coral",
+ "lines": [
+  {
+   "id": "o1",
+   "text": "Right now, two hundred and forty car park stations are running across our network.",
+   "dur": 5.36,
+   "phrases": [
+    [
+     0.04,
+     0.53
+    ],
+    [
+     0.98,
+     3.34
+    ],
+    [
+     3.67,
+     5.16
+    ]
+   ]
+  },
+  {
+   "id": "o2",
+   "text": "Each one has a PC in the booth, cameras over every lane, and programs that must never stop.",
+   "dur": 7.026,
+   "phrases": [
+    [
+     0.01,
+     0.76
+    ],
+    [
+     1.11,
+     2.31
+    ],
+    [
+     2.91,
+     4.37
+    ],
+    [
+     4.85,
+     6.96
+    ]
+   ]
+  },
+  {
+   "id": "o3",
+   "text": "This is how we keep watch over all of them.",
+   "dur": 3.565,
+   "phrases": [
+    [
+     0.15,
+     2.07
+    ],
+    [
+     2.43,
+     3.41
+    ]
+   ]
+  },
+  {
+   "id": "a1",
+   "text": "On every station PC runs POSvc, a small Windows service.",
+   "dur": 4.868,
+   "phrases": [
+    [
+     0.01,
+     1.66
+    ],
+    [
+     2.04,
+     3.01
+    ],
+    [
+     3.44,
+     4.82
+    ]
+   ]
+  },
+  {
+   "id": "a2",
+   "text": "It watches the processor, the memory and the disks; the services and the programs; every camera and lane station; the ports; and the log files, line by line.",
+   "dur": 12.713,
+   "phrases": [
+    [
+     0.01,
+     0.9
+    ],
+    [
+     1.09,
+     1.68
+    ],
+    [
+     2.03,
+     2.65
+    ],
+    [
+     2.92,
+     3.72
+    ],
+    [
+     4.37,
+     6.14
+    ],
+    [
+     6.68,
+     8.53
+    ],
+    [
+     9.17,
+     9.78
+    ],
+    [
+     10.2,
+     11.23
+    ],
+    [
+     11.64,
+     12.64
+    ]
+   ]
+  },
+  {
+   "id": "a3",
+   "text": "Every thirty seconds it reports in, over two channels: one for data, and one for control.",
+   "dur": 7.234,
+   "phrases": [
+    [
+     0.03,
+     0.47
+    ],
+    [
+     0.63,
+     1.44
+    ],
+    [
+     1.73,
+     2.54
+    ],
+    [
+     3.07,
+     4.25
+    ],
+    [
+     4.86,
+     5.57
+    ],
+    [
+     6.08,
+     7.12
+    ]
+   ]
+  },
+  {
+   "id": "k1",
+   "text": "On the server, a health sweep checks every station, every thirty seconds.",
+   "dur": 4.912,
+   "phrases": [
+    [
+     0.03,
+     0.82
+    ],
+    [
+     1.14,
+     1.92
+    ],
+    [
+     2.18,
+     3.37
+    ],
+    [
+     3.69,
+     4.88
+    ]
+   ]
+  },
+  {
+   "id": "k2",
+   "text": "When something fails, it is flagged in about seventeen seconds, and the alert lights the bell on every screen. Telegram and email alerts can be switched on, too.",
+   "dur": 10.621,
+   "phrases": [
+    [
+     0.03,
+     1.08
+    ],
+    [
+     1.29,
+     3.52
+    ],
+    [
+     4.02,
+     4.65
+    ],
+    [
+     4.89,
+     6.66
+    ],
+    [
+     7.42,
+     8.98
+    ],
+    [
+     9.32,
+     10.56
+    ]
+   ]
+  },
+  {
+   "id": "k3",
+   "text": "A problem has to hold for two sweeps before it alerts, so a passing flicker never wakes anyone up.",
+   "dur": 6.685,
+   "phrases": [
+    [
+     0.01,
+     3.31
+    ],
+    [
+     3.87,
+     5.06
+    ],
+    [
+     5.32,
+     6.5
+    ]
+   ]
+  },
+  {
+   "id": "k4",
+   "text": "On the first of October, at CK36, both lanes went dark. Twenty-three seconds later, all four devices were flagged.",
+   "dur": 9.491,
+   "phrases": [
+    [
+     0.0,
+     0.31
+    ],
+    [
+     0.51,
+     1.44
+    ],
+    [
+     1.87,
+     3.32
+    ],
+    [
+     3.95,
+     5.21
+    ],
+    [
+     5.85,
+     7.06
+    ],
+    [
+     7.65,
+     9.25
+    ]
+   ]
+  },
+  {
+   "id": "m1",
+   "text": "Open a station, and it draws itself, lane by lane.",
+   "dur": 4.218,
+   "phrases": [
+    [
+     0.02,
+     1.12
+    ],
+    [
+     1.51,
+     2.78
+    ],
+    [
+     3.29,
+     4.09
+    ]
+   ]
+  },
+  {
+   "id": "m2",
+   "text": "Entry lanes on the left, exit lanes on the right, and the shared cameras below; each device finds its lane by its name.",
+   "dur": 7.497,
+   "phrases": [
+    [
+     0.03,
+     1.27
+    ],
+    [
+     1.57,
+     2.68
+    ],
+    [
+     3.05,
+     4.35
+    ],
+    [
+     4.95,
+     6.48
+    ],
+    [
+     6.81,
+     7.38
+    ]
+   ]
+  },
+  {
+   "id": "m3",
+   "text": "Green packets mean a lane is answering. When one stops, its link breaks in red, and you can see exactly which device.",
+   "dur": 8.438,
+   "phrases": [
+    [
+     0.08,
+     0.94
+    ],
+    [
+     1.12,
+     2.21
+    ],
+    [
+     3.0,
+     4.0
+    ],
+    [
+     4.42,
+     5.66
+    ],
+    [
+     6.17,
+     7.38
+    ],
+    [
+     7.67,
+     8.4
+    ]
+   ]
+  },
+  {
+   "id": "v1",
+   "text": "Click a camera, and its live picture opens, streamed through the server.",
+   "dur": 5.339,
+   "phrases": [
+    [
+     0.01,
+     0.37
+    ],
+    [
+     0.58,
+     1.14
+    ],
+    [
+     1.81,
+     3.55
+    ],
+    [
+     3.96,
+     5.23
+    ]
+   ]
+  },
+  {
+   "id": "v2",
+   "text": "Click a lane station, and its screen is in front of you, with the mouse and keyboard.",
+   "dur": 5.776,
+   "phrases": [
+    [
+     0.01,
+     1.52
+    ],
+    [
+     1.97,
+     3.52
+    ],
+    [
+     4.09,
+     4.78
+    ],
+    [
+     5.07,
+     5.7
+    ]
+   ]
+  },
+  {
+   "id": "v3",
+   "text": "The station's password stays on the server, never in the browser, and every session is recorded.",
+   "dur": 7.044,
+   "phrases": [
+    [
+     0.11,
+     1.42
+    ],
+    [
+     1.76,
+     2.84
+    ],
+    [
+     3.34,
+     4.5
+    ],
+    [
+     5.01,
+     6.06
+    ],
+    [
+     6.34,
+     6.95
+    ]
+   ]
+  },
+  {
+   "id": "f1",
+   "text": "Many problems can be fixed from right here.",
+   "dur": 2.571,
+   "phrases": [
+    [
+     0.01,
+     2.49
+    ]
+   ]
+  },
+  {
+   "id": "f2",
+   "text": "Ping a device. Test a port. Restart a service. Search a log.",
+   "dur": 6.17,
+   "phrases": [
+    [
+     0.09,
+     0.89
+    ],
+    [
+     1.69,
+     2.52
+    ],
+    [
+     3.18,
+     4.41
+    ],
+    [
+     5.21,
+     6.12
+    ]
+   ]
+  },
+  {
+   "id": "f3",
+   "text": "But a station only runs commands on its own allow list. There is no open shell, and anything else is refused.",
+   "dur": 7.828,
+   "phrases": [
+    [
+     0.14,
+     3.8
+    ],
+    [
+     4.36,
+     5.76
+    ],
+    [
+     6.17,
+     7.79
+    ]
+   ]
+  },
+  {
+   "id": "f4",
+   "text": "Every command is recorded: who sent it, and how it ended.",
+   "dur": 4.375,
+   "phrases": [
+    [
+     0.0,
+     1.67
+    ],
+    [
+     2.47,
+     3.08
+    ],
+    [
+     3.5,
+     4.3
+    ]
+   ]
+  },
+  {
+   "id": "r1",
+   "text": "New software is signed before it leaves, with a key that never touches the server.",
+   "dur": 6.106,
+   "phrases": [
+    [
+     0.04,
+     1.97
+    ],
+    [
+     2.19,
+     3.18
+    ],
+    [
+     3.6,
+     4.25
+    ],
+    [
+     4.43,
+     6.05
+    ]
+   ]
+  },
+  {
+   "id": "r2",
+   "text": "Each station checks the signature and the checksum, backs up what it has, and only then installs.",
+   "dur": 6.791,
+   "phrases": [
+    [
+     0.01,
+     0.86
+    ],
+    [
+     1.17,
+     2.28
+    ],
+    [
+     2.55,
+     3.3
+    ],
+    [
+     3.71,
+     4.92
+    ],
+    [
+     5.29,
+     6.75
+    ]
+   ]
+  },
+  {
+   "id": "r3",
+   "text": "If anything fails, it rolls itself back.",
+   "dur": 3.089,
+   "phrases": [
+    [
+     0.0,
+     1.2
+    ],
+    [
+     1.62,
+     3.03
+    ]
+   ]
+  },
+  {
+   "id": "r4",
+   "text": "Even the agent updates itself this way. A helper swaps in the new version, waits for it to start, and puts the old one back if it does not.",
+   "dur": 10.275,
+   "phrases": [
+    [
+     0.01,
+     2.55
+    ],
+    [
+     3.72,
+     5.7
+    ],
+    [
+     6.26,
+     7.25
+    ],
+    [
+     7.8,
+     9.23
+    ],
+    [
+     9.58,
+     10.23
+    ]
+   ]
+  },
+  {
+   "id": "g1",
+   "text": "Step back, and the whole fleet becomes a galaxy.",
+   "dur": 3.872,
+   "phrases": [
+    [
+     0.02,
+     0.41
+    ],
+    [
+     0.57,
+     0.88
+    ],
+    [
+     1.33,
+     2.42
+    ],
+    [
+     2.79,
+     3.81
+    ]
+   ]
+  },
+  {
+   "id": "g2",
+   "text": "Every station is a star on one of four arms, and a problem raises a beacon you can fly to.",
+   "dur": 6.494,
+   "phrases": [
+    [
+     0.01,
+     3.17
+    ],
+    [
+     3.57,
+     5.29
+    ],
+    [
+     5.58,
+     6.43
+    ]
+   ]
+  },
+  {
+   "id": "g3",
+   "text": "Or step into a single car park, and see its lanes, its booth, and how many lots are free, live.",
+   "dur": 8.053,
+   "phrases": [
+    [
+     0.02,
+     2.21
+    ],
+    [
+     2.7,
+     3.97
+    ],
+    [
+     4.36,
+     4.96
+    ],
+    [
+     5.4,
+     6.78
+    ],
+    [
+     7.55,
+     7.93
+    ]
+   ]
+  },
+  {
+   "id": "u1",
+   "text": "People sign in with their own accounts.",
+   "dur": 2.223,
+   "phrases": [
+    [
+     0.03,
+     2.18
+    ]
+   ]
+  },
+  {
+   "id": "u2",
+   "text": "Four roles decide what each person can do, from viewer to super admin, and a scope decides which stations they can see.",
+   "dur": 8.922,
+   "phrases": [
+    [
+     0.04,
+     1.15
+    ],
+    [
+     1.38,
+     3.19
+    ],
+    [
+     3.65,
+     4.28
+    ],
+    [
+     4.51,
+     5.35
+    ],
+    [
+     6.05,
+     6.79
+    ],
+    [
+     7.04,
+     8.87
+    ]
+   ]
+  },
+  {
+   "id": "u3",
+   "text": "Every sign-in, command, camera view and remote session lands in the audit report, ready to export.",
+   "dur": 6.892,
+   "phrases": [
+    [
+     0.03,
+     0.89
+    ],
+    [
+     1.25,
+     1.74
+    ],
+    [
+     2.08,
+     2.75
+    ],
+    [
+     2.98,
+     3.94
+    ],
+    [
+     4.21,
+     5.59
+    ],
+    [
+     5.91,
+     6.83
+    ]
+   ]
+  },
+  {
+   "id": "b1",
+   "text": "ParkOps is built in-house, at Re Sustainability.",
+   "dur": 3.908,
+   "phrases": [
+    [
+     0.07,
+     1.99
+    ],
+    [
+     2.63,
+     3.84
+    ]
+   ]
+  },
+  {
+   "id": "b2",
+   "text": "Since June: seven hundred and eighty-three changes, one hundred and ninety-eight releases, and nine hundred automated tests that check every change.",
+   "dur": 10.622,
+   "phrases": [
+    [
+     0.03,
+     0.88
+    ],
+    [
+     1.51,
+     3.82
+    ],
+    [
+     4.38,
+     6.27
+    ],
+    [
+     6.8,
+     8.83
+    ],
+    [
+     9.15,
+     10.58
+    ]
+   ]
+  },
+  {
+   "id": "end",
+   "text": "ParkOps Watch Dog. Know first.",
+   "dur": 2.991,
+   "phrases": [
+    [
+     0.03,
+     0.86
+    ],
+    [
+     1.03,
+     1.65
+    ],
+    [
+     2.1,
+     2.95
+    ]
+   ]
+  }
+ ]
+}

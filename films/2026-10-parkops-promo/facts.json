@@ -1,0 +1,11 @@
+{
+  "source": "ParkOps Agent server 2.7.27 at 10.3.13.76, read-only queries with Justin's session on 2026-10-10 (status, notifications, agents, reports); the ParkOps Agent repository at e0f7509. Times are Singapore time (UTC+8).",
+  "fleet": { "stations": 240, "online": 225, "warning": 13, "critical": 2, "offline": 0, "checks": 5198, "operators": ["SJS", "EHUB"] },
+  "flag": { "medianSeconds": 16.7, "p90Seconds": 25.9, "alerts": 159, "window": "2026-10-08 03:29 to 2026-10-10 14:02", "method": "notification created_at minus the station's first_seen_at, station-offline entries excluded" },
+  "alerts30d": 821,
+  "repo": { "commits": 783, "since": "2026-06-20", "releases": 198, "firstRelease": "v1.0.0, 2026-06-21", "latest": "v2.7.27", "goTests": 900, "goLines": 61324, "dashboardLines": 25145 },
+  "defaults": { "heartbeatSeconds": 30, "sweepSeconds": 30, "offlineAfterSeconds": 90, "sweepsBeforeAlert": 2, "updaterWaitSeconds": 60 },
+  "alertChannels": "Telegram and SMTP are built in; both are switched off on the production server (alerts_enabled false), so the film says they can be switched on.",
+  "map": { "station": "J71", "pc": "J71_PMS", "monitors": 33, "entryLanes": 5, "exitLanes": 6 },
+  "carpark": { "station": "J71", "free": 155, "total": 450 }
+}
