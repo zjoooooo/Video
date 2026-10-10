@@ -90,62 +90,331 @@
    ]
   },
   {
-   "id": "wms1",
-   "text": "WMS moved to the Azure cloud from the twenty-second to the twenty-fourth of September.",
-   "dur": 4.93,
+   "id": "wms0",
+   "text": "First, WMS. We took over the project at the start of August.",
+   "dur": 6.146,
    "phrases": [
     [
-     0.09,
-     4.87
+     0.18,
+     0.55
+    ],
+    [
+     1.01,
+     2.33
+    ],
+    [
+     2.94,
+     4.48
+    ],
+    [
+     4.78,
+     6.09
     ]
    ]
   },
   {
-   "id": "wms2",
-   "text": "Change request phase one went through user testing from the first to the seventh of October.",
-   "dur": 5.413,
+   "id": "wmsJ",
+   "text": "In three months, it was tested, moved to the cloud, and started its first round of improvements.",
+   "dur": 6.313,
+   "phrases": [
+    [
+     0.03,
+     1.05
+    ],
+    [
+     1.33,
+     2.19
+    ],
+    [
+     2.58,
+     3.53
+    ],
+    [
+     3.84,
+     4.67
+    ],
+    [
+     4.84,
+     6.27
+    ]
+   ]
+  },
+  {
+   "id": "aug1",
+   "text": "User end testing ran from the ninth to the seventeenth of August, and passed.",
+   "dur": 5.324,
+   "phrases": [
+    [
+     0.03,
+     2.29
+    ],
+    [
+     2.57,
+     3.97
+    ],
+    [
+     4.63,
+     5.28
+    ]
+   ]
+  },
+  {
+   "id": "aug2",
+   "text": "By the twenty-fourth of August, the development team and the Azure cloud were ready.",
+   "dur": 5.378,
+   "phrases": [
+    [
+     0.1,
+     1.9
+    ],
+    [
+     2.27,
+     4.5
+    ],
+    [
+     4.8,
+     5.28
+    ]
+   ]
+  },
+  {
+   "id": "sep1",
+   "text": "The WMS users asked us to migrate from the twenty-second to the twenty-fourth of September, to fit their operations.",
+   "dur": 7.05,
+   "phrases": [
+    [
+     0.03,
+     3.6
+    ],
+    [
+     3.87,
+     5.28
+    ],
+    [
+     5.67,
+     5.76
+    ],
+    [
+     5.91,
+     7.02
+    ]
+   ]
+  },
+  {
+   "id": "sep2",
+   "text": "WMS moved to the Azure cloud on schedule, and the mobile app upgraded itself automatically.",
+   "dur": 6.829,
+   "phrases": [
+    [
+     0.11,
+     3.38
+    ],
+    [
+     4.03,
+     4.79
+    ],
+    [
+     5.1,
+     5.19
+    ],
+    [
+     5.34,
+     5.96
+    ],
+    [
+     6.12,
+     6.71
+    ]
+   ]
+  },
+  {
+   "id": "cr0",
+   "text": "Then came change request phase one: five improvements asked for by the business.",
+   "dur": 5.238,
+   "phrases": [
+    [
+     0.06,
+     2.21
+    ],
+    [
+     2.95,
+     4.9
+    ],
+    [
+     5.05,
+     5.2
+    ]
+   ]
+  },
+  {
+   "id": "fr1",
+   "text": "Ad-hoc collections can be added to a route, and show up within fifteen minutes.",
+   "dur": 5.473,
+   "phrases": [
+    [
+     0.03,
+     2.61
+    ],
+    [
+     3.19,
+     4.31
+    ],
+    [
+     4.51,
+     5.42
+    ]
+   ]
+  },
+  {
+   "id": "fr2",
+   "text": "A missed collection can be added later, and is saved against its original date.",
+   "dur": 4.832,
+   "phrases": [
+    [
+     0.0,
+     1.11
+    ],
+    [
+     1.26,
+     2.17
+    ],
+    [
+     2.7,
+     4.78
+    ]
+   ]
+  },
+  {
+   "id": "fr3",
+   "text": "Average weight uses the latest seven valid collections, and the formula is shown.",
+   "dur": 6.079,
+   "phrases": [
+    [
+     0.01,
+     0.91
+    ],
+    [
+     1.3,
+     3.82
+    ],
+    [
+     4.31,
+     5.08
+    ],
+    [
+     5.43,
+     5.97
+    ]
+   ]
+  },
+  {
+   "id": "fr4",
+   "text": "A collection near a shift boundary keeps its planned shift, and records the actual one.",
+   "dur": 5.73,
+   "phrases": [
+    [
+     0.03,
+     1.94
+    ],
+    [
+     2.21,
+     3.53
+    ],
+    [
+     4.11,
+     5.59
+    ]
+   ]
+  },
+  {
+   "id": "fr5",
+   "text": "And the daily collection report and dashboard gain new fields, new filters, and matching totals.",
+   "dur": 6.162,
    "phrases": [
     [
      0.02,
-     1.61
+     2.36
     ],
     [
-     1.96,
-     3.59
+     2.76,
+     3.79
     ],
     [
-     3.74,
-     5.31
+     4.08,
+     4.85
+    ],
+    [
+     5.11,
+     6.13
     ]
    ]
   },
   {
-   "id": "wms3",
-   "text": "Once the users confirm the result, we deploy it to production.",
-   "dur": 4.531,
+   "id": "test1",
+   "text": "The development team ran twenty-four test cases, and all of them passed.",
+   "dur": 5.558,
    "phrases": [
     [
      0.09,
-     0.54
+     1.31
     ],
     [
-     0.72,
-     2.56
+     1.57,
+     3.42
     ],
     [
-     2.99,
-     4.47
+     4.1,
+     5.52
     ]
    ]
   },
   {
-   "id": "wms4",
-   "text": "Phase two has not started yet.",
-   "dur": 2.087,
+   "id": "test2",
+   "text": "User testing of phase one was planned for the first week of October; at the users' request, it now starts on the twelfth.",
+   "dur": 8.21,
    "phrases": [
     [
-     0.07,
-     2.05
+     0.01,
+     1.91
+    ],
+    [
+     2.17,
+     4.23
+    ],
+    [
+     4.89,
+     6.11
+    ],
+    [
+     6.45,
+     7.34
+    ],
+    [
+     7.5,
+     8.0
+    ]
+   ]
+  },
+  {
+   "id": "wmsNext",
+   "text": "Once they confirm, phase one goes live on the production Azure server, and phase two can begin.",
+   "dur": 7.254,
+   "phrases": [
+    [
+     0.04,
+     1.02
+    ],
+    [
+     1.67,
+     4.59
+    ],
+    [
+     5.4,
+     6.31
+    ],
+    [
+     6.65,
+     7.12
     ]
    ]
   },
@@ -336,40 +605,36 @@
   },
   {
    "id": "next1",
-   "text": "Next: collect the U-A-T results and deploy phase one, finish the payment gateway and season sync, and continue the Ehub rollout.",
-   "dur": 10.568,
+   "text": "Next: start user testing on the twelfth and deploy phase one, finish the payment gateway and season sync, and continue the Ehub rollout.",
+   "dur": 10.187,
    "phrases": [
     [
      0.03,
-     0.54
+     0.53
     ],
     [
      1.0,
-     1.5
+     2.74
     ],
     [
-     1.69,
-     3.08
+     3.38,
+     4.35
     ],
     [
-     3.39,
-     4.5
+     5.12,
+     6.31
     ],
     [
-     5.36,
-     6.61
+     6.6,
+     7.37
     ],
     [
-     6.87,
-     7.65
+     8.05,
+     8.82
     ],
     [
-     8.33,
-     9.15
-    ],
-    [
-     9.4,
-     10.52
+     8.97,
+     10.13
     ]
    ]
   },

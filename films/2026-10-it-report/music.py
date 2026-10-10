@@ -33,6 +33,7 @@ CHORDS = {   # bass root, upper voicing (piano right hand and strings)
 }
 LOOPS = {    # four bars per page, in the order the pages come
     "title": ["G", "D/F#", "Em", "C"], "status": ["G", "D/F#", "Em", "C"], "wms": ["C", "G", "Am", "D"],
+    "wmsAug": ["G", "D/F#", "Em", "C"], "wmsSep": ["C", "G", "Am", "D"], "wmsCR": ["G", "Bm", "C", "D"], "wmsTest": ["Em", "C", "G", "D"],
     "done": ["G", "Bm", "C", "D"], "portal": ["Em", "C", "G", "D"], "dog": ["C", "G", "Am", "D"],
     "next": ["C", "D", "Bm", "Em"], "end": ["D", "G", "G", "G"],
 }
@@ -102,10 +103,24 @@ for key, octave in (("done", 1), ("prog", 1), ("plan", 1)):
     sparkle(CUE[key], GLOCK, vel=70, octave=octave + 1)
 for at in CUE["hl"]:
     sparkle(at, CELESTA, n=2, vel=64)
-for key in ("wms1", "wms2", "wms3", "wms4"):
-    sparkle(CUE[key] + 0.1, GLOCK, vel=62, octave=2)
-for at in CUE["rows"]:                                    # completed: a rising fifth
-    g = pitch("D6"); note(at + 0.3, CELESTA, g, 74, 0.4); note(at + 0.45, CELESTA, g + 5, 78, 0.8)
+def fifth(at, vel=74):                                    # completed: a rising fifth
+    g = pitch("D6"); note(at, CELESTA, g, vel, 0.4); note(at + 0.15, CELESTA, g + 5, vel + 4, 0.8)
+sparkle(CUE["took"], GLOCK, vel=60, octave=2)             # WMS: the journey, August, September, phase 1, testing
+for at in CUE["j"]: sparkle(at, CELESTA, vel=58)
+sparkle(CUE["uat"], GLOCK, vel=56, octave=2); fifth(CUE["passed"] + 0.1)
+fifth(CUE["readyOK"], 70)
+sparkle(CUE["window"], CELESTA, vel=56)
+for k, p in enumerate(sorted(tones(CUE["move"] + 0.3, 1) + tones(CUE["move"] + 0.3, 2))):   # the server flies into the cloud
+    note(CUE["move"] + 0.3 + k * 0.22, HARP, p, 60, 1.0)
+fifth(CUE["sched"] + 0.1); sparkle(CUE["app"], GLOCK, vel=56, octave=2)
+sparkle(CUE["five"], GLOCK, n=5, vel=56, octave=2)
+for at in CUE["fr"]: sparkle(at, CELESTA, n=2, vel=60)
+sparkle(CUE["tc"], GLOCK, vel=56, octave=2); fifth(CUE["pass"] + 0.3)
+note(CUE["moved"], CELESTA, "B5", 64, 0.3); note(CUE["moved"] + 0.18, CELESTA, "F#5", 60, 0.5)   # postponed: a soft fall
+sparkle(CUE["twelfth"], GLOCK, vel=60, octave=2)
+sparkle(CUE["live"], CELESTA, vel=56); sparkle(CUE["p2"], CELESTA, vel=52)
+for at in CUE["rows"]:                                    # also completed
+    fifth(at + 0.3)
 r = CUE["ring"]                                           # the ring fills: a harp sweep up the chord
 for k, p in enumerate(sorted(tones(r, 0) + tones(r, 1) + tones(r, 2))):
     note(r + k * 0.13, HARP, p, 64, 1.2)

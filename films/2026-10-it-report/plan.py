@@ -24,12 +24,37 @@ s, e, ph = say("split", e + GAP)
 cue["done"], cue["prog"], cue["plan"] = beat(phrase(ph, 0)), beat(phrase(ph, 1, 0.37)), beat(phrase(ph, 2, 0.75))
 s, e, ph = say("highlights", e + GAP)
 cue["hl"] = [beat(phrase(ph, 1, 0.13)), beat(phrase(ph, 2, 0.42)), beat(phrase(ph, 3, 0.71))]
-# 3. WMS
+# 3. WMS, from takeover to the first change requests: the journey, August, September, phase 1, testing
+def inside(ph, i, frac):                                 # a point frac of the way through phrase i
+    lo, hi = ph[min(i, len(ph) - 1)]
+    return lo + (hi - lo) * frac
+
 wms = bar(e + 0.7)
-s, e, ph = say("wms1", wms + 0.5);         cue["wms1"] = s
-s, e, ph = say("wms2", e + GAP);           cue["wms2"] = s
-s, e, ph = say("wms3", e + GAP);           cue["wms3"] = s
-s, e, ph = say("wms4", e + GAP);           cue["wms4"] = s
+s, e, ph = say("wms0", wms + 0.5);         cue["took"] = beat(phrase(ph, 2, 0.45))           # "We took over the project"
+s, e, ph = say("wmsJ", e + GAP)
+cue["j"] = [beat(phrase(ph, 1, 0.2)), beat(phrase(ph, 2, 0.4)), beat(phrase(ph, 3, 0.6))]     # tested / moved / improvements
+wmsAug = bar(e + 0.7)
+s, e, ph = say("aug1", wmsAug + 0.5)
+cue["uat"], cue["uatEnd"], cue["passed"] = beat(inside(ph, 0, 0.55)), beat(phrase(ph, 1, 0.5)), beat(phrase(ph, 2, 0.88))
+s, e, ph = say("aug2", e + GAP)
+cue["ready"], cue["team"], cue["cloud"], cue["readyOK"] = s, beat(phrase(ph, 1, 0.43)), beat(inside(ph, 1, 0.55)), beat(phrase(ph, 2, 0.9))
+wmsSep = bar(e + 0.7)
+s, e, ph = say("sep1", wmsSep + 0.5)
+cue["ask"], cue["window"], cue["fit"] = s, beat(inside(ph, 0, 0.7)), beat(phrase(ph, 3, 0.83))
+s, e, ph = say("sep2", e + GAP)
+cue["move"], cue["sched"], cue["app"] = s, beat(inside(ph, 0, 0.8)), beat(phrase(ph, 1, 0.6))
+wmsCR = bar(e + 0.7)
+s, e, ph = say("cr0", wmsCR + 0.5);        cue["five"] = beat(phrase(ph, 1, 0.56))           # "five improvements"
+cue["fr"] = []
+for k in range(1, 6):
+    s, e, ph = say(f"fr{k}", e + GAP + (0.4 if k == 1 else 0.2));   cue["fr"].append(s)
+wmsTest = bar(e + 0.7)
+s, e, ph = say("test1", wmsTest + 0.5)
+cue["tc"], cue["pass"] = beat(phrase(ph, 1, 0.29)), beat(phrase(ph, 2, 0.75))
+s, e, ph = say("test2", e + GAP)
+cue["planned"], cue["moved"], cue["twelfth"] = s, beat(phrase(ph, 2, 0.6)), beat(phrase(ph, 4, 0.9))   # "at the users' request" / "on the twelfth"
+s, e, ph = say("wmsNext", e + GAP)
+cue["confirm"], cue["live"], cue["p2"] = s, beat(phrase(ph, 1, 0.23)), beat(phrase(ph, 2, 0.75))
 # 4. also completed
 done = bar(e + 0.7)
 s, e, ph = say("done", done + 0.5)
@@ -50,7 +75,8 @@ s, e, ph = say("dog3", e + GAP);           cue["cb"] = s
 # 7. next steps
 nxt = bar(e + 0.7)
 s, e, ph = say("next1", nxt + 0.5)
-cue["n"] = [beat(phrase(ph, 1, 0.09)), beat(phrase(ph, 4, 0.5)), beat(phrase(ph, 5, 0.65)), beat(phrase(ph, 6, 0.79))]
+# "start user testing…" "finish the payment gateway" "and season sync" "and continue the Ehub rollout"
+cue["n"] = [beat(phrase(ph, 1, 0.09)), beat(phrase(ph, 3, 0.5)), beat(phrase(ph, 4, 0.65)), beat(phrase(ph, 5, 0.79))]
 s, e, ph = say("next2", e + GAP)
 cue["n"] += [beat(phrase(ph, 1, 0.14)), beat(phrase(ph, 2, 0.35))]
 # 8. thank you
@@ -58,5 +84,5 @@ end = bar(e + 1.0)
 s, e, ph = say("end", end + 0.75);         cue["thanks"] = s
 cue["final"] = s
 
-P.write({"title": 0, "status": status, "wms": wms, "done": done, "portal": portal, "dog": dog, "next": nxt, "end": end},
+P.write({"title": 0, "status": status, "wms": wms, "wmsAug": wmsAug, "wmsSep": wmsSep, "wmsCR": wmsCR, "wmsTest": wmsTest, "done": done, "portal": portal, "dog": dog, "next": nxt, "end": end},
         bar(cue["final"] + 4.0))

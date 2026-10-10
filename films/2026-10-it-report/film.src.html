@@ -26,7 +26,7 @@ const ctx = cv.getContext('2d');
 // ---- tunables ----------------------------------------------------------------------------------------
 // mint = done, sky = in progress, amber = planned / next (and the film's accent), coral = a licence problem
 const C = { bg: '#0E1B2C', bg2: '#15293F', line: '#2A3F57', dim: '#36506B', text: '#F3EFE6', mute: '#8FA3B8',
-            mint: '#4FD1A1', sky: '#5AB8F0', amber: '#F6B73C', coral: '#F2795B', ink: '#0E1B2C' };
+            mint: '#4FD1A1', sky: '#5AB8F0', amber: '#F6B73C', coral: '#F2795B', ink: '#0E1B2C', faint: '#1C3149' };
 const FONT = '"Avenir Next", "Helvetica Neue", Arial, sans-serif';
 const SEAM = 0.35;
 const POP = [3.0, 0.7], MOVE = [1.8, 0.85];
@@ -228,7 +228,7 @@ function sStatus() {
   t = T0;
 }
 
-// ---- 3. WMS: into the cloud, then one line from user testing to production ------------------------------
+// ---- 3. WMS, from takeover to the first change requests: five pages ---------------------------------------
 function cloud(cx, cy, s, a) {
   if (a <= 0) return;
   const k = s * outExpo(a);
@@ -245,60 +245,401 @@ function rack(x, y, s) {
   for (let i = 0; i < 4; i++) { line(-52, -64 + i * 44, 30, -64 + i * 44, C.dim, 8); dot(50, -64 + i * 44, 6, C.mint); }
   ctx.restore();
 }
-function sWms() {
-  const w1 = L(CUE.wms1, 'wms'), w2 = L(CUE.wms2, 'wms'), w3 = L(CUE.wms3, 'wms'), w4 = L(CUE.wms4, 'wms');
-  kicker('02 · WMS');
-  heading('WMS moved to Azure');
-  rise('22 – 24 September', 122, 250, 36, { w: 500, c: C.mute, at: -0.2, gap: 0.04 });
-  // the migration fills the page, then the cloud steps back to the start of the line
-  const g = inOutCubic(prog(t, w2 - 1.0, w2 - 0.25)), z = lerp(1, 0.5, g), CX = lerp(1380, 300, g), CYc = 600;
-  ctx.save(); ctx.translate(CX, CYc); ctx.scale(z, z); ctx.translate(-1380, -600);
-  cloud(1380, 600, 1.3, prog(t, 0.1, 0.6));
-  const u = inOutCubic(prog(t, w1 + 0.3, w1 + 2.0)), path = v => [lerp(540, 1380, v), lerp(640, 600, v) - Math.sin(v * Math.PI) * 240];
-  for (let k = 1; k <= 7; k++) {                           // packets trail the flight
+function band(x0, x1, y, h, col, u) { if (u <= 0) return; rr(x0, y - h / 2, (x1 - x0) * u, h, h / 2); ctx.fillStyle = col; ctx.fill(); }
+function arrow(x0, y0, x1, y1, c, w, u, head = 16) {     // drawn on by u, head at the moving tip
+  if (u <= 0) return;
+  const x = lerp(x0, x1, u), y = lerp(y0, y1, u), a = Math.atan2(y1 - y0, x1 - x0);
+  line(x0, y0, x, y, c, w);
+  line(x, y, x - head * Math.cos(a - 0.7), y - head * Math.sin(a - 0.7), c, w);
+  line(x, y, x - head * Math.cos(a + 0.7), y - head * Math.sin(a + 0.7), c, w);
+}
+function tag(cx, cy, w, str, col, filled, s) {             // a pill with a word in it, popped by s
+  if (s <= 0) return;
+  ctx.save(); ctx.translate(cx, cy); ctx.scale(s, s);
+  rr(-w / 2, -27, w, 54, 27);
+  if (filled) { ctx.fillStyle = col; ctx.fill(); } else { ctx.strokeStyle = col; ctx.lineWidth = 3; ctx.stroke(); }
+  label(str, 0, 2, 28, { w: 700, c: filled ? C.ink : col, align: 'center', base: 'middle' });
+  ctx.restore();
+}
+// user testing: the seven planned days are struck, fold away, and one bar says when it really starts
+function postponed(x0, y, at, mv, tw) {
+  for (let d = 0; d < 7; d++) {
+    const s = spring(t - (at + d * 0.06), ...POP) * (1 - inCubic(prog(t, tw - 0.3 + (6 - d) * 0.04, tw + 0.05 + (6 - d) * 0.04)));
+    if (s <= 0) continue;
+    ctx.save(); ctx.translate(x0 + d * 96 + 42, y); ctx.scale(s, s);
+    rr(-42, -42, 84, 84, 14); ctx.fillStyle = C.bg2; ctx.fill(); ctx.strokeStyle = C.line; ctx.lineWidth = 3; ctx.stroke();
+    label(String(d + 1), 0, 3, 36, { w: 700, c: C.mute, align: 'center', base: 'middle' });
+    ctx.restore();
+  }
+  const sk = outCubic(prog(t, mv, mv + 0.5)), gone = prog(t, tw - 0.2, tw + 0.3);
+  if (sk > 0 && gone < 1) { ctx.save(); ctx.globalAlpha = 1 - gone; line(x0 - 20, y, lerp(x0 - 20, x0 + 680, sk), y, C.coral, 7); ctx.restore(); }
+  const nw = outExpo(prog(t, tw, tw + 0.7));
+  if (nw > 0) {
+    rr(x0, y - 42, 660 * nw, 84, 14); ctx.fillStyle = C.sky; ctx.fill();
+    ctx.save(); ctx.globalAlpha = prog(nw, 0.6, 1); label('User testing from 12 Oct', x0 + 32, y + 3, 36, { w: 700, c: C.ink, base: 'middle' }); ctx.restore();
+  }
+  rise('planned for 1 – 7 Oct', x0, y + 90, 30, { w: 500, c: C.mute, at: at + 0.4, out: mv - 0.2, gap: 0.03 });
+  rise('1 – 7 Oct · postponed at the users’ request', x0, lerp(y + 90, y - 75, inOutCubic(prog(t, tw + 0.5, tw + 1.1))), 30, { w: 600, c: C.coral, at: mv + 0.2, gap: 0.03 });
+}
+
+// 3a. the journey: three months on one line
+function sWmsJourney() {
+  kicker('02 · WMS · The journey');
+  heading('Three months on WMS');
+  const took = L(CUE.took, 'wms'), [j1, j2, j3] = CUE.j.map(c => L(c, 'wms'));
+  const JX = d => 160 + d * 17.6, JY = 600, dl = inOutCubic(prog(t, 0.3, 2.5));   // d = days since 1 Aug
+  [['August', 0, 0.3], ['September', 31, 1.25], ['October', 61, 1.65]].forEach(([m, d, at]) => rise(m, JX(d) + 8, 880, 80, { w: 800, c: C.faint, at }));
+  if (dl > 0) line(JX(0), JY, lerp(JX(0), JX(91), dl), JY, C.line, 6);
+  [31, 61].forEach(d => { if (dl * 91 > d) line(JX(d), JY - 18, JX(d), JY + 18, C.dim, 4); });
+  const ev = (x, at, up, title, sub, col) => {
+    rise(title, x, up ? JY - 86 : JY + 80, 30, { w: 700, align: 'center', at });
+    rise(sub, x, up ? JY - 50 : JY + 116, 28, { w: 600, c: col, align: 'center', at: at + 0.1 });
+  };
+  const fl = spring(t - took, ...POP);                       // taken over: a flag at the start of the line
+  if (fl > 0) {
+    line(JX(0), JY, JX(0), JY - 120 * fl, C.text, 4);
+    ctx.beginPath(); ctx.moveTo(JX(0), JY - 120 * fl); ctx.lineTo(JX(0) + 46 * fl, JY - 104 * fl); ctx.lineTo(JX(0), JY - 88 * fl); ctx.closePath();
+    ctx.fillStyle = C.mint; ctx.fill();
+  }
+  rise('Taken over', JX(0) + 60, JY - 92, 30, { w: 700, at: took + 0.1 });
+  rise('start of August', JX(0) + 60, JY - 56, 28, { w: 600, c: C.mute, at: took + 0.2 });
+  band(JX(8), JX(17), JY, 22, C.mint, outCubic(prog(t, j1, j1 + 0.6)));
+  ev((JX(8) + JX(17)) / 2, j1, false, 'User testing passed', '9 – 17 Aug', C.mint);
+  dot(JX(23) + 9, JY, 14 * spring(t - (j1 + 0.6), ...POP), C.mint);
+  ev(JX(23) + 9, j1 + 0.6, true, 'Ready to migrate', '24 Aug', C.mint);
+  band(JX(52), JX(55), JY, 22, C.mint, outCubic(prog(t, j2, j2 + 0.5)));
+  ev((JX(52) + JX(55)) / 2, j2, false, 'Migrated to Azure', '22 – 24 Sep', C.mint);
+  const cr = outCubic(prog(t, j3, j3 + 0.8));                // phase 1 user testing from 12 Oct, still running
+  if (cr > 0) { ctx.save(); ctx.setLineDash([16, 12]); ctx.lineDashOffset = -t * 40; line(JX(72), JY, lerp(JX(72), JX(91) + 40, cr), JY, C.sky, 8); ctx.restore(); }
+  const keys = [[j1 - 1.5, JX(0)], [j1, JX(8)], [j2, JX(52)], [j3, JX(72)], [j3 + 1.0, JX(91) + 45]];   // the playhead
+  if (t >= keys[0][0] && t < keys[4][0] + 0.4) {
+    let i = 0; while (i < 3 && t >= keys[i + 1][0]) i++;
+    const x = lerp(keys[i][1], keys[i + 1][1], inOutCubic(prog(t, keys[i][0], keys[i + 1][0])));
+    ctx.save(); ctx.globalAlpha = 1 - prog(t, keys[4][0], keys[4][0] + 0.4); dot(x, JY, 10, C.amber); ctx.restore();
+  }
+  dot(JX(72), JY, 14 * spring(t - j3, ...POP), C.sky);
+  ev(JX(72), j3, true, 'Change request phase 1', 'user testing from 12 Oct', C.sky);
+}
+
+// 3b. August: the testing days fill the calendar, then the 24th
+function sWmsAug() {
+  kicker('02 · WMS · August');
+  heading('Tested and ready');
+  const at = k => L(CUE[k], 'wmsAug'), uat = at('uat'), uatEnd = at('uatEnd'), passed = at('passed');
+  const ready = at('ready'), team = at('team'), cl = at('cloud'), ok = at('readyOK');
+  const GX = 120, GY = 330, P = 92, S = 80;                  // 1 Aug 2026 is a Saturday; weeks start on Monday
+  ctx.save(); ctx.globalAlpha = prog(t, 0, 0.4);
+  'MTWTFSS'.split('').forEach((d, c) => label(d, GX + c * P + S / 2, GY, 26, { w: 700, c: C.mute, align: 'center' }));
+  ctx.restore();
+  for (let d = 1; d <= 31; d++) {
+    const i = 4 + d, x = GX + (i % 7) * P, y = GY + 30 + Math.floor(i / 7) * P;
+    const s = spring(t - (0.1 + d * 0.012), ...POP); if (s <= 0) continue;
+    const inT = d >= 9 && d <= 17, on = inT && t >= uat + (d - 9) / 8 * (uatEnd - uat + 0.4);
+    const tick = inT && t >= passed + (d - 9) * 0.04, rdy = d === 24 && t >= ok;
+    ctx.save(); ctx.translate(x + S / 2, y + S / 2); ctx.scale(s, s);
+    rr(-S / 2, -S / 2, S, S, 14); ctx.fillStyle = tick || rdy ? C.mint : on ? C.sky : C.bg2; ctx.fill();
+    label(String(d), 0, 3, 32, { w: 700, c: on || tick || rdy ? C.ink : C.mute, align: 'center', base: 'middle' });
+    ctx.restore();
+    if (d === 24) { const rg = spring(t - ready, ...POP); if (rg > 0) { ctx.save(); ctx.translate(x + S / 2, y + S / 2); ctx.scale(rg, rg);
+      rr(-S / 2 - 6, -S / 2 - 6, S + 12, S + 12, 18); ctx.strokeStyle = C.mint; ctx.lineWidth = 4; ctx.stroke(); ctx.restore(); } }
+  }
+  const FX = 1000;
+  rise('User end testing', FX, 420, 56, { w: 800, at: uat - 0.6 });
+  rise('9 – 17 August', FX + 2, 476, 34, { w: 600, c: t >= passed ? C.mint : C.sky, at: uat - 0.3 });
+  tag(FX + 2 + width('9 – 17 August', 34, 600) + 100, 464, 150, 'passed', C.mint, true, spring(t - passed, ...POP));
+  rise('Ready to migrate', FX, 640, 56, { w: 800, at: ready - 0.3 });
+  rise('24 August', FX + 2, 696, 34, { w: 600, c: C.mint, at: ready });
+  [['Development team', team], ['Azure cloud', cl]].forEach(([str, a], k) => {
+    const y = 790 + k * 70, c = spring(t - a, ...POP);
+    if (c > 0) { dot(FX + 22, y - 11, 22 * c, C.mint); check(FX + 22, y - 11, 22, a + 0.15, C.ink); }
+    rise(str, FX + 62, y, 34, { w: 600, at: a + 0.05 });
+  });
+}
+
+// 3c. September: the users chose the window; the server flies into the cloud
+function phone(x, y, u) {                                  // a phone; a refresh arc turns once as u goes 0 -> 1
+  rr(x - 45, y - 75, 90, 150, 14); ctx.strokeStyle = C.sky; ctx.lineWidth = 5; ctx.stroke();
+  line(x - 12, y - 60, x + 12, y - 60, C.sky, 4);
+  const r0 = -Math.PI / 2 + u * Math.PI * 2;
+  ctx.beginPath(); ctx.arc(x, y, 22, r0, r0 + 4.7); ctx.strokeStyle = C.sky; ctx.lineWidth = 5; ctx.lineCap = 'round'; ctx.stroke();
+  dot(x + 22 * Math.cos(r0 + 4.7), y + 22 * Math.sin(r0 + 4.7), 6, C.sky);
+}
+function sWmsSep() {
+  kicker('02 · WMS · September');
+  heading('Migrated in the users’ window');
+  const at = k => L(CUE[k], 'wmsSep'), ask = at('ask'), win = at('window'), fit = at('fit'), move = at('move'), sched = at('sched'), app = at('app');
+  // the left column: who chose the window, then what happened
+  rise('Window requested by the WMS users', 120, 400, 44, { w: 700, at: ask - 0.2 });
+  rise('22 – 24 September', 122, 452, 30, { w: 600, c: C.sky, at: win });
+  rise('to fit their operations', 122 + width('22 – 24 September  ', 30, 600), 452, 30, { w: 500, c: C.mute, at: fit - 0.1 });
+  const sc = spring(t - sched, ...POP);
+  if (sc > 0) { dot(146, 586, 26 * sc, C.mint); check(146, 586, 26, sched + 0.15, C.ink); }
+  rise('Migrated on schedule', 192, 600, 44, { w: 700, at: sched + 0.05 });
+  const ap = spring(t - (app + 0.8), ...POP);
+  if (ap > 0) { dot(146, 716, 26 * ap, C.mint); check(146, 716, 26, app + 0.95, C.ink); }
+  rise('Mobile app upgraded automatically', 192, 732, 44, { w: 700, at: app + 0.05 });
+  const ph = spring(t - (app - 0.4), ...POP);                // where the server stood: the phone upgrades itself
+  if (ph > 0) { ctx.save(); ctx.translate(1080, 540); ctx.scale(ph, ph); phone(0, 0, prog(t, app, app + 0.8)); ctx.restore(); }
+  const pb = spring(t - (app + 0.8), ...POP);
+  if (pb > 0) { dot(1125, 465, 24 * pb, C.mint); check(1125, 465, 22, app + 0.9, C.ink); }
+  // the right: the server flies into the Azure cloud
+  cloud(1480, 470, 0.95, prog(t, 0.3, 0.8));
+  ctx.save(); ctx.globalAlpha = prog(t, 0.5, 0.8); label('Azure cloud', 1480, 716, 30, { w: 600, c: C.sky, align: 'center' }); ctx.restore();
+  const u = inOutCubic(prog(t, move + 0.3, move + 2.0)), path = v => [lerp(1080, 1480, v), lerp(540, 480, v) - Math.sin(v * Math.PI) * 200];
+  for (let k = 1; k <= 7; k++) {
     const v = u - k * 0.035; if (u <= 0 || u >= 1 || v <= 0) continue;
     const [px, py] = path(v); dot(px, py, 9 - k, C.sky);
   }
   const [x, y] = path(u);
-  rack(x, y, lerp(1.4, 0.8, u));
-  if (u >= 1) { dot(1590, 460, 46 * spring(t - (w1 + 2.0), ...POP), C.mint); check(1590, 460, 44, w1 + 2.1, C.ink); }
-  ctx.restore();
-  if (u <= 0) label('WMS', 540, 840, 44, { w: 700, align: 'center' });
-  ctx.save(); ctx.globalAlpha = prog(t, 0.3, 0.6);           // the caption shrinks with the cloud but stays readable
-  label('Azure cloud', CX, lerp(890, 760, g), lerp(44, 30, g), { w: 600, c: C.sky, align: 'center' });
-  ctx.restore();
-  // change request phase 1: seven days of user testing, then production, then phase 2, on one line
-  const RY = 600, cn = outCubic(prog(t, w2 - 0.1, w2 + 0.4));
-  if (cn > 0) line(476, RY, lerp(476, 516, cn), RY, C.mint, 4);
-  rise('Change request · phase 1', 520, 500, 44, { w: 700, at: w2 - 0.1 });
-  for (let d = 0; d < 7; d++) {
-    const s = spring(t - (w2 + d * 0.06), ...POP); if (s <= 0) continue;
-    const on = t > w2 + 0.6 + d * 0.28;
-    ctx.save(); ctx.translate(520 + d * 96 + 42, RY); ctx.scale(s, s);
-    rr(-42, -42, 84, 84, 14); ctx.fillStyle = on ? C.sky : C.bg2; ctx.fill();
-    if (!on) { ctx.strokeStyle = C.line; ctx.lineWidth = 3; ctx.stroke(); }
-    label(String(d + 1), 0, 3, 36, { w: 700, c: on ? C.ink : C.mute, align: 'center', base: 'middle' });
+  if (u < 1 || t < move + 2.2) rack(x, y, lerp(1, 0.75, u) * spring(t - 0.4, ...POP));
+  else rack(1480, 480, 0.75);
+  if (u <= 0) { ctx.save(); ctx.globalAlpha = prog(t, 0.5, 0.8); label('WMS', 1080, 680, 30, { w: 700, align: 'center' }); ctx.restore(); }
+  const bd = spring(t - sched, ...POP);
+  if (bd > 0) { dot(1665, 345, 36 * bd, C.mint); check(1665, 345, 34, sched + 0.1, C.ink); }
+  // the bottom: ready on 24 Aug, the wait, and the window
+  const AX = d => 200 + d * (1500 / 31), AY = 900, dl = inOutCubic(prog(t, 0.1, 1.0));   // d = days after 24 Aug
+  if (dl > 0) line(AX(0), AY, lerp(AX(0), AX(31), dl), AY, C.line, 6);
+  for (let d = 1; d < 31; d++) if (dl * 31 > d) line(AX(d), AY - 6, AX(d), AY + 6, C.dim, 2);
+  dot(AX(0), AY, 14 * spring(t - 0.3, ...POP), C.mint);
+  rise('24 Aug · ready', AX(0) - 14, AY + 52, 28, { w: 600, c: C.mint, at: 0.4 });
+  const done = t >= sched;
+  band(AX(29) - 4, AX(31) + 4, AY, 26, done ? C.mint : C.sky, outCubic(prog(t, win, win + 0.5)));
+  rise('22 – 24 Sep', AX(31) + 4, AY + 52, 28, { w: 700, c: done ? C.mint : C.sky, align: 'right', at: win + 0.1 });
+  const wl = outCubic(prog(t, win + 0.3, win + 1.3));
+  if (wl > 0) { ctx.save(); ctx.setLineDash([10, 10]); line(AX(0) + 24, AY - 30, lerp(AX(0) + 24, AX(29) - 12, wl), AY - 30, C.mute, 3); ctx.restore(); }
+  rise('scheduled around WMS operations', AX(14.5), AY - 50, 28, { w: 500, c: C.mute, align: 'center', at: fit });
+}
+
+// 3d. change request phase 1: an agenda of five, then the camera visits each
+const FRS = [   // header title, the one narrated fact, agenda name
+  ['Ad-hoc collections join a route', 'In the route list within 15 min', ['Ad-hoc', 'route update']],
+  ['Missed collections, added later', 'Saved against the original date', ['Missed', 'collections']],
+  ['Average weight, explained', 'Latest 7 valid collections', ['Average', 'weight']],
+  ['Planned shift and actual shift', 'Keeps planned shift, records actual', ['Planned &', 'actual shift']],
+  ['Daily report and dashboard', 'New fields, filters, matching totals', ['Report &', 'dashboard']],
+];
+const FRBOX = [[1415, 550, 1.1], [1410, 520, 1.03], [1400, 715, 1.25], [1410, 675, 1.25], [1410, 625, 1.1]];   // centre, scale
+function road(pts) {                                       // Catmull-Rom through the stops, as cubic segments
+  const seg = [];
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[i - 1] || pts[i], p1 = pts[i], p2 = pts[i + 1], p3 = pts[i + 2] || p2;
+    seg.push([p1, [p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6], [p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6], p2]);
+  }
+  return seg;
+}
+const bez = ([a, b, c, d], u) => [0, 1].map(k => (1 - u) ** 3 * a[k] + 3 * (1 - u) ** 2 * u * b[k] + 3 * (1 - u) * u * u * c[k] + u ** 3 * d[k]);
+function pin(x, y, col) {
+  ctx.beginPath(); ctx.arc(x, y - 40, 20, Math.PI * 0.82, Math.PI * 2.18); ctx.lineTo(x, y); ctx.closePath(); ctx.fillStyle = col; ctx.fill();
+  dot(x, y - 40, 7, C.ink);
+}
+function frRoute(a) {                                       // a road through the stops; the ad-hoc stop drops in and the road bends to it
+  const P = [[1040, 780], [1210, 660], [1470, 720], [1640, 610], [1790, 680]], N = [1340, 560];
+  const m = inOutCubic(prog(t, a + 1.0, a + 1.6)), mid = [lerp(1340, N[0], m), lerp(690, N[1], m)];
+  const pts = [P[0], P[1], mid, ...P.slice(2)], seg = road(pts), dr = outCubic(prog(t, a + 0.1, a + 0.7));
+  if (dr > 0) {
+    ctx.save(); ctx.globalAlpha = dr; ctx.beginPath(); ctx.moveTo(...pts[0]);
+    seg.forEach(([, b, c, d]) => ctx.bezierCurveTo(...b, ...c, ...d));
+    ctx.strokeStyle = C.line; ctx.lineWidth = 16; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.stroke();
+    ctx.strokeStyle = C.sky; ctx.lineWidth = 4; ctx.stroke(); ctx.restore();
+    P.forEach((p, k) => dot(p[0], p[1], 13 * spring(t - (a + 0.2 + k * 0.08), ...POP), C.sky));
+    if (t > a + 0.6) {                                     // the collection truck: a dot driving the road
+      const f = ((t - a - 0.6) * 0.3) % 1, n = seg.length, i = Math.min(n - 1, Math.floor(f * n));
+      const [x, y] = bez(seg[i], f * n - i); dot(x, y, 9, C.text);
+    }
+  }
+  const sp = spring(t - (a + 1.0), 2.6, 0.6);
+  if (sp > 0) pin(N[0], N[1] - 60 * (1 - sp), C.mint);
+  rise('ad-hoc stop', N[0], N[1] - 82, 28, { w: 600, c: C.mint, align: 'center', at: a + 1.4 });
+  const cx = 1700, cy = 360, R = 60, ck = outCubic(prog(t, a + 1.8, a + 3.0)), th = ck * Math.PI / 2;
+  const cs = spring(t - (a + 1.5), ...POP);
+  if (cs > 0) {
+    ctx.save(); ctx.translate(cx, cy); ctx.scale(cs, cs);
+    ring(0, 0, R, C.line, 6);
+    for (let k = 0; k < 12; k++) { const q = k * Math.PI / 6; line(Math.sin(q) * 46, -Math.cos(q) * 46, Math.sin(q) * 53, -Math.cos(q) * 53, C.dim, 3); }
+    if (ck > 0) { ctx.beginPath(); ctx.arc(0, 0, R, -Math.PI / 2, -Math.PI / 2 + th); ctx.strokeStyle = C.mint; ctx.lineWidth = 6; ctx.stroke(); }
+    line(0, 0, Math.sin(th) * R * 0.8, -Math.cos(th) * R * 0.8, C.text, 5);
+    dot(0, 0, 6, C.text);
     ctx.restore();
   }
-  rise('1 – 7 Oct · user testing', 520, 690, 30, { w: 500, c: C.mute, at: w2 + 0.4, gap: 0.03 });
-  rise('awaiting the users’ result' + '.'.repeat(1 + Math.floor((t * 2) % 3)), 520, 742, 32, { w: 600, c: C.sky, at: w2 + 2.8, gap: 0.03 });
-  const a = outCubic(prog(t, w3, w3 + 0.5));
-  if (a > 0) { const ex = lerp(1210, 1290, a); line(1210, RY, ex, RY, C.mute, 5); line(ex, RY, ex - 16, RY - 16, C.mute, 5); line(ex, RY, ex - 16, RY + 16, C.mute, 5); }
-  const pe = outExpo(prog(t, w3 + 0.3, w3 + 0.9));
-  if (pe > 0) {                                            // the next step: dashes march while it waits
-    ctx.save(); ctx.globalAlpha = pe; ctx.translate((1 - pe) * 40, 0);
+  rise('within 15 min', cx, cy + 110, 28, { w: 700, c: C.mint, align: 'center', at: a + 2.6 });
+}
+function dayTile(x, y, day, s) {
+  if (s <= 0) return;
+  ctx.save(); ctx.translate(x + 140, y + 150); ctx.scale(s, s); ctx.translate(-140, -150);
+  rr(0, 0, 280, 300, 22); ctx.fillStyle = C.bg2; ctx.fill();
+  ctx.save(); rr(0, 0, 280, 300, 22); ctx.clip(); ctx.fillStyle = C.line; ctx.fillRect(0, 0, 280, 60); ctx.restore();
+  label('May', 140, 31, 28, { w: 700, c: C.mute, align: 'center', base: 'middle' });
+  label(String(day), 140, 185, 120, { w: 800, align: 'center', base: 'middle' });
+  ctx.restore();
+}
+function frMissed(a) {                                      // missed on the 28th, added on the 29th, saved on the 28th
+  dayTile(1060, 360, 28, spring(t - (a + 0.2), ...POP));
+  dayTile(1480, 360, 29, spring(t - (a + 0.3), ...POP));
+  const col = t >= a + 2.6;
+  tag(1200, 720, 200, col ? 'Collected' : 'Missed', col ? C.mint : C.coral, col, spring(t - (col ? a + 2.6 : a + 0.6), ...POP));
+  tag(1620, 720, 290, 'added on the 29th', C.sky, false, spring(t - (a + 1.2), ...POP));
+  const u = outCubic(prog(t, a + 1.5, a + 2.3));             // the record goes back to its own date
+  if (u > 0) {
+    ctx.beginPath(); const n = 24;
+    for (let k = 0; k <= n * u; k++) { const v = k / n, x = lerp(1620, 1200, v), y = 340 - Math.sin(v * Math.PI) * 90; k ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
+    ctx.strokeStyle = C.sky; ctx.lineWidth = 6; ctx.lineCap = 'round'; ctx.stroke();
+    if (u >= 1) { line(1200, 340, 1222, 316, C.sky, 6); line(1200, 340, 1228, 350, C.sky, 6); }
+  }
+  rise('example from the test cases', 1410, 790, 26, { align: 'center', w: 500, c: C.mute, at: a + 0.6 });
+}
+function frAvg(a) {                                         // the latest seven valid weights, one missed day left out
+  const H0 = [150, 185, 130, 210, 170, 155, 0, 200, 180], X = k => 1040 + k * 82, BY = 820;
+  const elig = [1, 2, 3, 4, 5, 7, 8], avg = elig.reduce((s, k) => s + H0[k], 0) / 7;
+  H0.forEach((h, k) => {
+    if (k === 6) {
+      const s = spring(t - (a + 1.9), ...POP); if (s <= 0) return;
+      ctx.save(); ctx.setLineDash([8, 8]); rr(X(k), BY - 60, 56, 60, 10); ctx.strokeStyle = C.coral; ctx.lineWidth = 3; ctx.stroke(); ctx.restore();
+      rise('no weight', X(k) + 28, BY + 40, 26, { w: 600, c: C.coral, align: 'center', at: a + 2.0 });
+      return;
+    }
+    const g = outCubic(prog(t, a + 0.3 + k * 0.05, a + 0.8 + k * 0.05)); if (g <= 0) return;
+    const lit = elig.includes(k) && t >= a + 1.4 + (8 - k) * 0.06;
+    rr(X(k), BY - h * g, 56, h * g, 10); ctx.fillStyle = lit ? C.sky : C.dim; ctx.fill();
+  });
+  line(1020, BY, 1780, BY, C.line, 3);
+  const av = outCubic(prog(t, a + 2.6, a + 3.3));
+  if (av > 0) {
+    ctx.save(); ctx.setLineDash([14, 10]); line(1020, BY - avg, lerp(1020, 1780, av), BY - avg, C.mint, 5); ctx.restore();
+    rise('average of the latest 7', 1780, BY - avg - 40, 28, { w: 700, c: C.mint, align: 'right', at: a + 3.0 });
+  }
+  rise('oldest', X(0) + 28, BY + 40, 26, { w: 500, c: C.mute, align: 'center', at: a + 1.0 });
+  rise('latest', X(8) + 28, BY + 40, 26, { w: 500, c: C.mute, align: 'center', at: a + 1.0 });
+}
+function frShift(a) {                                       // collected a little early: planned Night, actual Day
+  const BX = 1410, s = outCubic(prog(t, a + 0.2, a + 0.8));
+  if (s > 0) {
+    ctx.save(); ctx.globalAlpha = s;
+    rr(1040, 520, 740, 90, 18); ctx.fillStyle = '#132439'; ctx.fill();
+    ctx.save(); rr(1040, 520, 740, 90, 18); ctx.clip(); ctx.fillStyle = '#1F3A57'; ctx.fillRect(1040, 520, BX - 1040, 90); ctx.restore();
+    label('Day shift', (1040 + BX) / 2, 495, 30, { w: 700, align: 'center' });
+    label('Night shift', (BX + 1780) / 2, 495, 30, { w: 700, align: 'center' });
+    line(BX, 500, BX, 630, C.text, 3);
+    label('shift boundary', BX, 664, 26, { w: 500, c: C.mute, align: 'center' });
+    ctx.restore();
+  }
+  const dp = spring(t - (a + 1.0), 2.6, 0.6);
+  if (dp > 0) dot(BX - 44, lerp(380, 565, Math.min(dp, 1.04)), 18, C.mint);
+  tag(1225, 750, 230, 'Actual · Day', C.sky, true, spring(t - (a + 1.8), ...POP));
+  tag(1595, 750, 260, 'Planned · Night', C.amber, false, spring(t - (a + 2.0), ...POP));
+  tag(BX, 850, 220, 'Collected', C.mint, true, spring(t - (a + 2.7), ...POP));
+}
+function frReport(a) {                                      // four new columns; two totals that match
+  const cols = [['Time', 150], ['Route no.', 190], ['Missed', 160], ['Actual shift', 200]];
+  let x = 1040;
+  cols.forEach(([str, w], k) => {
+    const s = spring(t - (a + 0.6 + k * 0.2), ...POP);
+    tag(x + w / 2, 400, w, str, C.sky, true, s);
+    for (let r = 0; r < 3; r++) {
+      const g = outCubic(prog(t, a + 0.3 + r * 0.08, a + 0.8 + r * 0.08));
+      if (g > 0) { rr(x + 14, 470 + r * 56, (w - 28) * g * (0.55 + 0.4 * hash(r, k)), 16, 8); ctx.fillStyle = C.line; ctx.fill(); }
+    }
+    x += w + 10;
+  });
+  const tt = spring(t - (a + 2.2), ...POP), eq = t >= a + 2.8;
+  [[1040, 'Dashboard'], [1480, 'Plan report']].forEach(([x0, str], k) => {
+    const s = spring(t - (a + 2.2 + k * 0.15), ...POP); if (s <= 0) return;
+    ctx.save(); ctx.translate(x0 + 150, 740); ctx.scale(s, s);
+    rr(-150, -70, 300, 140, 20); ctx.fillStyle = C.bg2; ctx.fill();
+    label(str, -122, -26, 28, { w: 600, c: C.mute });
+    rr(-122, 12, 200, 22, 11); ctx.fillStyle = eq ? C.mint : C.sky; ctx.fill();
+    ctx.restore();
+  });
+  if (tt > 0) label('=', 1410, 754, 72, { w: 800, c: eq ? C.mint : C.mute, align: 'center', base: 'middle' });
+  if (eq) rise('totals match', 1410, 870, 28, { w: 700, c: C.mint, align: 'center', at: a + 2.8 });
+}
+const FRDRAW = [frRoute, frMissed, frAvg, frShift, frReport];
+function sWmsCR() {
+  const five = L(CUE.five, 'wmsCR'), fr = CUE.fr.map(c => L(c, 'wmsCR')), go = fr[0] - 0.8;
+  // the header: the page's own title until the agenda leaves, then each request's title in turn
+  rise('02 · WMS · CHANGE REQUEST PHASE 1', 120, 102, 26, { w: 700, c: C.amber, at: -0.5, out: go, gap: 0.03 });
+  rise('Five improvements', 120, 190, 80, { w: 800, at: -0.45, out: go });
+  rise('asked for by the business', 122, 250, 30, { w: 500, c: C.mute, at: five + 0.3, out: go, gap: 0.04 });
+  const pre = '02 · WMS · CHANGE REQUEST 1 ·';                // the kicker's prefix stays; only the request number swaps
+  rise(pre, 120, 102, 26, { w: 700, c: C.amber, at: fr[0] - 0.6, gap: 0.03 });
+  FRS.forEach(([title], i) => {
+    const a = fr[i], out = i < 4 ? fr[i + 1] - 0.7 : 1e9;
+    rise('FR-00' + (i + 1), 120 + width(pre + ' ', 26, 700), 102, 26, { w: 700, c: C.amber, at: a - 0.5, out });
+    rise(title, 120, 190, 80, { w: 800, at: a - 0.5, out });
+  });
+  // the agenda: five tiles; at "five" they pulse in turn; as the camera leaves they fly up into a progress strip
+  FRS.forEach(([, , name], i) => {
+    const s = spring(t - (0.8 + i * 0.12), ...POP); if (s <= 0) return;
+    const m = inOutCubic(prog(t, go + i * 0.05, go + 0.7 + i * 0.05));
+    const pulse = 1 + 0.06 * Math.sin(Math.PI * prog(t, five + i * 0.12, five + i * 0.12 + 0.3));
+    const x0 = 120 + i * 340, cx = lerp(x0 + 160, 1480 + i * 66 + 28, m), cy = lerp(580, 96, m);
+    const w = lerp(320, 56, m), h = lerp(300, 8, m), k = s * (m > 0 ? 1 : pulse);
+    const state = t >= (fr[i + 1] ?? 1e9) - 0.6 ? C.mint : t >= fr[i] - 0.6 ? C.sky : C.line;
+    ctx.save(); ctx.translate(cx, cy); ctx.scale(k, k);
+    rr(-w / 2, -h / 2, w, h, lerp(24, 4, m)); ctx.fillStyle = m >= 1 ? state : C.bg2; ctx.fill();
+    const fade = 1 - prog(m, 0, 0.1);                       // only clean blocks travel
+    if (fade > 0) {
+      ctx.globalAlpha = fade; ctx.translate(-160, -150);
+      label('FR-00' + (i + 1), 32, 70, 28, { w: 700, c: C.sky });
+      name.forEach((str, j) => label(str, 32, 170 + j * 50, fit(str, 38, 800, 260), { w: 800 }));
+    }
+    ctx.restore();
+  });
+  // the camera visits each request: one narrated fact, one big picture
+  let cam = 0; fr.forEach(a => { cam += inOutCubic(prog(t, a - 0.8, a + 0.1)); });
+  for (let p = 1; p <= 5; p++) {
+    if (Math.abs(p - cam) >= 1) continue;
+    const a = fr[p - 1], [cx, cy, k] = FRBOX[p - 1];
+    ctx.save(); ctx.translate((p - cam) * W, 0);
+    rise(FRS[p - 1][1], 120, 330, 36, { w: 600, at: a - 0.1, gap: 0.03 });
+    ctx.translate(960, 680); ctx.scale(k, k); ctx.translate(-cx, -cy);
+    FRDRAW[p - 1](a);
+    ctx.restore();
+  }
+}
+
+// 3e. testing, then what comes next
+function sWmsTest() {
+  kicker('02 · WMS · Testing');
+  heading('Testing and next steps');
+  const at = k => L(CUE[k], 'wmsTest'), tc = at('tc'), pass = at('pass'), planned = at('planned'), mv = at('moved'), tw = at('twelfth');
+  const confirm = at('confirm'), live = at('live'), p2 = at('p2');
+  // the development team's 24 cases, by request
+  rise('Development team', 120, 340, 40, { w: 700, at: -0.3 });
+  let idx = 0;
+  [4, 7, 4, 4, 5].forEach((n, r) => {
+    const y = 420 + r * 76;
+    rise('FR-00' + (r + 1), 120, y + 10, 26, { w: 600, c: C.mute, at: tc - 0.3 + r * 0.05 });
+    for (let k = 0; k < n; k++, idx++) {
+      const s = spring(t - (tc + idx * 0.03), ...POP); if (s <= 0) continue;
+      const okAt = pass + idx * 0.035, ok = t >= okAt;
+      ctx.save(); ctx.translate(250 + k * 66 + 28, y); ctx.scale(s, s);
+      rr(-28, -28, 56, 56, 12); ctx.fillStyle = ok ? C.mint : C.bg2; ctx.fill();
+      if (!ok) { ctx.strokeStyle = C.line; ctx.lineWidth = 3; ctx.stroke(); } else check(0, 0, 26, okAt, C.ink);
+      ctx.restore();
+    }
+  });
+  rise('24 / 24 passed', 120, 860, 56, { w: 800, c: C.mint, at: pass + 0.9 });
+  // the users' test: planned 1 – 7 Oct, postponed, now from 12 Oct
+  rise('Users', 1000, 340, 40, { w: 700, at: planned - 0.3 });
+  postponed(1000, 470, planned, mv, tw);
+  // then production, then phase 2
+  arrow(1160, 522, 1160, 668, C.mute, 5, outCubic(prog(t, confirm, confirm + 0.5)));
+  const pe = outExpo(prog(t, live - 0.1, live + 0.5));
+  if (pe > 0) {
+    ctx.save(); ctx.globalAlpha = pe; ctx.translate(0, (1 - pe) * 30);
     ctx.setLineDash([14, 10]); ctx.lineDashOffset = -t * 24;
-    rr(1310, RY - 70, 250, 140, 18); ctx.strokeStyle = C.mint; ctx.lineWidth = 4; ctx.stroke(); ctx.setLineDash([]);
-    label('Production', 1435, RY - 4, 38, { w: 700, align: 'center' });
-    label('next', 1435, RY + 40, 28, { w: 600, c: C.mint, align: 'center' });
+    rr(1000, 676, 320, 130, 18); ctx.strokeStyle = C.mint; ctx.lineWidth = 4; ctx.stroke(); ctx.setLineDash([]);
+    label('Production', 1160, 736, 36, { w: 700, align: 'center' });
+    label('on Azure · next', 1160, 778, 26, { w: 600, c: C.mint, align: 'center' });
     ctx.restore();
   }
-  const p2 = outExpo(prog(t, w4, w4 + 0.7));
-  if (p2 > 0) {
-    ctx.save(); ctx.globalAlpha = p2; ctx.translate((1 - p2) * 40, 0);
-    rr(1600, RY - 70, 220, 140, 18); ctx.strokeStyle = C.amber; ctx.lineWidth = 3; ctx.stroke();
-    label('Phase 2', 1710, RY - 4, 38, { w: 700, align: 'center' });
-    label('not started', 1710, RY + 40, 28, { w: 600, c: C.amber, align: 'center' });
+  arrow(1334, 741, 1402, 741, C.mute, 5, outCubic(prog(t, p2 - 0.3, p2 + 0.1)));
+  const ph = outExpo(prog(t, p2, p2 + 0.6));
+  if (ph > 0) {
+    ctx.save(); ctx.globalAlpha = ph; ctx.translate((1 - ph) * 30, 0);
+    rr(1416, 676, 244, 130, 18); ctx.strokeStyle = C.amber; ctx.lineWidth = 3; ctx.stroke();
+    label('Phase 2', 1538, 736, 36, { w: 700, align: 'center' });
+    label('0% · after phase 1', 1538, 778, 26, { w: 600, c: C.amber, align: 'center' });
     ctx.restore();
   }
 }
@@ -460,7 +801,7 @@ function sDog() {
 
 // ---- 7. the road ahead ------------------------------------------------------------------------------------
 const STEPS = [   // in the order the narration names them
-  ['This week', 'week', 'Collect UAT results', 'and deploy phase 1'],
+  ['This week', 'week', 'UAT from 12 Oct', 'then deploy phase 1'],
   ['Ongoing', 'go', 'Finish DBS gateway', '& eGIRO, now 80%'],
   ['Ongoing', 'go', 'Finish season sync', 'now at 70%'],
   ['Ongoing', 'go', 'Ehub rollout', 'Watch Dog, now 10%'],
@@ -500,11 +841,12 @@ function sEnd() {
 
 // ---- compositor --------------------------------------------------------------------------------------------
 const SCENES = [
-  { t0: SC.title, draw: sTitle }, { t0: SC.status, draw: sStatus }, { t0: SC.wms, draw: sWms }, { t0: SC.done, draw: sDone },
+  { t0: SC.title, draw: sTitle }, { t0: SC.status, draw: sStatus }, { t0: SC.wms, draw: sWmsJourney }, { t0: SC.wmsAug, draw: sWmsAug }, { t0: SC.wmsSep, draw: sWmsSep },
+  { t0: SC.wmsCR, draw: sWmsCR }, { t0: SC.wmsTest, draw: sWmsTest }, { t0: SC.done, draw: sDone },
   { t0: SC.portal, draw: sPortal }, { t0: SC.dog, draw: sDog }, { t0: SC.next, draw: sNext }, { t0: SC.end, draw: sEnd },
 ];
 // one transition for every page: the amber diagonal wipe; the iris is kept for the end card
-const SEAMS = [...Array(6)].map(() => ({ type: 'wipe' })).concat([{ type: 'iris', at: [W / 2, 560] }]);
+const SEAMS = [...Array(10)].map(() => ({ type: 'wipe' })).concat([{ type: 'iris', at: [W / 2, 560] }]);
 const far = (x, y) => Math.hypot(Math.max(x, W - x), Math.max(y, H - y)) * 1.04;
 
 function drawScene(i, T) {

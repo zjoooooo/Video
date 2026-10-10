@@ -1,16 +1,20 @@
 {
  "estimated": false,
  "bpm": 120,
- "duration": 150.0,
+ "duration": 238.0,
  "scenes": {
   "title": 0,
   "status": 10.0,
   "wms": 32.0,
-  "done": 54.0,
-  "portal": 70.0,
-  "dog": 98.0,
-  "next": 124.0,
-  "end": 144.0
+  "wmsAug": 48.0,
+  "wmsSep": 62.0,
+  "wmsCR": 80.0,
+  "wmsTest": 120.0,
+  "done": 144.0,
+  "portal": 160.0,
+  "dog": 188.0,
+  "next": 214.0,
+  "end": 232.0
  },
  "cue": {
   "count": 12.0,
@@ -22,36 +26,67 @@
    25.0,
    28.0
   ],
-  "wms1": 32.5,
-  "wms2": 38.0,
-  "wms3": 44.0,
-  "wms4": 49.5,
+  "took": 35.5,
+  "j": [
+   41.0,
+   42.5,
+   43.5
+  ],
+  "uat": 50.0,
+  "uatEnd": 51.5,
+  "passed": 53.5,
+  "ready": 54.5,
+  "team": 57.0,
+  "cloud": 58.0,
+  "readyOK": 59.5,
+  "ask": 62.5,
+  "window": 65.5,
+  "fit": 68.5,
+  "move": 70.5,
+  "sched": 73.5,
+  "app": 75.0,
+  "five": 83.5,
+  "fr": [
+   87.0,
+   93.5,
+   99.5,
+   106.5,
+   113.0
+  ],
+  "tc": 122.5,
+  "pass": 125.0,
+  "planned": 127.0,
+  "moved": 132.0,
+  "twelfth": 134.5,
+  "confirm": 136.0,
+  "live": 138.0,
+  "p2": 141.5,
   "rows": [
-   57.0,
-   62.0,
-   64.0
+   147.0,
+   152.0,
+   154.0
   ],
-  "ring": 70.5,
-  "a": 77.5,
-  "d": 79.5,
-  "b": 83.5,
-  "c": 89.0,
-  "f": 91.0,
-  "e": 93.0,
-  "ssg": 98.5,
-  "ehub": 103.0,
-  "vnc": 107.0,
-  "cb": 115.5,
+  "ring": 160.5,
+  "a": 167.5,
+  "d": 169.5,
+  "b": 173.5,
+  "c": 179.0,
+  "f": 181.0,
+  "e": 183.0,
+  "ssg": 188.5,
+  "ehub": 193.0,
+  "vnc": 197.0,
+  "cb": 205.5,
   "n": [
-   125.5,
-   130.0,
-   131.5,
-   133.0,
-   137.0,
-   138.0
+   215.5,
+   220.0,
+   221.5,
+   223.0,
+   226.5,
+   227.5
   ],
-  "thanks": 145.0,
-  "final": 145.0
+  "thanks": 233.0,
+  "final": 233.0
  },
  "lines": [
   {
@@ -79,86 +114,152 @@
    "text": "The highlights: WMS now runs on the Azure cloud, Watch Dog covers every SSG car park, and the new season portal is seventy-two percent done."
   },
   {
-   "id": "wms1",
+   "id": "wms0",
    "start": 32.5,
-   "dur": 4.93,
-   "text": "WMS moved to the Azure cloud from the twenty-second to the twenty-fourth of September."
+   "dur": 6.146,
+   "text": "First, WMS. We took over the project at the start of August."
   },
   {
-   "id": "wms2",
-   "start": 38.0,
-   "dur": 5.413,
-   "text": "Change request phase one went through user testing from the first to the seventh of October."
+   "id": "wmsJ",
+   "start": 39.5,
+   "dur": 6.313,
+   "text": "In three months, it was tested, moved to the cloud, and started its first round of improvements."
   },
   {
-   "id": "wms3",
-   "start": 44.0,
-   "dur": 4.531,
-   "text": "Once the users confirm the result, we deploy it to production."
+   "id": "aug1",
+   "start": 48.5,
+   "dur": 5.324,
+   "text": "User end testing ran from the ninth to the seventeenth of August, and passed."
   },
   {
-   "id": "wms4",
-   "start": 49.5,
-   "dur": 2.087,
-   "text": "Phase two has not started yet."
+   "id": "aug2",
+   "start": 54.5,
+   "dur": 5.378,
+   "text": "By the twenty-fourth of August, the development team and the Azure cloud were ready."
+  },
+  {
+   "id": "sep1",
+   "start": 62.5,
+   "dur": 7.05,
+   "text": "The WMS users asked us to migrate from the twenty-second to the twenty-fourth of September, to fit their operations."
+  },
+  {
+   "id": "sep2",
+   "start": 70.5,
+   "dur": 6.829,
+   "text": "WMS moved to the Azure cloud on schedule, and the mobile app upgraded itself automatically."
+  },
+  {
+   "id": "cr0",
+   "start": 80.5,
+   "dur": 5.238,
+   "text": "Then came change request phase one: five improvements asked for by the business."
+  },
+  {
+   "id": "fr1",
+   "start": 87.0,
+   "dur": 5.473,
+   "text": "Ad-hoc collections can be added to a route, and show up within fifteen minutes."
+  },
+  {
+   "id": "fr2",
+   "start": 93.5,
+   "dur": 4.832,
+   "text": "A missed collection can be added later, and is saved against its original date."
+  },
+  {
+   "id": "fr3",
+   "start": 99.5,
+   "dur": 6.079,
+   "text": "Average weight uses the latest seven valid collections, and the formula is shown."
+  },
+  {
+   "id": "fr4",
+   "start": 106.5,
+   "dur": 5.73,
+   "text": "A collection near a shift boundary keeps its planned shift, and records the actual one."
+  },
+  {
+   "id": "fr5",
+   "start": 113.0,
+   "dur": 6.162,
+   "text": "And the daily collection report and dashboard gain new fields, new filters, and matching totals."
+  },
+  {
+   "id": "test1",
+   "start": 120.5,
+   "dur": 5.558,
+   "text": "The development team ran twenty-four test cases, and all of them passed."
+  },
+  {
+   "id": "test2",
+   "start": 127.0,
+   "dur": 8.21,
+   "text": "User testing of phase one was planned for the first week of October; at the users' request, it now starts on the twelfth."
+  },
+  {
+   "id": "wmsNext",
+   "start": 136.0,
+   "dur": 7.254,
+   "text": "Once they confirm, phase one goes live on the production Azure server, and phase two can begin."
   },
   {
    "id": "done",
-   "start": 54.5,
+   "start": 144.5,
    "dur": 13.969,
    "text": "Also completed this month: the Central Reports server, for the car parks under Re Sustainability Solutions; the QMS enhancement; and the T twenty-four season portal, now rebranded as Res twenty-four."
   },
   {
    "id": "portal1",
-   "start": 70.5,
+   "start": 160.5,
    "dur": 5.767,
    "text": "The new season portal is seventy-two percent complete, on average."
   },
   {
    "id": "portal2",
-   "start": 77.0,
+   "start": 167.0,
    "dur": 5.361,
    "text": "The extension and rebrand, and the header and logo alignment, are done."
   },
   {
    "id": "portal3",
-   "start": 83.0,
+   "start": 173.0,
    "dur": 13.098,
    "text": "The DBS payment gateway and e-GIRO integration is at eighty percent, season sync at seventy, the five reports at fifty, and the credit and sale note upload to Nav at thirty."
   },
   {
    "id": "dog1",
-   "start": 98.5,
+   "start": 188.5,
    "dur": 7.922,
    "text": "Watch Dog monitoring is live at every SSG car park, and the rollout at Ehub has started, at ten percent."
   },
   {
    "id": "dog2",
-   "start": 107.0,
+   "start": 197.0,
    "dur": 7.49,
    "text": "On the O-P-Cs, UltraVNC will replace RealVNC, which needs a licence."
   },
   {
    "id": "dog3",
-   "start": 115.5,
+   "start": 205.5,
    "dur": 6.455,
    "text": "And at Ehub, Carbon Black will be uninstalled, as its licence has expired."
   },
   {
    "id": "next1",
-   "start": 124.5,
-   "dur": 10.568,
-   "text": "Next: collect the U-A-T results and deploy phase one, finish the payment gateway and season sync, and continue the Ehub rollout."
+   "start": 214.5,
+   "dur": 10.187,
+   "text": "Next: start user testing on the twelfth and deploy phase one, finish the payment gateway and season sync, and continue the Ehub rollout."
   },
   {
    "id": "next2",
-   "start": 136.0,
+   "start": 225.5,
    "dur": 5.03,
    "text": "Then switch to UltraVNC, and remove Carbon Black."
   },
   {
    "id": "end",
-   "start": 145.0,
+   "start": 233.0,
    "dur": 0.603,
    "text": "Thank you."
   }
