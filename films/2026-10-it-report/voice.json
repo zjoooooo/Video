@@ -420,117 +420,136 @@
   },
   {
    "id": "done",
-   "text": "Also completed this month: the Central Reports server, for the car parks under Re Sustainability Solutions; the QMS enhancement; and the T twenty-four season portal, now rebranded as Res twenty-four.",
-   "dur": 13.969,
+   "text": "Also completed this month: the Central Reports server, for the car parks under Re Sustainability Solutions; the QMS enhancement; and the old season portal, moved to the Re Parking site and rebranded from Times twenty-four to Re twenty-four Parking.",
+   "dur": 17.073,
    "phrases": [
     [
      0.0,
-     1.46
+     0.49
     ],
     [
-     2.17,
-     3.44
+     0.68,
+     1.62
     ],
     [
-     3.75,
-     6.66
+     2.3,
+     3.6
     ],
     [
-     7.32,
-     8.8
+     3.81,
+     6.57
     ],
     [
-     9.41,
-     11.38
+     7.2,
+     8.45
     ],
     [
-     11.93,
-     13.89
+     9.07,
+     10.51
+    ],
+    [
+     10.99,
+     11.46
+    ],
+    [
+     11.62,
+     12.84
+    ],
+    [
+     13.15,
+     15.16
+    ],
+    [
+     15.55,
+     16.97
     ]
    ]
   },
   {
    "id": "portal1",
-   "text": "The new season portal is seventy-two percent complete, on average.",
-   "dur": 5.767,
+   "text": "The new season portal, built in-house and still in development, is seventy-two percent complete, on average.",
+   "dur": 6.944,
    "phrases": [
     [
-     0.1,
-     2.09
+     0.03,
+     1.27
     ],
     [
-     2.6,
-     4.64
+     1.76,
+     3.91
     ],
     [
-     5.0,
-     5.72
+     4.28,
+     5.9
+    ],
+    [
+     6.26,
+     6.89
     ]
    ]
   },
   {
    "id": "portal2",
-   "text": "The extension and rebrand, and the header and logo alignment, are done.",
-   "dur": 5.361,
+   "text": "Its extension and branding, and its company header and logo, are done.",
+   "dur": 4.384,
    "phrases": [
     [
-     0.1,
-     1.8
+     0.03,
+     3.53
     ],
     [
-     2.35,
-     4.1
-    ],
-    [
-     4.66,
-     5.18
+     3.85,
+     4.24
     ]
    ]
   },
   {
    "id": "portal3",
-   "text": "The DBS payment gateway and e-GIRO integration is at eighty percent, season sync at seventy, the five reports at fifty, and the credit and sale note upload to Nav at thirty.",
-   "dur": 13.098,
+   "text": "The DBS payment gateway is at eighty percent, season sync at seventy, the various reports at fifty, and the credit and sale note upload to Nav at thirty.",
+   "dur": 10.891,
    "phrases": [
     [
-     0.04,
-     0.24
+     0.08,
+     3.1
     ],
     [
-     0.39,
-     1.98
+     3.55,
+     4.99
     ],
     [
-     2.24,
-     4.92
+     5.56,
+     7.23
     ],
     [
-     5.55,
-     6.27
+     7.69,
+     9.99
     ],
     [
-     6.45,
-     7.0
+     10.3,
+     10.39
     ],
     [
-     7.65,
-     9.19
+     10.54,
+     10.83
+    ]
+   ]
+  },
+  {
+   "id": "portal4",
+   "text": "When it goes live, invoices and payment reminders will look like this, with a PayNow code to scan.",
+   "dur": 6.11,
+   "phrases": [
+    [
+     0.02,
+     1.03
     ],
     [
-     9.75,
-     11.49
+     1.47,
+     4.1
     ],
     [
-     11.68,
-     12.15
-    ],
-    [
-     12.5,
-     12.61
-    ],
-    [
-     12.76,
-     13.04
+     4.48,
+     6.02
     ]
    ]
   },
@@ -582,24 +601,32 @@
   },
   {
    "id": "dog3",
-   "text": "And at Ehub, Carbon Black will be uninstalled, as its licence has expired.",
-   "dur": 6.455,
+   "text": "And at Ehub, we will uninstall Carbon Black, an unlicensed tool left by the previous IT team.",
+   "dur": 8.063,
    "phrases": [
     [
-     0.0,
-     0.49
+     0.01,
+     0.35
     ],
     [
-     0.82,
-     1.73
+     0.63,
+     0.76
     ],
     [
-     2.21,
-     4.37
+     0.92,
+     1.44
     ],
     [
-     4.86,
-     6.37
+     1.93,
+     4.04
+    ],
+    [
+     4.51,
+     5.8
+    ],
+    [
+     6.08,
+     7.99
     ]
    ]
   },

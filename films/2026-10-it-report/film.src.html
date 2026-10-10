@@ -142,14 +142,14 @@ function sTitle() {
 
 // ---- 2. ten pieces of work, sorted; then three highlights in type ---------------------------------------
 const TILES = [
-  ['WMS on Azure', 0], ['Central Reports', 0], ['QMS', 0], ['Res24 rebrand', 0],
-  ['WMS change req. 1', 1], ['Season portal', 1], ['Watch Dog', 1],
+  ['WMS on Azure', 0], ['Central Reports', 0], ['QMS', 0], ['Old portal rebrand', 0],
+  ['WMS change req. 1', 1], ['New season portal', 1], ['Watch Dog', 1],
   ['WMS change req. 2', 2], ['UltraVNC', 2], ['Carbon Black removal', 2],
 ];
 const GROUPS = [['done', C.mint, 'completed', 4], ['prog', C.sky, 'in progress', 3], ['plan', C.amber, 'planned', 3]];
 function sortScene() {
   const count = L(CUE.count, 'status');
-  rise('This month', 960, 470, 150, { w: 800, align: 'center', at: -0.3, out: count - 0.9 });
+  rise('This Month', 960, 470, 150, { w: 800, align: 'center', at: -0.3, out: count - 0.9 });
   const landed = TILES.filter((_, i) => t >= count - 0.6 + i * 0.12 + 0.35).length;
   if (t >= count - 0.6) {
     font(220, 800); ctx.fillStyle = C.amber; ctx.textAlign = 'right'; ctx.textBaseline = 'alphabetic';
@@ -209,8 +209,8 @@ function hl3(lt) {                                          // the new season po
   ctx.save(); ctx.globalAlpha = prog(t, 0.2, 0.5);
   label(pct(u, 72), 1780, 640, 300, { w: 800, c: C.sky, align: 'right' });
   ctx.restore();
-  rise('New season', 160, 470, 130, { w: 800, at: 0.1 });
-  rise('portal', 160, 600, 130, { w: 800, at: 0.2 });
+  rise('New Season', 160, 470, 130, { w: 800, at: 0.1 });
+  rise('Portal', 160, 600, 130, { w: 800, at: 0.2 });
   rise('done, on average', 166, 700, 50, { w: 500, c: C.mute, at: 0.6, gap: 0.04 });
 }
 function sStatus() {
@@ -285,7 +285,7 @@ function postponed(x0, y, at, mv, tw) {
 // 3a. the journey: three months on one line
 function sWmsJourney() {
   kicker('02 · WMS · The journey');
-  heading('Three months on WMS');
+  heading('Three Months on WMS');
   const took = L(CUE.took, 'wms'), [j1, j2, j3] = CUE.j.map(c => L(c, 'wms'));
   const JX = d => 160 + d * 17.6, JY = 600, dl = inOutCubic(prog(t, 0.3, 2.5));   // d = days since 1 Aug
   [['August', 0, 0.3], ['September', 31, 1.25], ['October', 61, 1.65]].forEach(([m, d, at]) => rise(m, JX(d) + 8, 880, 80, { w: 800, c: C.faint, at }));
@@ -324,7 +324,7 @@ function sWmsJourney() {
 // 3b. August: the testing days fill the calendar, then the 24th
 function sWmsAug() {
   kicker('02 · WMS · August');
-  heading('Tested and ready');
+  heading('Tested and Ready');
   const at = k => L(CUE[k], 'wmsAug'), uat = at('uat'), uatEnd = at('uatEnd'), passed = at('passed');
   const ready = at('ready'), team = at('team'), cl = at('cloud'), ok = at('readyOK');
   const GX = 120, GY = 330, P = 92, S = 80;                  // 1 Aug 2026 is a Saturday; weeks start on Monday
@@ -344,12 +344,12 @@ function sWmsAug() {
       rr(-S / 2 - 6, -S / 2 - 6, S + 12, S + 12, 18); ctx.strokeStyle = C.mint; ctx.lineWidth = 4; ctx.stroke(); ctx.restore(); } }
   }
   const FX = 1000;
-  rise('User end testing', FX, 420, 56, { w: 800, at: uat - 0.6 });
+  rise('User End Testing', FX, 420, 56, { w: 800, at: uat - 0.6 });
   rise('9 – 17 August', FX + 2, 476, 34, { w: 600, c: t >= passed ? C.mint : C.sky, at: uat - 0.3 });
   tag(FX + 2 + width('9 – 17 August', 34, 600) + 100, 464, 150, 'passed', C.mint, true, spring(t - passed, ...POP));
-  rise('Ready to migrate', FX, 640, 56, { w: 800, at: ready - 0.3 });
+  rise('Ready to Migrate', FX, 640, 56, { w: 800, at: ready - 0.3 });
   rise('24 August', FX + 2, 696, 34, { w: 600, c: C.mint, at: ready });
-  [['Development team', team], ['Azure cloud', cl]].forEach(([str, a], k) => {
+  [['Development Team', team], ['Azure Cloud', cl]].forEach(([str, a], k) => {
     const y = 790 + k * 70, c = spring(t - a, ...POP);
     if (c > 0) { dot(FX + 22, y - 11, 22 * c, C.mint); check(FX + 22, y - 11, 22, a + 0.15, C.ink); }
     rise(str, FX + 62, y, 34, { w: 600, at: a + 0.05 });
@@ -366,18 +366,18 @@ function phone(x, y, u) {                                  // a phone; a refresh
 }
 function sWmsSep() {
   kicker('02 · WMS · September');
-  heading('Migrated in the users’ window');
+  heading('Migrated in the Users’ Window');
   const at = k => L(CUE[k], 'wmsSep'), ask = at('ask'), win = at('window'), fit = at('fit'), move = at('move'), sched = at('sched'), app = at('app');
   // the left column: who chose the window, then what happened
-  rise('Window requested by the WMS users', 120, 400, 44, { w: 700, at: ask - 0.2 });
+  rise('Window Requested by the WMS Users', 120, 400, 44, { w: 700, at: ask - 0.2 });
   rise('22 – 24 September', 122, 452, 30, { w: 600, c: C.sky, at: win });
   rise('to fit their operations', 122 + width('22 – 24 September  ', 30, 600), 452, 30, { w: 500, c: C.mute, at: fit - 0.1 });
   const sc = spring(t - sched, ...POP);
   if (sc > 0) { dot(146, 586, 26 * sc, C.mint); check(146, 586, 26, sched + 0.15, C.ink); }
-  rise('Migrated on schedule', 192, 600, 44, { w: 700, at: sched + 0.05 });
+  rise('Migrated on Schedule', 192, 600, 44, { w: 700, at: sched + 0.05 });
   const ap = spring(t - (app + 0.8), ...POP);
   if (ap > 0) { dot(146, 716, 26 * ap, C.mint); check(146, 716, 26, app + 0.95, C.ink); }
-  rise('Mobile app upgraded automatically', 192, 732, 44, { w: 700, at: app + 0.05 });
+  rise('Mobile App Upgraded Automatically', 192, 732, 44, { w: 700, at: app + 0.05 });
   const ph = spring(t - (app - 0.4), ...POP);                // where the server stood: the phone upgrades itself
   if (ph > 0) { ctx.save(); ctx.translate(1080, 540); ctx.scale(ph, ph); phone(0, 0, prog(t, app, app + 0.8)); ctx.restore(); }
   const pb = spring(t - (app + 0.8), ...POP);
@@ -410,201 +410,102 @@ function sWmsSep() {
   rise('scheduled around WMS operations', AX(14.5), AY - 50, 28, { w: 500, c: C.mute, align: 'center', at: fit });
 }
 
-// 3d. change request phase 1: an agenda of five, then the camera visits each
-const FRS = [   // header title, the one narrated fact, agenda name
-  ['Ad-hoc collections join a route', 'In the route list within 15 min', ['Ad-hoc', 'route update']],
-  ['Missed collections, added later', 'Saved against the original date', ['Missed', 'collections']],
-  ['Average weight, explained', 'Latest 7 valid collections', ['Average', 'weight']],
-  ['Planned shift and actual shift', 'Keeps planned shift, records actual', ['Planned &', 'actual shift']],
-  ['Daily report and dashboard', 'New fields, filters, matching totals', ['Report &', 'dashboard']],
+// 3d. change request phase 1: the five requests on one page; each lights up as it is described
+const FRS = [   // title, the one narrated fact
+  ['Ad-hoc Collections Join a Route', 'in the route list within 15 minutes'],
+  ['Missed Collections, Added Later', 'saved against the original date'],
+  ['Average Weight, Explained', 'latest 7 valid collections; formula shown'],
+  ['Planned Shift and Actual Shift', 'keeps the planned shift, records the actual one'],
+  ['Daily Report and Dashboard', 'new fields, new filters, matching totals'],
 ];
-const FRBOX = [[1415, 550, 1.1], [1410, 520, 1.03], [1400, 715, 1.25], [1410, 675, 1.25], [1410, 625, 1.1]];   // centre, scale
-function road(pts) {                                       // Catmull-Rom through the stops, as cubic segments
-  const seg = [];
-  for (let i = 0; i < pts.length - 1; i++) {
-    const p0 = pts[i - 1] || pts[i], p1 = pts[i], p2 = pts[i + 1], p3 = pts[i + 2] || p2;
-    seg.push([p1, [p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6], [p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6], p2]);
-  }
-  return seg;
-}
-const bez = ([a, b, c, d], u) => [0, 1].map(k => (1 - u) ** 3 * a[k] + 3 * (1 - u) ** 2 * u * b[k] + 3 * (1 - u) * u * u * c[k] + u ** 3 * d[k]);
-function pin(x, y, col) {
-  ctx.beginPath(); ctx.arc(x, y - 40, 20, Math.PI * 0.82, Math.PI * 2.18); ctx.lineTo(x, y); ctx.closePath(); ctx.fillStyle = col; ctx.fill();
-  dot(x, y - 40, 7, C.ink);
-}
-function frRoute(a) {                                       // a road through the stops; the ad-hoc stop drops in and the road bends to it
-  const P = [[1040, 780], [1210, 660], [1470, 720], [1640, 610], [1790, 680]], N = [1340, 560];
-  const m = inOutCubic(prog(t, a + 1.0, a + 1.6)), mid = [lerp(1340, N[0], m), lerp(690, N[1], m)];
-  const pts = [P[0], P[1], mid, ...P.slice(2)], seg = road(pts), dr = outCubic(prog(t, a + 0.1, a + 0.7));
-  if (dr > 0) {
-    ctx.save(); ctx.globalAlpha = dr; ctx.beginPath(); ctx.moveTo(...pts[0]);
-    seg.forEach(([, b, c, d]) => ctx.bezierCurveTo(...b, ...c, ...d));
-    ctx.strokeStyle = C.line; ctx.lineWidth = 16; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.stroke();
-    ctx.strokeStyle = C.sky; ctx.lineWidth = 4; ctx.stroke(); ctx.restore();
-    P.forEach((p, k) => dot(p[0], p[1], 13 * spring(t - (a + 0.2 + k * 0.08), ...POP), C.sky));
-    if (t > a + 0.6) {                                     // the collection truck: a dot driving the road
-      const f = ((t - a - 0.6) * 0.3) % 1, n = seg.length, i = Math.min(n - 1, Math.floor(f * n));
-      const [x, y] = bez(seg[i], f * n - i); dot(x, y, 9, C.text);
+// a small scene per request, in a 240 x 88 area centred on (0, 0); it plays from `a` and settles.
+// `k` is the accent: sky while the request is being described, mint once it has been.
+const FRMINI = [
+  (a, k) => {                                              // a road, a truck driving it, the ad-hoc stop, a clock to 15 min
+    line(-112, 24, 48, 24, C.line, 10); line(-112, 24, 48, 24, k, 3);
+    dot(lerp(-112, 48, inOutCubic(prog(t, a, a + 3.0))), 24, 7, C.text);
+    const sp = spring(t - (a + 1.0), 2.6, 0.6);
+    if (sp > 0) { const y = 24 - 30 * (1 - sp); ctx.beginPath(); ctx.arc(-32, y - 22, 11, Math.PI * 0.82, Math.PI * 2.18); ctx.lineTo(-32, y); ctx.closePath(); ctx.fillStyle = C.mint; ctx.fill(); }
+    const th = outCubic(prog(t, a + 1.2, a + 3.0)) * Math.PI / 2;
+    ring(96, 0, 20, C.line, 4);
+    if (th > 0) { ctx.beginPath(); ctx.arc(96, 0, 20, -Math.PI / 2, -Math.PI / 2 + th); ctx.strokeStyle = k; ctx.lineWidth = 4; ctx.stroke(); }
+    line(96, 0, 96 + 14 * Math.sin(th), -14 * Math.cos(th), C.text, 3); dot(96, 0, 3, C.text);
+  },
+  (a, k) => {                                              // 28 and 29; the record curls back to the 28th, which turns mint
+    const done = t >= a + 1.8;
+    [[-70, '28'], [40, '29']].forEach(([x, d], i) => {
+      rr(x - 28, -18, 56, 50, 10); ctx.fillStyle = i === 0 && done ? C.mint : C.line; ctx.fill();
+      label(d, x, 8, 26, { w: 800, c: i === 0 && done ? C.ink : C.text, align: 'center', base: 'middle' });
+    });
+    const u = outCubic(prog(t, a + 1.0, a + 1.6));
+    if (u > 0) {
+      ctx.beginPath();
+      for (let j = 0; j <= 20 * u; j++) { const v = j / 20, x = lerp(40, -70, v), y = -24 - Math.sin(v * Math.PI) * 18; j ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
+      ctx.strokeStyle = k; ctx.lineWidth = 4; ctx.lineCap = 'round'; ctx.stroke();
+      if (u >= 1) { line(-70, -24, -60, -34, k, 4); line(-70, -24, -56, -22, k, 4); }
     }
-  }
-  const sp = spring(t - (a + 1.0), 2.6, 0.6);
-  if (sp > 0) pin(N[0], N[1] - 60 * (1 - sp), C.mint);
-  rise('ad-hoc stop', N[0], N[1] - 82, 28, { w: 600, c: C.mint, align: 'center', at: a + 1.4 });
-  const cx = 1700, cy = 360, R = 60, ck = outCubic(prog(t, a + 1.8, a + 3.0)), th = ck * Math.PI / 2;
-  const cs = spring(t - (a + 1.5), ...POP);
-  if (cs > 0) {
-    ctx.save(); ctx.translate(cx, cy); ctx.scale(cs, cs);
-    ring(0, 0, R, C.line, 6);
-    for (let k = 0; k < 12; k++) { const q = k * Math.PI / 6; line(Math.sin(q) * 46, -Math.cos(q) * 46, Math.sin(q) * 53, -Math.cos(q) * 53, C.dim, 3); }
-    if (ck > 0) { ctx.beginPath(); ctx.arc(0, 0, R, -Math.PI / 2, -Math.PI / 2 + th); ctx.strokeStyle = C.mint; ctx.lineWidth = 6; ctx.stroke(); }
-    line(0, 0, Math.sin(th) * R * 0.8, -Math.cos(th) * R * 0.8, C.text, 5);
-    dot(0, 0, 6, C.text);
-    ctx.restore();
-  }
-  rise('within 15 min', cx, cy + 110, 28, { w: 700, c: C.mint, align: 'center', at: a + 2.6 });
-}
-function dayTile(x, y, day, s) {
-  if (s <= 0) return;
-  ctx.save(); ctx.translate(x + 140, y + 150); ctx.scale(s, s); ctx.translate(-140, -150);
-  rr(0, 0, 280, 300, 22); ctx.fillStyle = C.bg2; ctx.fill();
-  ctx.save(); rr(0, 0, 280, 300, 22); ctx.clip(); ctx.fillStyle = C.line; ctx.fillRect(0, 0, 280, 60); ctx.restore();
-  label('May', 140, 31, 28, { w: 700, c: C.mute, align: 'center', base: 'middle' });
-  label(String(day), 140, 185, 120, { w: 800, align: 'center', base: 'middle' });
-  ctx.restore();
-}
-function frMissed(a) {                                      // missed on the 28th, added on the 29th, saved on the 28th
-  dayTile(1060, 360, 28, spring(t - (a + 0.2), ...POP));
-  dayTile(1480, 360, 29, spring(t - (a + 0.3), ...POP));
-  const col = t >= a + 2.6;
-  tag(1200, 720, 200, col ? 'Collected' : 'Missed', col ? C.mint : C.coral, col, spring(t - (col ? a + 2.6 : a + 0.6), ...POP));
-  tag(1620, 720, 290, 'added on the 29th', C.sky, false, spring(t - (a + 1.2), ...POP));
-  const u = outCubic(prog(t, a + 1.5, a + 2.3));             // the record goes back to its own date
-  if (u > 0) {
-    ctx.beginPath(); const n = 24;
-    for (let k = 0; k <= n * u; k++) { const v = k / n, x = lerp(1620, 1200, v), y = 340 - Math.sin(v * Math.PI) * 90; k ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
-    ctx.strokeStyle = C.sky; ctx.lineWidth = 6; ctx.lineCap = 'round'; ctx.stroke();
-    if (u >= 1) { line(1200, 340, 1222, 316, C.sky, 6); line(1200, 340, 1228, 350, C.sky, 6); }
-  }
-  rise('example from the test cases', 1410, 790, 26, { align: 'center', w: 500, c: C.mute, at: a + 0.6 });
-}
-function frAvg(a) {                                         // the latest seven valid weights, one missed day left out
-  const H0 = [150, 185, 130, 210, 170, 155, 0, 200, 180], X = k => 1040 + k * 82, BY = 820;
-  const elig = [1, 2, 3, 4, 5, 7, 8], avg = elig.reduce((s, k) => s + H0[k], 0) / 7;
-  H0.forEach((h, k) => {
-    if (k === 6) {
-      const s = spring(t - (a + 1.9), ...POP); if (s <= 0) return;
-      ctx.save(); ctx.setLineDash([8, 8]); rr(X(k), BY - 60, 56, 60, 10); ctx.strokeStyle = C.coral; ctx.lineWidth = 3; ctx.stroke(); ctx.restore();
-      rise('no weight', X(k) + 28, BY + 40, 26, { w: 600, c: C.coral, align: 'center', at: a + 2.0 });
-      return;
+  },
+  (a, k) => {                                              // seven weights rise, one missing day is left out, the average draws across
+    const H = [34, 48, 28, 56, 40, 0, 50, 44], BY = 36;
+    H.forEach((h, j) => {
+      const x = -112 + j * 30;
+      if (!h) { ctx.save(); ctx.setLineDash([4, 4]); rr(x, BY - 16, 18, 16, 4); ctx.strokeStyle = C.coral; ctx.lineWidth = 2; ctx.stroke(); ctx.restore(); return; }
+      const g = outCubic(prog(t, a + 0.2 + j * 0.1, a + 0.7 + j * 0.1));
+      if (g > 0) { rr(x, BY - h * g, 18, h * g, 4); ctx.fillStyle = k; ctx.fill(); }
+    });
+    const av = outCubic(prog(t, a + 1.5, a + 2.2));
+    if (av > 0) { ctx.save(); ctx.setLineDash([8, 6]); line(-118, BY - 43, lerp(-118, 118, av), BY - 43, C.mint, 3); ctx.restore(); }
+  },
+  (a, k) => {                                              // day | night; a collection just before the boundary; actual (day) and planned (night)
+    rr(-112, -26, 224, 32, 10); ctx.fillStyle = '#132439'; ctx.fill();
+    ctx.save(); rr(-112, -26, 224, 32, 10); ctx.clip(); ctx.fillStyle = '#1F3A57'; ctx.fillRect(-112, -26, 112, 32); ctx.restore();
+    line(0, -34, 0, 14, C.text, 2);
+    const sl = outCubic(prog(t, a + 0.5, a + 1.2));
+    if (sl > 0) dot(lerp(-100, -16, sl), -10, 8, C.mint);
+    dot(-56, 32, 8 * spring(t - (a + 1.6), ...POP), C.sky);
+    dot(56, 32, 8 * spring(t - (a + 1.8), ...POP), C.amber);
+  },
+  (a, k) => {                                              // the report grid fills row by row; two totals match
+    for (let r = 0; r < 3; r++) for (let c = 0; c < 4; c++) {
+      const g = outCubic(prog(t, a + 0.2 + r * 0.3 + c * 0.05, a + 0.5 + r * 0.3 + c * 0.05));
+      if (g > 0) { rr(-116 + c * 30, -30 + r * 22, 24 * g, 12, 4); ctx.fillStyle = r === 0 ? k : C.line; ctx.fill(); }
     }
-    const g = outCubic(prog(t, a + 0.3 + k * 0.05, a + 0.8 + k * 0.05)); if (g <= 0) return;
-    const lit = elig.includes(k) && t >= a + 1.4 + (8 - k) * 0.06;
-    rr(X(k), BY - h * g, 56, h * g, 10); ctx.fillStyle = lit ? C.sky : C.dim; ctx.fill();
-  });
-  line(1020, BY, 1780, BY, C.line, 3);
-  const av = outCubic(prog(t, a + 2.6, a + 3.3));
-  if (av > 0) {
-    ctx.save(); ctx.setLineDash([14, 10]); line(1020, BY - avg, lerp(1020, 1780, av), BY - avg, C.mint, 5); ctx.restore();
-    rise('average of the latest 7', 1780, BY - avg - 40, 28, { w: 700, c: C.mint, align: 'right', at: a + 3.0 });
-  }
-  rise('oldest', X(0) + 28, BY + 40, 26, { w: 500, c: C.mute, align: 'center', at: a + 1.0 });
-  rise('latest', X(8) + 28, BY + 40, 26, { w: 500, c: C.mute, align: 'center', at: a + 1.0 });
-}
-function frShift(a) {                                       // collected a little early: planned Night, actual Day
-  const BX = 1410, s = outCubic(prog(t, a + 0.2, a + 0.8));
-  if (s > 0) {
-    ctx.save(); ctx.globalAlpha = s;
-    rr(1040, 520, 740, 90, 18); ctx.fillStyle = '#132439'; ctx.fill();
-    ctx.save(); rr(1040, 520, 740, 90, 18); ctx.clip(); ctx.fillStyle = '#1F3A57'; ctx.fillRect(1040, 520, BX - 1040, 90); ctx.restore();
-    label('Day shift', (1040 + BX) / 2, 495, 30, { w: 700, align: 'center' });
-    label('Night shift', (BX + 1780) / 2, 495, 30, { w: 700, align: 'center' });
-    line(BX, 500, BX, 630, C.text, 3);
-    label('shift boundary', BX, 664, 26, { w: 500, c: C.mute, align: 'center' });
-    ctx.restore();
-  }
-  const dp = spring(t - (a + 1.0), 2.6, 0.6);
-  if (dp > 0) dot(BX - 44, lerp(380, 565, Math.min(dp, 1.04)), 18, C.mint);
-  tag(1225, 750, 230, 'Actual · Day', C.sky, true, spring(t - (a + 1.8), ...POP));
-  tag(1595, 750, 260, 'Planned · Night', C.amber, false, spring(t - (a + 2.0), ...POP));
-  tag(BX, 850, 220, 'Collected', C.mint, true, spring(t - (a + 2.7), ...POP));
-}
-function frReport(a) {                                      // four new columns; two totals that match
-  const cols = [['Time', 150], ['Route no.', 190], ['Missed', 160], ['Actual shift', 200]];
-  let x = 1040;
-  cols.forEach(([str, w], k) => {
-    const s = spring(t - (a + 0.6 + k * 0.2), ...POP);
-    tag(x + w / 2, 400, w, str, C.sky, true, s);
-    for (let r = 0; r < 3; r++) {
-      const g = outCubic(prog(t, a + 0.3 + r * 0.08, a + 0.8 + r * 0.08));
-      if (g > 0) { rr(x + 14, 470 + r * 56, (w - 28) * g * (0.55 + 0.4 * hash(r, k)), 16, 8); ctx.fillStyle = C.line; ctx.fill(); }
+    const tt = spring(t - (a + 2.0), ...POP);
+    if (tt > 0) {
+      rr(8, -6 - 6 * tt, 40, 12 * tt, 6); ctx.fillStyle = C.mint; ctx.fill();
+      rr(80, -6 - 6 * tt, 40, 12 * tt, 6); ctx.fill();
+      label('=', 64, 2, 28, { w: 800, c: C.mint, align: 'center', base: 'middle' });
     }
-    x += w + 10;
-  });
-  const tt = spring(t - (a + 2.2), ...POP), eq = t >= a + 2.8;
-  [[1040, 'Dashboard'], [1480, 'Plan report']].forEach(([x0, str], k) => {
-    const s = spring(t - (a + 2.2 + k * 0.15), ...POP); if (s <= 0) return;
-    ctx.save(); ctx.translate(x0 + 150, 740); ctx.scale(s, s);
-    rr(-150, -70, 300, 140, 20); ctx.fillStyle = C.bg2; ctx.fill();
-    label(str, -122, -26, 28, { w: 600, c: C.mute });
-    rr(-122, 12, 200, 22, 11); ctx.fillStyle = eq ? C.mint : C.sky; ctx.fill();
-    ctx.restore();
-  });
-  if (tt > 0) label('=', 1410, 754, 72, { w: 800, c: eq ? C.mint : C.mute, align: 'center', base: 'middle' });
-  if (eq) rise('totals match', 1410, 870, 28, { w: 700, c: C.mint, align: 'center', at: a + 2.8 });
-}
-const FRDRAW = [frRoute, frMissed, frAvg, frShift, frReport];
+  },
+];
 function sWmsCR() {
-  const five = L(CUE.five, 'wmsCR'), fr = CUE.fr.map(c => L(c, 'wmsCR')), go = fr[0] - 0.8;
-  // the header: the page's own title until the agenda leaves, then each request's title in turn
-  rise('02 · WMS · CHANGE REQUEST PHASE 1', 120, 102, 26, { w: 700, c: C.amber, at: -0.5, out: go, gap: 0.03 });
-  rise('Five improvements', 120, 190, 80, { w: 800, at: -0.45, out: go });
-  rise('asked for by the business', 122, 250, 30, { w: 500, c: C.mute, at: five + 0.3, out: go, gap: 0.04 });
-  const pre = '02 · WMS · CHANGE REQUEST 1 ·';                // the kicker's prefix stays; only the request number swaps
-  rise(pre, 120, 102, 26, { w: 700, c: C.amber, at: fr[0] - 0.6, gap: 0.03 });
-  FRS.forEach(([title], i) => {
-    const a = fr[i], out = i < 4 ? fr[i + 1] - 0.7 : 1e9;
-    rise('FR-00' + (i + 1), 120 + width(pre + ' ', 26, 700), 102, 26, { w: 700, c: C.amber, at: a - 0.5, out });
-    rise(title, 120, 190, 80, { w: 800, at: a - 0.5, out });
-  });
-  // the agenda: five tiles; at "five" they pulse in turn; as the camera leaves they fly up into a progress strip
-  FRS.forEach(([, , name], i) => {
-    const s = spring(t - (0.8 + i * 0.12), ...POP); if (s <= 0) return;
-    const m = inOutCubic(prog(t, go + i * 0.05, go + 0.7 + i * 0.05));
-    const pulse = 1 + 0.06 * Math.sin(Math.PI * prog(t, five + i * 0.12, five + i * 0.12 + 0.3));
-    const x0 = 120 + i * 340, cx = lerp(x0 + 160, 1480 + i * 66 + 28, m), cy = lerp(580, 96, m);
-    const w = lerp(320, 56, m), h = lerp(300, 8, m), k = s * (m > 0 ? 1 : pulse);
-    const state = t >= (fr[i + 1] ?? 1e9) - 0.6 ? C.mint : t >= fr[i] - 0.6 ? C.sky : C.line;
-    ctx.save(); ctx.translate(cx, cy); ctx.scale(k, k);
-    rr(-w / 2, -h / 2, w, h, lerp(24, 4, m)); ctx.fillStyle = m >= 1 ? state : C.bg2; ctx.fill();
-    const fade = 1 - prog(m, 0, 0.1);                       // only clean blocks travel
-    if (fade > 0) {
-      ctx.globalAlpha = fade; ctx.translate(-160, -150);
-      label('FR-00' + (i + 1), 32, 70, 28, { w: 700, c: C.sky });
-      name.forEach((str, j) => label(str, 32, 170 + j * 50, fit(str, 38, 800, 260), { w: 800 }));
-    }
+  kicker('02 · WMS · Change request phase 1');
+  heading('Five Improvements');
+  const five = L(CUE.five, 'wmsCR'), fr = CUE.fr.map(c => L(c, 'wmsCR'));
+  rise('asked for by the business', 122, 250, 30, { w: 500, c: C.mute, at: five + 0.3, gap: 0.04 });
+  FRS.forEach(([title, fact], i) => {
+    const y = 300 + i * 134, s = spring(t - (0.8 + i * 0.12), ...POP); if (s <= 0) return;
+    const on = clamp((t - (fr[i] - 0.3)) / 0.3), now = on * (1 - clamp((t - (fr[i + 1] ?? 1e9) + 0.3) / 0.3));
+    const pulse = 1 + 0.03 * Math.sin(Math.PI * prog(t, five + i * 0.12, five + i * 0.12 + 0.3));
+    ctx.save(); ctx.translate(960, y + 60); ctx.scale(s * pulse, s * pulse); ctx.translate(-960, -y - 60);
+    rr(120, y, 1680, 120, 20); ctx.fillStyle = now > 0.5 ? '#1B3350' : C.bg2; ctx.fill();
+    ctx.save(); rr(120, y, 1680, 120, 20); ctx.clip(); ctx.fillStyle = now > 0.5 ? C.sky : on > 0.5 ? C.dim : C.line; ctx.fillRect(120, y, 10, 120); ctx.restore();
+    label('FR-00' + (i + 1), 170, y + 70, 28, { w: 700, c: C.sky });
+    ctx.save(); ctx.globalAlpha = lerp(0.6, 1, on); label(title, 340, y + lerp(72, 54, outCubic(on)), 44, { w: 800 }); ctx.restore();
+    rise(fact, 342, y + 98, 30, { w: 500, c: C.mute, at: fr[i] + 0.1, gap: 0.03 });
+    if (on > 0) { ctx.save(); ctx.translate(1640, y + 60); ctx.globalAlpha = on; FRMINI[i](fr[i], now > 0.5 ? C.sky : C.mint); ctx.restore(); }
     ctx.restore();
   });
-  // the camera visits each request: one narrated fact, one big picture
-  let cam = 0; fr.forEach(a => { cam += inOutCubic(prog(t, a - 0.8, a + 0.1)); });
-  for (let p = 1; p <= 5; p++) {
-    if (Math.abs(p - cam) >= 1) continue;
-    const a = fr[p - 1], [cx, cy, k] = FRBOX[p - 1];
-    ctx.save(); ctx.translate((p - cam) * W, 0);
-    rise(FRS[p - 1][1], 120, 330, 36, { w: 600, at: a - 0.1, gap: 0.03 });
-    ctx.translate(960, 680); ctx.scale(k, k); ctx.translate(-cx, -cy);
-    FRDRAW[p - 1](a);
-    ctx.restore();
-  }
 }
 
 // 3e. testing, then what comes next
 function sWmsTest() {
   kicker('02 · WMS · Testing');
-  heading('Testing and next steps');
+  heading('Testing and Next Steps');
   const at = k => L(CUE[k], 'wmsTest'), tc = at('tc'), pass = at('pass'), planned = at('planned'), mv = at('moved'), tw = at('twelfth');
   const confirm = at('confirm'), live = at('live'), p2 = at('p2');
   // the development team's 24 cases, by request
-  rise('Development team', 120, 340, 40, { w: 700, at: -0.3 });
+  rise('Development Team', 120, 340, 40, { w: 700, at: -0.3 });
   let idx = 0;
   [4, 7, 4, 4, 5].forEach((n, r) => {
     const y = 420 + r * 76;
@@ -646,17 +547,18 @@ function sWmsTest() {
 
 // ---- 4. done, done, done --------------------------------------------------------------------------------
 const DONE = [
-  ['Central Reports server', 'for the car parks under Re Sustainability Solutions'],
-  ['QMS enhancement', 'inventory prices · service qty × price · admin report'],
-  ['T24 is now Res24', 'season portal rebranded: logo, header and email, 2C2P name, SSL key'],
+  ['Central Reports Server', 'for the car parks under Re Sustainability Solutions'],
+  ['QMS Enhancement', 'inventory prices · service qty × price · admin report'],
+  ['Old Portal Rebranded', 'Times24 to Re24 Parking · season.reparking.com.sg'],
 ];
 function sDone() {
   kicker('03 · Completed');
-  heading('Also completed');
-  heading('this month', 190, -0.35, C.mint, 120 + width('Also completed ', 80, 800));
+  heading('Also Completed');
+  heading('This Month', 190, -0.35, C.mint, 120 + width('Also Completed ', 80, 800));
   const at = CUE.rows.map(c => L(c, 'done')), settle = at[2] + 3.0, lands = at.map(a => a + 0.55), arrive = lands.map(a => a + 1.2);
   // the tally on the right: a third of the ring per item, as its stamp flies in
-  const RX = 1480, RYc = 470, RR = 150, ap = spring(t - 0.3, 2.6, 0.7);   // empty from the start, it counts the items in
+  const cmp = at[2] + 3.9, out = inOutCubic(prog(t, cmp - 0.4, cmp + 0.3));   // the tally makes way for the invoices
+  const RX = 1480 + out * 480, RYc = 470, RR = 150, ap = spring(t - 0.3, 2.6, 0.7) * (1 - out);   // empty from the start, it counts the items in
   if (ap > 0) {
     const shown = arrive.filter(x => t >= x).length;
     const pulse = 1 + 0.08 * Math.max(0, ...arrive.map(x => (t >= x ? Math.sin(Math.min(1, (t - x) / 0.35) * Math.PI) : 0)));
@@ -671,6 +573,17 @@ function sDone() {
     label('completed', 0, 76, 30, { w: 600, c: C.mint, align: 'center' });
     ctx.restore();
   }
+  // the old portal's invoice header, before and after the rebrand
+  [[IMG.oldH, 1040, 'Before', 'season.times24.com.sg', C.mute, 0], [IMG.newH, 1460, 'After', 'season.reparking.com.sg', C.mint, 0.8]].forEach(([img, x, tag, dom, col, d]) => {
+    const e = outExpo(prog(t, cmp + d, cmp + d + 0.7)); if (e <= 0) return;
+    ctx.save(); ctx.globalAlpha = e; ctx.translate((1 - e) * 80, 0);
+    rr(x, 360, 340, 250, 14); ctx.fillStyle = '#FFFFFF'; ctx.fill();
+    ctx.save(); rr(x, 360, 340, 250, 14); ctx.clip(); ctx.drawImage(img, x + 8, 366, 324, 238); ctx.restore();
+    label(tag, x, 660, 28, { w: 700, c: col });
+    label(dom, x, 696, 26, { w: 500, c: C.mute });
+    ctx.restore();
+  });
+  arrow(1392, 485, 1448, 485, C.mint, 5, outCubic(prog(t, cmp + 0.5, cmp + 0.9)), 12);
   DONE.forEach(([title, sub], i) => {
     const t0 = at[i] - 0.5; if (t < t0) return;
     const leave = i < 2 ? at[i + 1] - 1.0 : settle;           // to the list when the next one arrives
@@ -695,14 +608,16 @@ function sDone() {
 
 // ---- 5. six segments of a portal, named clockwise -------------------------------------------------------
 const SEG = [
-  ['Extension & rebrand', 100, 'a'], ['Header & logo', 100, 'd'], ['DBS gateway & eGIRO', 80, 'b'],
-  ['Season sync', 70, 'c'], ['Five reports', 50, 'f'], ['Notes upload to NAV', 30, 'e'],
+  ['Extension & branding', 100, 'a'], ['Header & logo', 100, 'd'], ['DBS payment gateway', 80, 'b'],
+  ['Season sync', 70, 'c'], ['Various reports', 50, 'f'], ['Notes upload to NAV', 30, 'e'],
 ];
 function sPortal() {
   kicker('04 · Season portal');
-  heading('New season portal');
+  heading('New Season Portal');
   const ring0 = L(CUE.ring, 'portal'), cx = 960, cy = 610, R = 250, step = Math.PI * 2 / 6, gap = 0.06;
-  rise('average across six parts', 122, 246, 30, { w: 500, c: C.mute, at: ring0 + 0.4, gap: 0.04 });
+  const docs = L(CUE.docs, 'portal'), dz = inOutCubic(prog(t, docs - 0.6, docs + 0.2)), lab = 1 - prog(dz, 0, 0.4);
+  rise('built in-house · will run on season.resustainability.com.sg', 122, 246, 30, { w: 500, c: C.mute, at: ring0 + 0.4, gap: 0.04 });
+  ctx.save(); ctx.translate(lerp(cx, 520, dz), lerp(cy, 620, dz)); ctx.scale(lerp(1, 0.62, dz), lerp(1, 0.62, dz)); ctx.translate(-cx, -cy);
   SEG.forEach(([name, p, key], i) => {
     const a0 = -Math.PI / 2 + i * step + gap / 2, span = step - gap;
     const tr = outCubic(prog(t, ring0 - 0.2 + i * 0.08, ring0 + 0.4 + i * 0.08)); if (tr <= 0) return;
@@ -716,9 +631,9 @@ function sPortal() {
     }
     const mid = a0 + span / 2, lx = cx + Math.cos(mid) * (R + 75), ly = cy + Math.sin(mid) * (R + 75);
     const align = Math.cos(mid) > 0.2 ? 'left' : Math.cos(mid) < -0.2 ? 'right' : 'center';
-    ctx.save(); ctx.globalAlpha = tr;
+    ctx.save(); ctx.globalAlpha = tr * lab;
     label(name, lx, ly - 6, 30, { w: 600, c: lit > 0.5 ? C.text : C.mute, align });
-    ctx.globalAlpha = tr * lit; label(p + '%', lx, ly + 36, 30, { w: 800, c: col, align });
+    ctx.globalAlpha = tr * lit * lab; label(p + '%', lx, ly + 36, 30, { w: 800, c: col, align });
     ctx.restore();
   });
   const u = outCubic(prog(t, ring0 + 0.4, ring0 + 1.9));
@@ -726,6 +641,24 @@ function sPortal() {
     label(pct(u, 72), cx, cy - 10, 128, { w: 800, align: 'center', base: 'middle' });
     label('complete', cx, cy + 72, 30, { w: 500, c: C.mute, align: 'center' });
   }
+  ctx.restore();
+  // what it will send: the new tax invoice and the payment reminder with PayNow (personal details masked)
+  const dk = 1 + 0.02 * prog(t, docs + 1.0, docs + 8.5);
+  ctx.save(); ctx.translate(1800, 590); ctx.scale(dk, dk); ctx.translate(-1800, -590);   // grows leftward: the right margin holds
+  [[IMG.inv, 1010, 'Tax invoice / receipt', ''], [IMG.rem, 1418, 'Payment reminder · PayNow', '(proforma)']].forEach(([img, x, cap, note], k) => {
+    const e = outExpo(prog(t, docs + k * 0.25, docs + 0.8 + k * 0.25)); if (e <= 0) return;
+    ctx.save(); ctx.globalAlpha = e; ctx.translate((1 - e) * 120, 0);
+    rr(x, 320, 382, 540, 10); ctx.fillStyle = '#FFFFFF'; ctx.fill();
+    ctx.save(); rr(x, 320, 382, 540, 10); ctx.clip(); ctx.drawImage(img, x, 320, 382, 540); ctx.restore();
+    label(cap, x + 191, 906, 28, { w: 600, align: 'center' });
+    if (note) label(note, x + 191, 940, 26, { w: 500, c: C.mute, align: 'center' });
+    ctx.restore();
+  });
+  [[1028, 335, 78, 38, docs + 3.0], [1435, 334, 67, 67, docs + 5.0]].forEach(([x, y, w, h, a]) => {
+    const e = prog(t, a, a + 0.3); if (e <= 0) return;
+    ctx.save(); ctx.globalAlpha = e; rr(x, y, w, h, 8); ctx.strokeStyle = C.sky; ctx.lineWidth = 4; ctx.stroke(); ctx.restore();
+  });
+  ctx.restore();
 }
 
 // ---- 6. Watch Dog, then two housekeeping swaps --------------------------------------------------------------
@@ -772,7 +705,7 @@ function sDog() {
   // other enhancements, below: two before -> after rows; the old name is struck and dimmed once the new one lands
   const y0 = H;
   kicker('05 · Housekeeping', y0 + 102, vnc - 0.9);
-  heading('Other enhancements', y0 + 190, vnc - 0.85);
+  heading('Other Enhancements', y0 + 190, vnc - 0.85);
   const swap = (top, where, icon, from, note, to, arrowAt, strikeAt) => {
     rr(120, top, 1680, 200, 28); ctx.fillStyle = C.bg2; ctx.fill();
     label(where, 340, top + 52, 28, { w: 600, c: C.mute });
@@ -793,7 +726,7 @@ function sDog() {
   const ce = outCubic(prog(t, cb - 0.1, cb + 0.5));
   if (ce > 0) {
     ctx.save(); ctx.globalAlpha = ce;
-    swap(y0 + 660 + (1 - ce) * 40, 'Ehub car park', () => shield(0, 0), 'Carbon Black', 'licence expired', 'Uninstall', cb + 1.2, cb + 1.8);
+    swap(y0 + 660 + (1 - ce) * 40, 'Ehub car park', () => shield(0, 0), 'Carbon Black', 'no licence · left by previous IT', 'Uninstall', cb + 1.2, cb + 1.8);
     ctx.restore();
   }
   ctx.restore();
@@ -802,7 +735,7 @@ function sDog() {
 // ---- 7. the road ahead ------------------------------------------------------------------------------------
 const STEPS = [   // in the order the narration names them
   ['This week', 'week', 'UAT from 12 Oct', 'then deploy phase 1'],
-  ['Ongoing', 'go', 'Finish DBS gateway', '& eGIRO, now 80%'],
+  ['Ongoing', 'go', 'Payment gateway', 'DBS, now 80%'],
   ['Ongoing', 'go', 'Finish season sync', 'now at 70%'],
   ['Ongoing', 'go', 'Ehub rollout', 'Watch Dog, now 10%'],
   ['Next', 'next', 'Switch to UltraVNC', 'on the OPCs'],
@@ -810,7 +743,7 @@ const STEPS = [   // in the order the narration names them
 ];
 function sNext() {
   kicker('06 · Next steps');
-  heading('Next steps');
+  heading('Next Steps');
   const n = CUE.n.map(c => L(c, 'next')), GAPX = 440, X = i => 400 + i * GAPX, RY = 600;
   let cam = X(0);                                             // the camera walks to each milestone as it is named
   n.slice(1).forEach(at => { cam += GAPX * inOutCubic(prog(t, at - 0.5, at + 0.3)); });
@@ -835,7 +768,7 @@ function sNext() {
 function sEnd() {
   const th = L(CUE.thanks, 'end'), s = spring(t + 0.3, 2.6, 0.75);
   if (s > 0) logoPlate(960, 330, s);
-  rise('Thank you', 960, 660, 150, { w: 800, align: 'center', at: th - 0.3 });
+  rise('Thank You', 960, 660, 150, { w: 800, align: 'center', at: th - 0.3 });
   rise('IT Department  ·  October 2026', 960, 760, 40, { w: 500, c: C.mute, align: 'center', at: th + 0.5, gap: 0.04 });
 }
 
@@ -895,7 +828,10 @@ window.EVENTS = EVENTS;
 window.seek = async T => render(T);
 (async () => {
   const wel = new Image(); wel.src = 'data:image/webp;base64,__ASSET:assets/mascot-welcome.webp__';
-  await Promise.all([LOGO.decode(), wel.decode()]); IMG.welcome = wel;
+  const doc = n => { const im = new Image(); im.src = n; return im; };
+  Object.assign(IMG, { oldH: doc('data:image/png;base64,__ASSET:assets/invoice-old-header.png__'), newH: doc('data:image/png;base64,__ASSET:assets/invoice-new-header.png__'),
+    inv: doc('data:image/png;base64,__ASSET:assets/new-portal-invoice.png__'), rem: doc('data:image/png;base64,__ASSET:assets/new-portal-reminder.png__') });
+  await Promise.all([LOGO.decode(), wel.decode(), IMG.oldH.decode(), IMG.newH.decode(), IMG.inv.decode(), IMG.rem.decode()]); IMG.welcome = wel;
   await Promise.all([500, 600, 700, 800].map(w => document.fonts.load(`${w} 40px ${FONT}`)));
   const q = new URLSearchParams(location.search).get('t');
   render(q ? +q : 0);

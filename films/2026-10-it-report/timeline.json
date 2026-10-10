@@ -1,7 +1,7 @@
 {
  "estimated": false,
  "bpm": 120,
- "duration": 238.0,
+ "duration": 248.0,
  "scenes": {
   "title": 0,
   "status": 10.0,
@@ -11,10 +11,10 @@
   "wmsCR": 80.0,
   "wmsTest": 120.0,
   "done": 144.0,
-  "portal": 160.0,
-  "dog": 188.0,
-  "next": 214.0,
-  "end": 232.0
+  "portal": 164.0,
+  "dog": 196.0,
+  "next": 224.0,
+  "end": 242.0
  },
  "cue": {
   "count": 12.0,
@@ -66,27 +66,29 @@
    152.0,
    154.0
   ],
-  "ring": 160.5,
-  "a": 167.5,
-  "d": 169.5,
-  "b": 173.5,
-  "c": 179.0,
-  "f": 181.0,
-  "e": 183.0,
-  "ssg": 188.5,
-  "ehub": 193.0,
-  "vnc": 197.0,
-  "cb": 205.5,
+  "rebrand": 158.0,
+  "ring": 164.5,
+  "a": 172.5,
+  "d": 174.0,
+  "b": 179.0,
+  "c": 181.0,
+  "f": 183.0,
+  "e": 185.0,
+  "docs": 188.5,
+  "ssg": 196.5,
+  "ehub": 201.0,
+  "vnc": 205.0,
+  "cb": 213.5,
   "n": [
-   215.5,
-   220.0,
-   221.5,
-   223.0,
-   226.5,
-   227.5
+   225.5,
+   230.0,
+   231.5,
+   233.0,
+   236.5,
+   237.5
   ],
-  "thanks": 233.0,
-  "final": 233.0
+  "thanks": 243.0,
+  "final": 243.0
  },
  "lines": [
   {
@@ -206,60 +208,66 @@
   {
    "id": "done",
    "start": 144.5,
-   "dur": 13.969,
-   "text": "Also completed this month: the Central Reports server, for the car parks under Re Sustainability Solutions; the QMS enhancement; and the T twenty-four season portal, now rebranded as Res twenty-four."
+   "dur": 17.073,
+   "text": "Also completed this month: the Central Reports server, for the car parks under Re Sustainability Solutions; the QMS enhancement; and the old season portal, moved to the Re Parking site and rebranded from Times twenty-four to Re twenty-four Parking."
   },
   {
    "id": "portal1",
-   "start": 160.5,
-   "dur": 5.767,
-   "text": "The new season portal is seventy-two percent complete, on average."
+   "start": 164.5,
+   "dur": 6.944,
+   "text": "The new season portal, built in-house and still in development, is seventy-two percent complete, on average."
   },
   {
    "id": "portal2",
-   "start": 167.0,
-   "dur": 5.361,
-   "text": "The extension and rebrand, and the header and logo alignment, are done."
+   "start": 172.0,
+   "dur": 4.384,
+   "text": "Its extension and branding, and its company header and logo, are done."
   },
   {
    "id": "portal3",
-   "start": 173.0,
-   "dur": 13.098,
-   "text": "The DBS payment gateway and e-GIRO integration is at eighty percent, season sync at seventy, the five reports at fifty, and the credit and sale note upload to Nav at thirty."
+   "start": 177.0,
+   "dur": 10.891,
+   "text": "The DBS payment gateway is at eighty percent, season sync at seventy, the various reports at fifty, and the credit and sale note upload to Nav at thirty."
+  },
+  {
+   "id": "portal4",
+   "start": 188.5,
+   "dur": 6.11,
+   "text": "When it goes live, invoices and payment reminders will look like this, with a PayNow code to scan."
   },
   {
    "id": "dog1",
-   "start": 188.5,
+   "start": 196.5,
    "dur": 7.922,
    "text": "Watch Dog monitoring is live at every SSG car park, and the rollout at Ehub has started, at ten percent."
   },
   {
    "id": "dog2",
-   "start": 197.0,
+   "start": 205.0,
    "dur": 7.49,
    "text": "On the O-P-Cs, UltraVNC will replace RealVNC, which needs a licence."
   },
   {
    "id": "dog3",
-   "start": 205.5,
-   "dur": 6.455,
-   "text": "And at Ehub, Carbon Black will be uninstalled, as its licence has expired."
+   "start": 213.5,
+   "dur": 8.063,
+   "text": "And at Ehub, we will uninstall Carbon Black, an unlicensed tool left by the previous IT team."
   },
   {
    "id": "next1",
-   "start": 214.5,
+   "start": 224.5,
    "dur": 10.187,
    "text": "Next: start user testing on the twelfth and deploy phase one, finish the payment gateway and season sync, and continue the Ehub rollout."
   },
   {
    "id": "next2",
-   "start": 225.5,
+   "start": 235.5,
    "dur": 5.03,
    "text": "Then switch to UltraVNC, and remove Carbon Black."
   },
   {
    "id": "end",
-   "start": 233.0,
+   "start": 243.0,
    "dur": 0.603,
    "text": "Thank you."
   }

@@ -131,6 +131,8 @@ for key in ("b", "c", "f", "e"):
 for k, p in enumerate(sorted(tones(CUE["ssg"], 1) + tones(CUE["ssg"], 2))):   # SSG climbs to 100%
     note(CUE["ssg"] + 0.3 + k * 0.2, GLOCK, p, 60 + 3 * k, 0.6)
 sparkle(CUE["ehub"] + 0.3, GLOCK, vel=60, octave=2)
+sparkle(CUE["rebrand"] - 1.0, GLOCK, n=2, vel=58, octave=2)      # the invoice before/after
+sparkle(CUE["docs"], CELESTA, n=3, vel=58)                      # the new invoice and reminder
 for key in ("vnc", "cb"):
     sparkle(CUE[key], CELESTA, vel=58)
 for at in CUE["n"]:

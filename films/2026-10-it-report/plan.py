@@ -58,15 +58,18 @@ cue["confirm"], cue["live"], cue["p2"] = s, beat(phrase(ph, 1, 0.23)), beat(phra
 # 4. also completed
 done = bar(e + 0.7)
 s, e, ph = say("done", done + 0.5)
-cue["rows"] = [beat(phrase(ph, 1, 0.15)), beat(phrase(ph, 3, 0.52)), beat(phrase(ph, 4, 0.67))]
+# "the Central Reports server" / "the QMS enhancement" / "and the old season portal"; "and rebranded from Times24…"
+cue["rows"] = [beat(phrase(ph, 2, 0.15)), beat(phrase(ph, 4, 0.45)), beat(phrase(ph, 5, 0.55))]
+cue["rebrand"] = beat(phrase(ph, 8, 0.78))
 # 5. new season portal
 portal = bar(e + 0.7)
 s, e, ph = say("portal1", portal + 0.5);   cue["ring"] = s
-s, e, ph = say("portal2", e + GAP);        cue["a"], cue["d"] = beat(phrase(ph, 0)), beat(phrase(ph, 1, 0.44))
+s, e, ph = say("portal2", e + GAP);        cue["a"], cue["d"] = beat(phrase(ph, 0)), beat(inside(ph, 0, 0.5))   # "its extension…" / "…company header and logo"
 s, e, ph = say("portal3", e + GAP)
-# "DBS payment gateway…" "…season sync" "the five reports…" "and the credit and sale note upload…"
-cue["b"], cue["c"], cue["f"], cue["e"] = (beat(phrase(ph, 1, 0.03)), beat(phrase(ph, 3, 0.42)),
-                                          beat(phrase(ph, 5, 0.58)), beat(phrase(ph, 6, 0.74)))
+# "…at eighty percent" "season sync…" "the various reports…" "and the credit and sale note upload…"
+cue["b"], cue["c"], cue["f"], cue["e"] = (beat(inside(ph, 0, 0.6)), beat(phrase(ph, 1, 0.33)),
+                                          beat(phrase(ph, 2, 0.51)), beat(phrase(ph, 3, 0.7)))
+s, e, ph = say("portal4", e + GAP);        cue["docs"] = s                          # the new invoice and reminder
 # 6. Watch Dog and other enhancements
 dog = bar(e + 0.7)
 s, e, ph = say("dog1", dog + 0.5);         cue["ssg"], cue["ehub"] = s, beat(phrase(ph, 1, 0.56))
