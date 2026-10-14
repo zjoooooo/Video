@@ -39,7 +39,7 @@ if (mode !== 'check') {
   fs.mkdirSync(work, { recursive: true });
 }
 
-const browser = await chromium.launch();
+const browser = await chromium.launch({ args: ['--allow-file-access-from-files'] });   // films may draw footage frames from out/
 const context = await browser.newContext({ viewport: { width: 1920, height: 1080 }, deviceScaleFactor: 1 });
 async function open() {
   const page = await context.newPage();
