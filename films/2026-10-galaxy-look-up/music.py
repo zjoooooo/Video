@@ -24,8 +24,8 @@ score = Score(seed=31)
 note = score.note
 
 # ---- instruments (General MIDI; channel 9 is percussion) ---------------------------------------
-PIANO, ORGAN, STR, CHOIR, TIMP, CEL, HARP, GLOCK, BASS, DR = 0, 1, 2, 3, 4, 5, 6, 7, 8, 9
-PROGRAM = {PIANO: 0, ORGAN: 19, STR: 48, CHOIR: 52, TIMP: 47, CEL: 8, HARP: 46, GLOCK: 9, BASS: 43}
+PIANO, ORGAN, STR, CHOIR, TIMP, BASS, DR = 0, 1, 2, 3, 4, 8, 9
+PROGRAM = {PIANO: 0, ORGAN: 19, STR: 48, CHOIR: 52, TIMP: 47, BASS: 43}
 CRASH, RIDE = 49, 51
 
 CHORDS = {   # bass root, upper voicing
@@ -50,7 +50,6 @@ def motif(t, inst, vel, notes=MOTIF, octave=0):
 # ---- the hook: one organ chord on the Sun, cut dead on "Look up." ---------------------------------
 for p in ("D1", "D2", "A2", "D3", "F3", "A3"): note(0.0, ORGAN, p, 104, CUE["look"] - 0.02, human=False)
 note(0.0, TIMP, "D2", 88, 1.2); note(0.0, DR, CRASH, 64, 3.8)
-note(CUE["look"] + 0.35, CEL, "A6", 46, 1.6)                       # the words appear
 
 # ---- the bed, bar by bar -----------------------------------------------------------------------------
 for b in range(int(DUR / BAR)):
@@ -85,13 +84,9 @@ for b in range(int(DUR / BAR)):
         note(t0, TIMP, 36 + pitch(root) % 12, 58 * soft, 0.6)
         for k in range(4): note(t0 + k * BEAT, DR, RIDE, (34 if k % 2 else 42) * soft, 0.3)
 
-# ---- events: a different glint on every cut ------------------------------------------------------------
+# ---- events: no pings on the cuts (Justin: they sound like AI); the music itself carries the edit ----
 note(SC["sky"], PIANO, "D2", 52, 3.0)
 motif(SC["sky"] + 0.5 * BAR, PIANO, 58)
-for k, t in enumerate(CUE["figures"]): note(t, CEL, ("A6", "D7")[k % 2], 60, 1.4); note(t + 0.16, CEL, ("D6", "F6")[k % 2], 50, 1.2)
-for k, t in enumerate(CUE["planets"][1:], 1):
-    inst = (CEL, HARP, GLOCK)[k % 3]
-    ts = tones(t, 2); note(t, inst, ts[k % 3], 58, 0.9); note(t + 0.12, inst, ts[(k + 1) % 3] + 12, 52, 0.9)
 # the wormhole: timpani roll and cymbal swell rising into the burst, strings climbing D minor to C
 w0 = SC["burst"]
 rolls = int((BURST - w0) / (BEAT / 4))
@@ -105,7 +100,6 @@ for k, p in enumerate(["D4", "E4", "F4", "G4", "A4", "Bb4", "C5", "D5", "E5", "F
 for k, p in enumerate(("F1", "F2", "C3", "F3", "A3", "C4", "F4")): note(BURST + k * 0.02, ORGAN, p, 100, 3.8, human=False)
 for p in ("F4", "A4", "C5"): note(BURST, CHOIR, p, 76, 3.8, human=False)
 note(BURST, TIMP, "F2", 96, 1.4); note(BURST, DR, CRASH, 80, 4.0)
-for k, p in enumerate(sorted(tones(BURST, 1) + tones(BURST, 2) + tones(BURST, 3))): note(BURST + 0.05 + k * 0.06, HARP, p, 62, 1.0)
 motif(BURST + 2 * BAR, STR, 70, MOTIF_F)                           # the motif returns, now in F
 # the jet: timpani hit and a low organ pedal
 note(JET, TIMP, "F2", 100, 1.6); note(JET + 0.25, TIMP, "C2", 82, 1.0); note(JET, DR, CRASH, 82, 3.6)
@@ -116,7 +110,6 @@ motif(TWIST + 2 * BAR, PIANO, 56)
 for k, p in enumerate(("C5", "F5", "G5")): note(URL - 1.5 + k * 0.5, PIANO, p, 60, 0.5)
 for k, p in enumerate(("F1", "F2", "C3", "F3", "A3", "C4", "F4", "A4")): note(URL + k * 0.04, PIANO, p, 74 - 2 * k, DUR - URL - 0.2, human=False)
 for p in ("F3", "A3", "C4"): note(URL, STR, p, 40, DUR - URL - 0.4, human=False)
-note(URL + 0.1, CEL, "A6", 58, 2.0); note(URL + 0.5, CEL, "C7", 50, 2.0); note(URL + 0.9, GLOCK, "F6", 46, 2.4)
 
 # ---- write, render, mix under the narration -----------------------------------------------------------
 mid, music_wav = OUT.with_suffix(".mid"), OUT.with_suffix(".music.wav")

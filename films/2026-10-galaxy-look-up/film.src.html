@@ -70,12 +70,12 @@ function text(s, x, y, { size = 40, weight = 200, font = TITLE, color = INK, alp
   ctx.restore();
 }
 const LABELS = {
-  earth: ['EARTH', '地球'], moon: ['THE MOON', '月球'], sunwide: ['THE SUN', '太阳', 'right'], jupiter: ['JUPITER', '木星'],
-  saturn: ['SATURN', '土星', 'right'], halley: ["HALLEY'S COMET", '哈雷彗星', 'right'], riseg: ['THE MILKY WAY', '银河系'],
+  earthg: ['EARTH', '地球'], moon: ['THE MOON', '月球'], sunwide: ['THE SUN', '太阳'], jupiter: ['JUPITER', '木星'],
+  saturn: ['SATURN', '土星', 'right'], riseg: ['THE MILKY WAY', '银河系'],
   lmc: ['LARGE MAGELLANIC CLOUD', '大麦哲伦云'], cena: ['CENTAURUS A', '半人马座 A'], m87: ['M87', '室女座 A'],
 };
 const WHISPERS = [                                     // small facts, only ones the product's code shows; [from, to] after a scene starts
-  ['sky', 1.2, 9.4, '25 constellations · real J2000 star positions'],
+  ['sky', 0.6, 9.4, '25 constellations · real J2000 star positions'],
   ['burst', 5.4, 13.2, '85,000 points of light · generated in code'],
 ];
 
@@ -131,9 +131,11 @@ async function render(t) {
     const t0 = SC[scene];
     if (t > t0 + a && t < t0 + b) text(s, W - 96, BAR_H / 2, { size: 28, weight: 400, font: MONO, align: 'right', alpha: 0.75 * window01(t, t0 + a, t0 + b, 0.6, 0.6) });
   }
-  for (const s of TL.subs) {
+  for (const s of TL.subs) {                           // Chinese over English, both inside the lower bar
     if (t < s.t0 || t > s.t1) continue;
-    text(s.zh, W / 2, H - BAR_H / 2, { size: 34, weight: 300, font: ZH, track: 0.06, alpha: 0.92 * window01(t, s.t0, s.t1, 0.15, 0.2) });
+    const a = 0.92 * window01(t, s.t0, s.t1, 0.15, 0.2), two = !!s.en;
+    text(s.zh, W / 2, H - BAR_H / 2 - (two ? 20 : 0), { size: 32, weight: 300, font: ZH, track: 0.06, alpha: a });
+    if (two) text(s.en, W / 2, H - BAR_H / 2 + 24, { size: 26, weight: 300, track: 0.02, alpha: a * 0.85 });
   }
 
   // the end card: name and address below the window, then an iris

@@ -21,7 +21,7 @@ FPS = 60
 reel, subs = [], []
 
 
-def shot(name, t0, t1, at=0, rate=1.0, zoom=1.0, zoom1=None, at_x=0.5, at_y=0.5, **extra):
+def shot(name, t0, t1, at=0, rate=1.0, zoom=1.0, zoom1=None, at_x=0.5, at_y=0.5, **extra):   # extra may override rate or c
     """Footage `name` from frame `at` at `rate` (a pair ramps the rate), zooming from `zoom` to `zoom1`.
     The subject at the footage centre is shown at (at_x, at_y) of the frame."""
     z = (zoom + (zoom1 or zoom)) / 2
@@ -39,26 +39,30 @@ def line(lid, at):
 # hook: straight onto the Sun's limb, pulling back a touch, then black and "Look up."
 shot("sun", 0, 4.0, at=120, zoom=2.15, zoom1=1.95, at_x=0.44)
 cue["look"] = 4.0
-subs.append({"t0": 4.3, "t1": 6.0, "zh": SUBS["look"], "en": "Look up."})
+subs.append({"t0": 4.3, "t1": 6.0, "zh": SUBS["look"], "en": ""})   # the card itself says "Look up."
 
-# I: the sky from Earth, one cut per figure, each cut on the moment capture.mjs selects it
+# I: the real sky with its labels; capture.mjs picks Leo, Scorpius and Sagittarius out of it at frames 100, 290, 480
 sky = 6.0
-for k, (t0, t1, at) in enumerate([(6.0, 9.0, 30), (9.0, 12.0, 355), (12.0, 16.0, 685)]):
-    shot("sky", t0, t1, at=at, zoom=1.86, zoom1=1.74, at_y=0.47)
-cue["figures"] = [6.0, 9.0, 12.0]
+shot("sky", sky, 16.0, at=40, zoom=1.45, zoom1=1.52)
+cue["figures"] = [beat(sky + (f - 40) / FPS) for f in (100, 290, 480)]
 line("eyes", sky + 1.0)
 
-# II: outwards through the Solar System; pull-outs, off-centre, the cuts quicken toward the wormhole
+# II: outwards through the Solar System; pull-outs, off-centre, the cuts quicken toward the wormhole.
+# Earth (graded by grade.py earth) turns from day into night, where its city lights come up; framed so tight
+# that its poles sit under the letterbox
 go = 16.0
-plan = [("earth", 4.0, 0, 1.45, 1.25, 0.38), ("moon", 4.0, 120, 1.7, 1.45, 0.62), ("sunwide", 4.0, 0, 1.3, 1.1, 0.5),
-        ("jupiter", 2.0, 60, 1.5, 1.35, 0.62), ("saturn", 2.0, 40, 1.3, 1.18, 0.42), ("halley", 2.0, 0, 1.15, 1.05, 0.5)]
+plan = [("earthg", 6.0, 0, 1.85, 1.65, 0.5, {"rate": 0.78}),   # 0.78: ends (frame 281) before the Sun enters
+        ("moon", 4.0, 120, 1.7, 1.45, 0.62, {"grade": "dim"}),
+        ("sunwide", 4.0, 0, 2.0, 1.0, 0.5, {"zt": None}),
+        ("jupiter", 2.0, 60, 1.5, 1.35, 0.62, {}), ("saturn", 4.0, 40, 1.3, 1.18, 0.42, {})]   # Halley's Comet rides in the Sun's shot
 t = go
 cue["planets"] = []
-for name, d, at, z0, z1, ax in plan:
-    shot(name, t, t + d, at=at, zoom=z0, zoom1=z1, at_x=ax, **({"grade": "dim"} if name == "moon" else {}))
+for name, d, at, z0, z1, ax, extra in plan:
+    if "zt" in extra: extra = {"zt": [t, t + d]}         # an eased digital pull-out across the whole shot
+    shot(name, t, t + d, at=at, zoom=z0, zoom1=z1, at_x=ax, **extra)
     cue["planets"].append(t); t += d
 line("further", go + 0.5)
-line("past", go + 6.5)                                  # "Past a living Sun" lands on the Sun
+line("past", go + 8.5)                                  # "Past the Moon" on the Moon, "Past a living Sun" on the Sun
 
 # burst: the real wormhole played backwards, accelerating into a white flash; the galaxy rises
 burst = t
@@ -98,7 +102,8 @@ shot("ui", cue["window"], end, at=at, zoom=round(z_at, 4), zoom1=1.0, zt=[cue["w
 
 def srt(key, path):
     fmt = lambda x: f"{int(x // 3600):02}:{int(x % 3600 // 60):02}:{int(x % 60):02},{int(round(x % 1 * 1000)):03}"
-    path.write_text("".join(f"{i}\n{fmt(s['t0'])} --> {fmt(s['t1'])}\n{s[key]}\n\n" for i, s in enumerate(subs, 1)), encoding="utf-8")
+    rows = [s for s in subs if s[key]]
+    path.write_text("".join(f"{i}\n{fmt(s['t0'])} --> {fmt(s['t1'])}\n{s[key]}\n\n" for i, s in enumerate(rows, 1)), encoding="utf-8")
 
 
 subs.sort(key=lambda s: s["t0"])
@@ -113,7 +118,7 @@ for r in reel:                                           # every frame the film 
     assert 0 <= min(r["in"], last) and max(r["in"], last) < meta["frames"], f"{r['shot']} needs frame {last:.0f}, has {meta['frames']}"
 assert all(abs(r["t0"] * 2 - round(r["t0"] * 2)) < 1e-6 for r in reel), "a cut is off the beat grid"
 assert all(abs(v / 2 - round(v / 2)) < 1e-6 for v in (sky, go, burst, beyond, twist)), "a scene starts off a bar line"
-tl["reel"], tl["subs"] = reel, [{"t0": s["t0"], "t1": s["t1"], "zh": s["zh"]} for s in subs]
+tl["reel"], tl["subs"] = reel, [{"t0": s["t0"], "t1": s["t1"], "zh": s["zh"], "en": s["en"]} for s in subs]
 (HERE / "timeline.json").write_text(json.dumps(tl, indent=1, ensure_ascii=False))
 srt("zh", ROOT / "out/galaxy-look-up.zh.srt")
 srt("en", ROOT / "out/galaxy-look-up.en.srt")

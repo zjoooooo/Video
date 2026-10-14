@@ -70,23 +70,21 @@ async function drag(c, dx, dy, frames) {
   for (let i = 1; i <= frames; i++) { await ptr(c, 'move', 960 + dx * i / frames, 540 + dy * i / frames); await c.step(); }
   await ptr(c, 'up', 960 + dx, 540 + dy);
 }
-// fly the solar camera to a body (or the comet) with the product's own fly-to, optionally turn
+// fly the solar camera to a body with the product's own fly-to, optionally turn
 // around it with a drag (to find the terminator), then ride along while a slow drag orbits it (parallax)
-const ride = (id, frames, { turn, angle = -0.35, drift = 0.6, dolly = 0 } = {}) => ({   // dolly: a wheel notch out every n frames
+const ride = (id, frames, { turn, drift = 0.6, zoom = 0, comet } = {}) => ({   // zoom: wheel notches before recording (< 0 in); comet: Halley's angle
   prepare: 'solar-overview',
   run: async c => {
-    await c.page.evaluate(([id, angle]) => {
-      if (id === 'halley') { solarComets[0].angle = angle; selectSolarComet(0); flySolarToComet(0); }
-      else { selectSolarBody(id); flySolarTo(id); }
-    }, [id, angle]);
+    await c.page.evaluate(([id, comet]) => {
+      if (comet != null) solarComets[0].angle = comet;
+      selectSolarBody(id); flySolarTo(id);
+    }, [id, comet]);
     await c.until(() => window.solarFly === null);
+    for (let i = 0; i < Math.abs(zoom); i++) { await wheel(c, Math.sign(zoom) * 100); await c.step(2); }
     if (turn) await drag(c, turn[0], turn[1], 40);
     await c.step(60);                                  // let the arrival (and the drag's damping) settle
     await ptr(c, 'down', 960, 540);
-    await c.rec(frames, async i => {
-      await ptr(c, 'move', 960 + i * drift, 540);
-      if (dolly && i % dolly === 0) await wheel(c, 100);
-    });
+    await c.rec(frames, i => ptr(c, 'move', 960 + i * drift, 540));
     await ptr(c, 'up', 960 + frames * drift, 540);
   },
 });
@@ -117,24 +115,24 @@ const UI_MARKS = { release: 450, click: 510, drag: [690, 810], from: [760, 560],
 export const SHOTS = {
   probe: { prepare: 'galaxy-overview', run: c => c.rec(30, i => cam(c.page, 'galaxy-slow-rotation', i / 600)) },
   sun: { prepare: 'sun-close-view', run: c => c.rec(660, i => cam(c.page, 'sun-surface-orbit', i / 659)) },
-  // Leo, then Scorpius, then Sagittarius toward the galactic centre; each gold figure appears on arrival
+  // the real sky with its constellation labels; Leo, Scorpius and Sagittarius are picked out of it in turn
+  // (selected at frames 100, 290, 480), the others dimming as each gold figure draws in
   sky: {
-    prepare: 'sky-overview',
+    ui: ['#skylabels'], dpr: 2, prepare: 'sky-overview',
     run: async c => {
       const [leo, sco, sgr] = await c.page.evaluate(() => [4, 7, 8].map(i => window.skyConDir(i)));
-      const legs = [[0, 200, leo, leo, 4], [200, 320, leo, sco, -1], [320, 520, sco, sco, 7], [520, 640, sco, sgr, -1], [640, 960, sgr, sgr, 8]];
-      await c.rec(960, async i => {
+      const legs = [[0, 100, slerp(leo, sco, 0.16), leo, 4], [100, 230, leo, leo, 4], [230, 290, leo, sco, 7], [290, 420, sco, sco, 7], [420, 480, sco, sgr, 8], [480, 700, sgr, sgr, 8]];
+      await c.rec(700, async i => {
         const [a, b, from, to, sel] = legs.find(([a, b]) => i >= a && i < b);
         const v = slerp(from, to, smooth((i - a) / (b - a)));
-        await c.page.evaluate(([v, sel, first]) => { window.skyLook(v.x, v.y, v.z); if (first && sel >= 0) window.selectSky(sel); }, [v, sel, i === a + 30]);
+        await c.page.evaluate(([v, sel, pick]) => { window.skyLook(v.x, v.y, v.z); if (pick) window.selectSky(sel); }, [v, sel, [100, 290, 480].includes(i)]);
       });
     },
   },
-  earth: ride('earth', 300, { drift: 0.6 }),                                    // the day side: the twilight band stays on the limb
+  earth: ride('earth', 420, { zoom: -6, drift: -1.0 }),                          // close; orbits from the day side into the night, city lights on
   moon: ride('moon', 420, { turn: [-100, -60], drift: 0.6 }),                    // a gibbous Moon; Earth has left the frame by 120
-  sunwide: ride('sun', 300, { drift: 0.4, dolly: 7 }),   // pulling away from the Sun until the inner orbits show
-  jupiter: ride('jupiter', 300, { drift: -0.8 }), saturn: ride('saturn', 300, { drift: 0.7 }), halley: ride('halley', 300, { angle: -0.2, drift: -0.5 }),
-  // the real wormhole from the galaxy into the Solar System (the film plays it backwards)
+  sunwide: ride('sun', 300, { zoom: 12, drift: 0.4, comet: 0.5 }),   // wide and steady (the film pulls out digitally), Halley's Comet trailing past the Sun
+  jupiter: ride('jupiter', 300, { drift: -0.8 }), saturn: ride('saturn', 300, { drift: 0.7 }),   // the real wormhole from the galaxy into the Solar System (the film plays it backwards)
   wormhole: {
     warm: 'solar-overview', prepare: 'galaxy-solar-beacon',
     run: async c => {
@@ -177,14 +175,15 @@ async function capture(url, name, dir) {   // a fresh browser per shot: reusing 
 
 async function shoot(browser, url, name, dir) {
   const shot = SHOTS[name]; if (!shot) throw new Error(`unknown shot ${name}`);
-  const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+  const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 }, deviceScaleFactor: shot.dpr || 1 });   // dpr 2: 4K screenshots of UI shots
   await installRecordingInitScript(ctx, { language: shot.lang || 'en' });
   await ctx.addInitScript(stepper);
   const page = await ctx.newPage();
   page.on('pageerror', e => { console.error('page error:', e.message); process.exitCode = 1; });
   await page.goto(url, { waitUntil: 'load' });
   await waitForDirector(page);
-  if (!shot.ui) await page.addStyleTag({ content: `${HIDE}{opacity:0!important;pointer-events:none!important}` });
+  const hide = HIDE.split(',').filter(sel => shot.ui !== true && !(shot.ui || []).includes(sel));   // ui: true keeps all, a list keeps those
+  if (hide.length) await page.addStyleTag({ content: `${hide.join(',')}{opacity:0!important;pointer-events:none!important}` });
   if (shot.warm) await page.evaluate(k => GalaxyVideoDirector.resetForShot(k, 0), shot.warm);
   await page.evaluate(async k => { await GalaxyVideoDirector.resetForShot(k, 0); window.__manual = true; }, shot.prepare);   // same task: no native frame slips in
   fs.rmSync(dir, { recursive: true, force: true }); fs.mkdirSync(dir, { recursive: true });
