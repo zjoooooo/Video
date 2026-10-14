@@ -63,14 +63,16 @@ const slerp = (a, b, t) => {
 };
 // a real mouse drag over `frames` frames (OrbitControls turns the camera), released at the end
 const ptr = (c, type, x, y) => c.page.evaluate(([type, x, y]) => window.__ptr(type, x, y), [type, x, y]);
+// the product's own wheel zoom, dispatched directly (Playwright's wheel also waits for native frames)
+const wheel = (c, deltaY) => c.page.evaluate(d => document.getElementById('cv').dispatchEvent(new WheelEvent('wheel', { deltaY: d, clientX: 960, clientY: 540, bubbles: true, cancelable: true })), deltaY);
 async function drag(c, dx, dy, frames) {
   await ptr(c, 'down', 960, 540);
   for (let i = 1; i <= frames; i++) { await ptr(c, 'move', 960 + dx * i / frames, 540 + dy * i / frames); await c.step(); }
   await ptr(c, 'up', 960 + dx, 540 + dy);
 }
 // fly the solar camera to a body (or the comet) with the product's own fly-to, optionally turn
-// around it with a drag (to find the terminator), then ride along
-const ride = (id, frames, turn, angle = -0.35) => ({
+// around it with a drag (to find the terminator), then ride along while a slow drag orbits it (parallax)
+const ride = (id, frames, { turn, angle = -0.35, drift = 0.6, dolly = 0 } = {}) => ({   // dolly: a wheel notch out every n frames
   prepare: 'solar-overview',
   run: async c => {
     await c.page.evaluate(([id, angle]) => {
@@ -80,7 +82,12 @@ const ride = (id, frames, turn, angle = -0.35) => ({
     await c.until(() => window.solarFly === null);
     if (turn) await drag(c, turn[0], turn[1], 40);
     await c.step(60);                                  // let the arrival (and the drag's damping) settle
-    await c.rec(frames);
+    await ptr(c, 'down', 960, 540);
+    await c.rec(frames, async i => {
+      await ptr(c, 'move', 960 + i * drift, 540);
+      if (dolly && i % dolly === 0) await wheel(c, 100);
+    });
+    await ptr(c, 'up', 960 + frames * drift, 540);
   },
 });
 // a galaxy beacon's own "fly to this galaxy", then a slow real drag around it while recording
@@ -92,10 +99,7 @@ const visit = (label, frames, zoom = 0, turn = null, dxPerFrame = 0.5) => ({
     await c.page.evaluate(() => document.querySelector('#bp-flyto').click());
     await c.until(() => getComputedStyle(document.getElementById('return-mw')).display !== 'none');
     await c.page.evaluate(() => window.closeBeaconExtras());   // like closing the card: no selection ring left behind
-    for (let i = 0; i < zoom; i++) {                   // the product's own wheel zoom (Playwright's wheel waits for native frames)
-      await c.page.evaluate(() => document.getElementById('cv').dispatchEvent(new WheelEvent('wheel', { deltaY: -100, clientX: 960, clientY: 540, bubbles: true, cancelable: true })));
-      await c.step(2);
-    }
+    for (let i = 0; i < zoom; i++) { await wheel(c, -100); await c.step(2); }
     if (turn) await drag(c, turn[0], turn[1], 40);
     await c.step(60);
     await ptr(c, 'down', 700, 540);
@@ -121,7 +125,9 @@ export const SHOTS = {
       });
     },
   },
-  earth: ride('earth', 300, [260, 0]), moon: ride('moon', 300, [300, -40]), jupiter: ride('jupiter', 300), saturn: ride('saturn', 300), halley: ride('halley', 300, null, -0.2),
+  earth: ride('earth', 300, { turn: [260, 0], drift: 0.7 }), moon: ride('moon', 300, { turn: [300, -40], drift: -0.6 }),
+  sunwide: ride('sun', 300, { drift: 0.4, dolly: 7 }),   // pulling away from the Sun until the inner orbits show
+  jupiter: ride('jupiter', 300, { drift: -0.8 }), saturn: ride('saturn', 300, { drift: 0.7 }), halley: ride('halley', 300, { angle: -0.2, drift: -0.5 }),
   // the real wormhole from the galaxy into the Solar System (the film plays it backwards)
   wormhole: {
     warm: 'solar-overview', prepare: 'galaxy-solar-beacon',
@@ -135,15 +141,15 @@ export const SHOTS = {
   rise: preset('galaxy-low-angle', 'fixed-wide-galaxy', 660),
   lmc: visit('Large Magellanic', 480, 6),
   cena: visit('Centaurus A', 720, 12, [220, -120]),          // turned until the dust lane crosses the halo
-  m87: visit('M87', 360, 8),
+  m87: visit('M87', 480, 8),
   // the product as people see it: UI on, and a real drag that turns the galaxy
   ui: {
     ui: true, prepare: 'galaxy-overview',
-    run: c => c.rec(1000, async i => {
+    run: c => c.rec(1300, async i => {
       if (i <= 480) await cam(c.page, 'galaxy-slow-rotation', i / 999);   // drift; from the press on, the drag turns it
       if (i === 480) await ptr(c, 'down', 760, 560);
-      if (i > 480 && i <= 600) await ptr(c, 'move', 760 + (i - 480) * 3, 560 - (i - 480) * 0.4);
-      if (i === 601) await ptr(c, 'up', 1120, 512);
+      if (i > 480 && i <= 600) await ptr(c, 'move', 760 + (i - 480) * 6, 560 + (i - 480) * 0.35);   // a wide, quick swing that tips it face-on
+      if (i === 601) await ptr(c, 'up', 1480, 602);
     }),
   },
 };
