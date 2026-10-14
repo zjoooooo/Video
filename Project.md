@@ -560,7 +560,8 @@ source that was read, and the render recipes in section 6 were run here.
 
 Source: a post by @Cryptoxorz listing eight Claude video skills and a
 100-second film made with the first of them. Seven of the eight have public
-repositories and were cloned and read; four were also run here. The eighth
+repositories and were cloned and read; four were also run here, and two more
+(wtt-code-animation-studio and video-shotcraft) on the Mac. The eighth
 (archival-doc) is the author's own and has no public repository. The 290-repo index at
 zhuyansen/awesome-claude-video-skills maps the wider field (promo 55,
 frameworks 48, explainers 48, editing 41, shorts 36, motion/logo 19, story
@@ -1097,7 +1098,23 @@ assets, voice timing, frame-by-frame drawing, MP4, audio and picture QA.
   that raises on any network connection; each voice file carries a sidecar
   noting that a human still has to listen to it.
 
-macOS-centric (system `say`, an Apple-silicon TTS model). Not run here.
+macOS-centric (system `say`, an Apple-silicon TTS model). Not run in the
+cloud container.
+
+Verified on the Mac (2026-10-14, Apple M5, 24 GB): the bundled starter film
+(a seed drawn flat, then in sand, then as particles) ran end to end:
+`init`, `tts` with the Tingting system voice, `seal`, `timeline --lock` (630
+frames, 21.0 s), `mix`, `--preview`, `--render` (630 frames in 45 s) and
+`finish` ("技术检查通过"). The preview's determinism test matched at all five
+frames, and one silhouette carried the character through all three styles.
+Two guards were tested and both refuse: appending one byte to a sealed WAV
+makes `check` and the renderer stop with a diff ("素材变更未确认"), and
+editing a narration line without re-voicing makes `timeline` fail ("旁白缓存
+与台词/音频不符"). One trap: generated voice files and their `.wav.json`
+sidecars must be listed in `assets.json` before `seal`, and `seal` runs only
+once, so sealing early means starting a new project. The offline voice clone
+was not run: it needs a 4.54 GB model, Python 3.12, about 10 GB of memory
+and a reference recording with its verified text.
 
 ### 9.8 video-shotcraft (Vincentwei1021): product promos from the real product
 
@@ -1143,6 +1160,18 @@ into a promo with 2.5D camera moves.
   comparison found the polished versions "clean but bland".
 - Ships an editable project, a BGM and no-BGM version from one timeline, and
   an optional export to a CapCut (JianYing) draft.
+
+Verified on the Mac (2026-10-14, Apple M5, 24 GB, Remotion 4.0.484): the
+bundled Ink Press template rendered its full 36.2 s film (1085 frames, h264
+1920x1080 with AAC, 20.7 MB) in 27 s. Text stays sharp at the deepest
+PageCam push-in, which supports the CSS `zoom` rule. The repository's 23 unit
+tests pass, and its CI smoke test rendered the first frame of all 150 demos
+in 201 s (`ClipCardLooping` is skipped because it needs a video file). One
+setup trap: the demos import `@remotion/motion-blur` from `demos/`, so
+installing it only in `template/` makes every demo fail, because one missing
+import breaks the shared bundle. Make it resolvable from the repository root
+too. The capture script was not run, because it needs a running product with
+demo data.
 
 ### 9.9 archival-doc (the post's author)
 
