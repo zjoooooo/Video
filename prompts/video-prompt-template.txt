@@ -1,0 +1,283 @@
+=== HOW TO USE (delete this block before pasting) ===
+1. Fill every {{...}} in <inputs>. Write "ask me" or "you decide" where unsure.
+2. In <type>, keep ONE block (A, B, C or D) and delete the other three.
+3. Open Claude Code (Opus 5.5 or stronger) in an empty folder and paste the prompt.
+4. Values can be written in Chinese; on-screen text follows the language you set in <inputs>.
+Sources of every rule: Project.md, section 8.
+=== END ===
+
+<role>
+You are the director, motion designer, engineer and sound designer of one short
+film. You make it by writing code that draws every frame, rendering it frame by
+frame in a headless browser, and encoding it with ffmpeg. The bar is high-end
+studio work. A clean, template-looking result is a fail.
+</role>
+
+<inputs>
+Topic, product or story: {{TOPIC}}
+The one thing the viewer must remember: {{TAKEAWAY}}
+Audience and where they watch: {{AUDIENCE_AND_PLATFORM}}
+Source material: {{SOURCE}}  (article, script, narration audio, product URL or repo path, reference video, or "none")
+Facts that must appear exactly: {{MUST_INCLUDE}}
+Duration: {{DURATION}} s
+Aspect ratios: {{ASPECTS}}  (16:9 1920x1080 / 9:16 1080x1920 / 1:1 1080x1080)
+Frame rate: {{FPS}}  (30 default; 24 for hand-drawn or cinematic looks; 60 for UI motion)
+On-screen text language: {{ON_SCREEN_LANGUAGE}}
+Style: {{STYLE}}  (a named style, a reference image or video path, a few mood words, or "propose three")
+Brand colours and fonts: {{BRAND}}
+Music: {{MUSIC}}  (my file path / synthesize in code / none)
+Narration: {{NARRATION}}  (my audio path / TTS voice / none)
+Subtitles: {{SUBTITLES}}  (burned in / .srt only / none)
+Check-ins: {{CHECKINS}}  ("pick plan only" / "pick plan, then approve stills" / "none, run unattended")
+Extra bans for this film: {{EXTRA_BANS}}
+</inputs>
+
+<process>
+Work in ./film/<slug>/ with source/, previews/, brief.md, index.html, audio/, qa/, out/.
+1. Environment. Check for Node or Python with Playwright and a Chromium, and an
+   ffmpeg whose encoder list includes libx264. Tell me what is missing and how to
+   install it; do not install system software without asking.
+2. Questions. Ask me once, in one message, at most four questions about things
+   that change the film: facts you cannot verify, missing material, the style if
+   I wrote "propose three". Fill every other gap with a sensible default and
+   write the default down. Do not come back with more questions later. With
+   check-ins "none", ask nothing and record your assumptions in brief.md.
+3. Three plans. They must differ in visual language or narrative structure, not
+   only in colour: A stays closest to the material, B changes the visual
+   language, C changes how it is told (one continuous shot, one recurring hero
+   object, one metaphor). For each give a name, one sentence, the style with
+   2-4 hex colours and fonts, the tech route, a shot list (time, what is on
+   screen, how it moves, how it exits), the sound, the estimated render time and
+   the main risk. Render one real key frame per plan with real text, colours and
+   fonts, never placeholder boxes. Look at the three images yourself, fix obvious
+   problems, then show them to me and wait for my pick. With check-ins "none",
+   choose yourself and write why in the report.
+4. brief.md. Write the chosen plan in full as a reusable prompt: inputs,
+   direction, banned list, cue sheet or narration timeline, shot list, build
+   rules, gotchas. Follow it from here on. If there is narration or music I
+   supplied, prepare and measure it now, before any picture (see <sound>).
+5. Build shot by shot. After each shot render three stills (entrance, main
+   action, end) and look at them. Fix overflow, overlap, small subjects and
+   unreadable text before starting the next shot. For films over 30 s, render a
+   half-resolution preview without motion blur once every shot exists, check
+   pace and transitions, then polish. With check-ins "approve stills", show me
+   three stills (opening, middle, end) before the full render.
+6. Once the picture is locked, synthesize music and effects on the same cue
+   sheet, mix and master, render the full film, then follow <review>.
+7. <deliver>.
+</process>
+
+<type>
+--- A. Motion-design piece (brand ident, showreel, launch teaser) ---
+- Usually 10-20 s, on a 120 BPM grid (one beat = 0.5 s). Something intentional
+  happens on every beat; cuts land on beats or half-bars.
+- Write the style's signature features as a checklist an expert could verify
+  (for cel animation: on twos at 24 fps, one smear frame on fast moves, line
+  boil every 2 frames, paper grain multiplied at 10-15%) and map each to a moment.
+- A structure that reads as high-end: one shape that never cuts, morphing size,
+  corner radius and colour between states while its content swaps with a short
+  blur; a cursor drives every change; the last frame equals the first so it loops.
+- Benchmarks: Buck, ManvsMachine, Apple keynote motion.
+
+--- B. Narrated explainer (15-60 s of narration, or a script to voice) ---
+- Get word-level timings: transcribe my audio and correct it against my script,
+  or synthesize the script line by line and measure each line. Anchor every
+  animation to a word or phrase, never to a hard-coded second, so a new
+  recording re-times the whole film.
+- Shots follow sentences, one idea per shot, 1.5-5 s each. For every shot write
+  what it must make clear, 2-4 keywords, entrance, main action, secondary
+  action and transition.
+- Turn each abstract concept into a visible object that moves, and keep one
+  metaphor per concept for the whole film: scope is a frame; too much is a pile
+  that tips over; categories are cards with a bracket and a stamp; a process is
+  numbered steps with arrows; growth is bars rising; forgetting is something
+  falling out of frame and turning grey.
+- Pick one explainer grammar and keep it: 3Blue1Brown (one object on black,
+  transforms, colour = concept name), Kurzgesagt (the concept becomes an object,
+  the camera travels between scales), Vox (an evidence desk, the camera moves
+  like an investigator's eye, elements step at 12 fps), whiteboard (say a line,
+  write a line), hand-drawn notes, kinetic type (the words are the actors), or a
+  data chart (axes, then data, then one annotation, values honest).
+- Give the two core nouns two fixed accent colours, used the same way in
+  picture, data and subtitles.
+- Subtitles: one line, about 20 CJK characters at most, the bottom 170 px kept
+  for them (higher on 9:16 if the platform's buttons cover the bottom). Also
+  export an .srt and a version without burned-in subtitles.
+- Do not draw faces or people in code. Use hands, objects, or a character I
+  provide.
+
+--- C. Product promo from my real web app or front-end project ---
+- Product: {{URL_OR_REPO}}. Read it first: name, one-line promise, three real
+  capabilities, numbers only if the source states them, colours and fonts from
+  its design system or computed styles.
+- Story: a hook on the pain or the promise (2-3 beats), the name reveal, how it
+  works in three beats with one concrete visual each, proof only if real, an end
+  card with name, tagline and URL held 2 s. 20-40 s, beats of 2-5 s, never more
+  than 8 words on screen.
+- Capture the real UI with realistic fake data (never empty databases, lorem
+  ipsum or real customer data): a full-page 2x screenshot, element cutouts with
+  transparent backgrounds, an "empty plate" with each flying element hidden, a 4x
+  shot of the hero element, and a layout.json of element boxes in page
+  coordinates. Animate crops of these screenshots, never redraw UI text. Every
+  element that flies in lands in its real slot.
+- 2.5D camera: a perspective container with keyframed centre, zoom and
+  rotation; use CSS zoom rather than scale inside it so text stays sharp.
+  Parallax is one drive value times per-layer factors such as 0.35 / 0.7 / 1.4,
+  with the move computed backwards so the hero ends centred.
+- At most two crash zooms in the film; no handheld shake in a bright UI promo.
+- Deliver a version with music and one without, from the same timeline.
+
+--- D. Story or art-style short with characters ---
+- Write TREATMENT.md first: logline, arc, a shot table (time | what is on screen
+  | what it does | camera | on-screen text | how it is made) and a cue map. Every
+  shot needs an event: something changes between its first and last frame. Gags
+  must read: fast actions, slow meanings, one read at a time.
+- Lock style, palette and characters before code. Write a style card with fixed
+  sections: essence and what it is not; materials and rendering; colour logic;
+  type; motion quality; camera grammar; sound palette; native moves; pitfalls.
+  Render a character model sheet with the real drawing code and show it to me.
+- Characters animate on twos (12 fps) for poses, mouths and line boil; camera,
+  wipes and effects run on ones. Line width stays constant in screen space.
+  Moods change through a squash-and-blink take, never a snap.
+- Transitions come from the action (a chomp to black, a fall, a zoom through an
+  eye) or from the next world's signature style. At least two real silences and
+  at least four different camera moves.
+- Dialogue: synthesize each line, transcribe it back to check the words, drive
+  the mouth from the audio's loudness and brightness, and for an interruption
+  generate the line longer and cut it.
+- Code is good at rules. Realistic people come from an image or video model on
+  a pure green background, keyed and composited by code.
+</type>
+
+<direction>
+- Style: one look for the whole film, described so an expert names it in one
+  second. Same character or object looks the same in every shot.
+- Composition: the subject fills at least a third of the frame height; 5% safe
+  margins; a 60% full frame reads deliberate, a 95% full frame reads generated.
+- Colour: one main colour and one or two accents.
+- Type, for a frame whose short side is 1080 px: subtitles at least 60 px, any
+  text the viewer must read at least 48 px, titles at least 72 px, at most two
+  type sizes per frame. Contrast at least 4.5:1 for text and 3:1 for graphics,
+  measured on the worst spot of a textured background.
+- Text dwell: one idea per screen; CJK characters / 9 + 0.5 s, Latin words / 3
+  + 0.5 s, never under 1.2 s; hold at least 1 s after a conclusion or a stamp.
+- Pacing: a hook in the first 0.5 s, never more than 0.3 s of empty or black; a
+  visible change every 2-3 s, densest in the first 3 s; one unmistakable hero
+  moment at 60-75% of the runtime; an end frame held 1-1.5 s with living
+  micro-motion. Stillness longer than 2 s only as a deliberate hold.
+- Banned: a dark or blue-purple gradient background with centred big type;
+  everything fading in and out; the same slow push in every shot; identical
+  timing on every move; linear motion unless it is mechanical; crossfade as the
+  default transition; particle bursts, glows and lens flares unless the style
+  calls for them; on-screen text that repeats the narration; invented numbers,
+  quotes, names or prices; real brands or logos I did not provide; "made with
+  code" badges or watermarks; plus the extra bans in <inputs>.
+</direction>
+
+<motion>
+- Springs are closed-form step responses. When a value changes target several
+  times, sum one spring per change so it stays a pure function of t. One tier
+  per kind of element (w = angular frequency, z = damping ratio):
+    buttons, toggles, leading edges     w 22-26  z 0.75-0.85
+    cards, containers, camera           w 14-16  z 0.70-0.75
+    big type, 3D objects, logo lockup   w 9-11   z 0.85-1.0
+    mascots, stickers                   w 16-20  z 0.40-0.50
+- Arrive with ease-out, leave with ease-in, move the camera with ease-in-out.
+  Put peak speed early in a move. Vary durations; when every move takes the
+  same 0.4 s the film feels mechanical.
+- Every shot: entrance (0.2-0.5 s, starting 0.03-0.1 s before its word or beat)
+  -> main action -> secondary motion (2-6 px drift, 1-3% scale, 1-2 degrees on
+  1.5-4 s periods, at most two kinds at once) -> exit or transition (0.3-0.7 s).
+- Events, not cycles: pin each main action to a beat or a word and let it
+  happen once. Loops only for blinks, sparks and backgrounds.
+- Camera vocabulary: hold; slow push 0.6-1.5 s by 10-40%; pull back 0.8-2 s;
+  lateral glide 0.5-0.9 s; punch 0.25-0.35 s by 18-32%; whip 0.26-0.30 s; slam
+  0.17 s with scale 1.55 -> 0.94 -> 1.0; cut. Accents on at most a third of the
+  shots, never three push-ins in a row. Interpolate zoom in log space. Shake
+  lasts 0.15-0.25 s and decays, at most two or three times per film, and moves
+  the background too.
+- Transitions: at least three types, never the same one three times in a row.
+  Use the material's own move (paper tears or falls, a board is erased, a screen
+  glitches, a page turns, one shape becomes the next) or the next style's
+  signature. A full-screen wipe overscales past the corners and takes about
+  0.3 s. Outgoing text leaves before incoming text takes the same space. No more
+  than three flashes in any one second.
+</motion>
+
+<sound>
+- One cue sheet (beats, hits, narration lines) is the single source of timing
+  for picture, sound and subtitles. Place each sound by its sync point at the
+  visual event time: a hit on its transient, a whoosh on its pass-by peak, a
+  riser on its end. Never offset sounds by hand.
+- If I supply music, measure its beat grid and downbeats by fitting a grid to
+  the onsets (a single tempo estimate can be off by 2%), start on a downbeat and
+  put the hero moment on the drop. Otherwise synthesize music in code (kick with
+  a pitch drop, bass, detuned chords with reverb, a melody), or use only CC0 or
+  licensed samples recorded in CREDITS.md.
+- Use silence as punctuation at least once; when the music cuts, cut its reverb
+  tail as well.
+- Narration first: synthesize or load it, measure every line, then time the
+  picture to it. Change the scene 0.1-0.2 s before a line starts. Never speed the
+  voice up to fit. Duck the music 8-10 dB under the voice.
+- Master to -14 LUFS integrated, true peak at most -1 dBTP, 48 kHz stereo AAC.
+  You cannot listen, so check the loudness numbers and look at a waveform and a
+  spectrogram image for clipping, gaps and constant low rumble.
+</sound>
+
+<build>
+1. One self-contained index.html, unless I named a framework. Expose
+   window.DURATION, window.ready (true only after fonts and assets load) and
+   window.render(t) with t in seconds.
+2. Every pixel is a pure function of t. No requestAnimationFrame loops,
+   setTimeout, CSS transitions or animations, Date.now, physics that accumulates
+   between frames, or unseeded Math.random. Use a seeded hash keyed by object
+   index; for a hand-drawn boil quantize jitter with floor(t * 12). Pre-compute
+   simulations or solve them in closed form. Reset all canvas state at the start
+   of every frame.
+3. Fonts and images are local files; wait for document.fonts.ready. Bundle a CJK
+   font for Chinese text (Noto Sans SC or Source Han Sans) with a fallback
+   stack. No network requests while rendering.
+4. Never put will-change on anything the camera scales. Text that swaps inside a
+   morphing shape gets its own mask and timing.
+5. Renderer: Playwright opens the page at the film size with deviceScaleFactor
+   1, calls render(t) for each frame, captures JPEG quality 95 or the canvas
+   pixels, and pipes them to ffmpeg: libx264, yuv420p, crf 18, +faststart, BT.709
+   tags. Run one browser per worker for parallel rendering and write frames
+   atomically so a render can resume. For fast motion add motion blur: 4
+   sub-frames inside a 180-degree shutter, blended with ffmpeg tmix, never
+   straddling a hard cut.
+6. Mux the mastered audio. Render each aspect ratio from the same timeline with
+   its own layout; never crop 16:9 into 9:16.
+</build>
+
+<review>
+- Before motion: 3-10 key-frame stills, each worthy of a poster.
+- After the full render:
+  - Check the file: exact duration, resolution, fps, audio present, loudness,
+    no black frames.
+  - Make a contact sheet every 0.5 s, the same sheet 360 px wide for a phone, and
+    a strip of 12 consecutive frames around each fast move. Look at all of them.
+  - Determinism: render a frame, render a different frame, render the first
+    again; the two images must be identical.
+  - Score 1-10 as a picky motion director, not a proud author: opening hook,
+    phone readability, motion craft, a new change every 2-4 s, composition,
+    style fidelity, sound and sync, faithfulness to my facts and brief.
+    6 = template level, 8 = high-end agency, 9 = award shortlist.
+  - List the three worst problems with timestamps. Fix the lowest score first,
+    re-render only those seconds, and repeat until every score is 8 or more, at
+    most three rounds; report anything still below 8. Log each round in
+    qa/review_log.md.
+  - If you can start a subagent, give one with a clean context only the finished
+    video and the sheets, not the code, and have it report problems with
+    timestamps.
+</review>
+
+<deliver>
+out/final.mp4 (plus one file per aspect ratio, and a version without subtitles
+or music where relevant), the source with a one-command build, brief.md,
+CREDITS.md with every asset and its licence, and a short report: the concept in
+two sentences; a beat sheet with timecodes; how each signature feature was
+realised; check numbers (duration, resolution, fps, loudness, true peak, render
+time); the final scores; your honest three biggest weaknesses; which parameters
+change the intensity; and any fact you could not verify.
+</deliver>

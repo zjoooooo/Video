@@ -488,57 +488,696 @@ handoffs; the skill allows back-out and elastic easing for hero reveals, the
 broll skill bans bouncy easing outright. Taste, not physics. Pick one and
 write it into the banned list.
 
-## 8. A synthesized prompt template
+## 8. The merged prompt template
+
+`prompts/video-prompt-template.txt` merges the rules from the community
+prompts (sections 3-5), the open-source reels (section 7) and the eight skill
+packages (section 9) into one prompt to paste into Claude Code. It replaces the
+earlier template in this section, which covered only motion-design pieces. It
+is plain text so it can be copied whole.
+
+How to use it:
+
+1. Fill every `{{...}}` slot in `<inputs>`; write "ask me" or "you decide"
+   where unsure. Values can be in Chinese.
+2. Keep one of the four blocks in `<type>` and delete the other three.
+3. Delete the "HOW TO USE" header and paste the rest into Claude Code
+   (Opus 5.5 or stronger), started in an empty folder.
+4. The model asks one round of questions, shows three plans with a real key
+   frame each, then builds, renders, scores itself and delivers.
+
+| Section | What it controls | Taken mainly from |
+|---|---|---|
+| `<role>` | The quality bar | mg-styles-15 |
+| `<inputs>` | 17 slots, including how often to check in | xilo-opus-video, wtt (style gate), code-video-director (unattended mode) |
+| `<process>` | One round of questions, three plans with real key frames, `brief.md`, shot-by-shot stills, low-res preview | xilo-opus-video, lemo-opuscar, wtt |
+| `<type>` A | Motion-design piece on a beat grid | mg-styles-15, @twoclipping |
+| `<type>` B | Narrated explainer anchored to words | dashi-animationstyle, huashu grammars, wtt |
+| `<type>` C | Product promo from captured real UI | video-shotcraft, shipvideo |
+| `<type>` D | Story or art-style short with characters | lemo-opuscar, P(doom) / ClaudeAnimationBase, huashu |
+| `<direction>` | Composition, colour, type sizes, contrast, dwell, pacing, banned list | dashi rules, opus-visual-motion-engine, mg-styles-15, code-video-director, huashu |
+| `<motion>` | Spring tiers, shot structure, events not cycles, camera vocabulary, transitions | xilo, dashi, code-video-director, huashu, @twoclipping |
+| `<sound>` | Cue sheet, sync points, beat fitting, narration first, ducking, mastering | mg-styles-15 audio library, video-shotcraft, code-video-director, lemo-opuscar |
+| `<build>` | Frame contract, determinism, fonts, renderer, motion blur | all of them; canvas reset from dashi, shutter rule from the SuhaasNv reel |
+| `<review>` | File checks, sheets, determinism test, scored rounds, independent reviewer | mg-styles-15 scale, xilo, wtt, huashu, video-shotcraft |
+| `<deliver>` | Files, credits and the report | mg-styles-15, lemo-opuscar |
+
+If you would rather install a skill than paste a prompt:
+
+| Type | Skill to install |
+|---|---|
+| A, motion design | mg-styles-15 (prompts, harness, audio library) or xilo-opus-video |
+| B, narrated explainer | dashi-animationstyle (Chinese narration, macOS) or huashu-art-motion |
+| C, product promo | video-shotcraft (Remotion) |
+| D, story or art style | lemo-opuscar, or huashu-art-motion for art-history looks |
+
+A filled `<inputs>` block for type B, as an example:
 
 ```text
-<inputs>
-Ask me for: the subject and a one-line promise, 8-12 moments or UI states,
-real data for each, brand colors and fonts, formats (16:9 / 1:1 / 9:16), and a
-royalty-free song around 120 BPM (or say "synthesize the score").
-</inputs>
-
-<direction>
-Studio-grade motion design. State the taste bar in one sentence (e.g. Apple
-keynote launch film, Dribbble-level UI motion, kinetic typography monument).
-Springs with a tiny overshoot at most. The camera reframes so each moment
-fills the frame. Last frame = first frame.
-Banned: crossfades, blur-ins, particle bursts, glows, lens flares, camera
-shake, gradients on UI chrome, holds over 1 s, dead time, anything that looks
-like a template, text too small to read.
-</direction>
-
-<structure>
-120 BPM, N bars, something happens on every beat. List the beats.
-</structure>
-
-<build>
-1. One self-contained HTML file. window.DURATION and async window.seek(t).
-   Every value computed from t: no CSS transitions, no timers, no rAF, no
-   state carried between frames, seeded randomness only.
-2. Closed-form springs; sum one spring per target change.
-3. Outgoing content leaves before incoming content enters the same space.
-4. If a song is supplied, measure its beat grid with numpy and start on a
-   downbeat; otherwise synthesize the score from the renderer's event list.
-5. Render with Playwright at 60 fps, 4 subframes per frame blended with
-   ffmpeg tmix. H.264, yuv420p, crf 18, faststart. Export every format.
-6. Before the full render: one frame per beat as a contact sheet. Fix
-   anything cramped, unreadable, off-grid or overlapping. Then scan the final
-   video for single-frame pops (frame-difference spikes 3x their neighbours).
-</build>
-
-<gotchas>
-No will-change on anything the camera scales. Floods overscale past the
-corners over ~0.3 s. Text inside a morphing container has its own mask and
-timing. Export [0, duration) without the endpoint frame.
-</gotchas>
-
-<start>
-Ask me for the inputs, then show the beat map and 4 stills before writing the
-full film. Deliver the MP4, the source, and the list of tunable parameters.
-</start>
+Topic, product or story: 大模型的「上下文窗口」是什么，为什么聊久了它会忘事
+The one thing the viewer must remember: 上下文窗口是模型一次能看到的全部文字，满了就要丢掉最早的
+Audience and where they watch: 普通用户，手机竖屏
+Source material: ./source/narration.wav and ./source/script.txt (my own recording)
+Facts that must appear exactly: none
+Duration: 45 s
+Aspect ratios: 9:16 1080x1920
+Frame rate: 30
+On-screen text language: 简体中文
+Style: hand-drawn notes, ink blue lines with one orange accent
+Brand colours and fonts: none
+Music: none
+Narration: my audio path above
+Subtitles: burned in, plus .srt
+Check-ins: pick plan, then approve stills
+Extra bans for this film: robots, glowing brains, binary code rain
 ```
 
-## 9. Sources
+Not tested: the template has not been run end to end in Claude Code from
+this container, which has no Anthropic API key. Each rule comes from a
+source that was read, and the render recipes in section 6 were run here.
+
+## 9. Skill packages: from one prompt to a repeatable workflow (added 2026-10-14)
+
+Source: a post by @Cryptoxorz listing eight Claude video skills and a
+100-second film made with the first of them. Seven of the eight have public
+repositories and were cloned and read; four were also run here. The eighth
+(archival-doc) is the author's own and has no public repository. The 290-repo index at
+zhuyansen/awesome-claude-video-skills maps the wider field (promo 55,
+frameworks 48, explainers 48, editing 41, shorts 36, motion/logo 19, story
+and animation 17, music video 8).
+
+The shift these packages represent: the one-line prompt of September is now
+wrapped in a process. All three fix the same contract (`window.render(t)`,
+deterministic, seeded random, no timers), then add what a prompt cannot
+carry: an interview, a plan review, a style library, a QA loop with scores,
+and scripts for rendering and audio.
+
+### 9.1 xilo-opus-video (Kianzzz): the most general one
+
+Workflow in SKILL.md: check the environment, ask what to make (an idea, an
+article, a product URL, a codebase, or a reference video), propose three
+plans that differ on purpose (A safe, B a different visual language, C a
+different narrative structure), render a key-frame still or a 2-4 s sample
+for each plan, let the user pick, write `brief.md` (a seven-block structured
+prompt: role, inputs, direction, structure, build, gotchas, start), then
+build shot by shot with three stills per shot for self-checks, render, score,
+deliver. Everything lands in `opus-video/<slug>/` with `source/ previews/
+brief.md index.html audio/ qa/ out/`.
+
+What is worth copying verbatim:
+
+- **Spring tiers.** One closed-form spring, four parameter tiers, and the rule
+  that like elements share a tier within one film:
+
+  | Use | Feel | w | z |
+  |---|---|---|---|
+  | buttons, toggles, indicator leading edge | fast, crisp | 22-26 | 0.75-0.85 |
+  | cards, containers, camera | default | 14-16 | 0.70-0.75 |
+  | big type, 3D objects, logo lockup | heavy, almost no overshoot | 9-11 | 0.85-1 |
+  | mascots, stickers | lively, visible overshoot | 16-20 | 0.40-0.50 |
+
+- **Code stack table.** Canvas 2D for pixel, flat, hand-drawn, particles;
+  HTML/CSS/SVG for UI and type; WebGL shaders for texture passes (CRT, grain,
+  halftone) over content drawn elsewhere; Three.js for 3D; p5.brush for
+  painterly strokes (slow, measure one frame first); Remotion only for long
+  multi-scene pieces or when a product codebase must be read; Manim for math.
+  Rule: pick the look first, then the simplest code that makes it; when
+  mixing, layer content, texture, sound, each runnable alone.
+- **Green-screen characters plus code scenes.** When the user wants real
+  people, have a video model generate the person on a pure green background,
+  key with `chromakey=0x19FF0A:0.16:0.08,despill=type=green`, build the set,
+  type and stickers as a code layer, and overlay with ffmpeg.
+- **Hand-drawn feel:** seed stroke jitter with `floor(t * 12)` so lines
+  change 12 times a second while the camera stays smooth per frame.
+- **Chinese fonts.** Bundle a local font with `@font-face` (the system fonts
+  differ per OS), wait for `document.fonts.ready` before `window.ready`,
+  and for pixel styles rasterize text on a small canvas and threshold alpha.
+- **Self-scoring QA.** After a full render, make a contact sheet and a
+  phone-width (360 px) sheet, then score 1-10 on: opening (a hook in the
+  first 2 s), phone readability, motion (no linear slides, no dead beats),
+  change (something new every 2-4 s), composition (subject size, no empty
+  or crowded frame), fidelity to the brief, sound sync. List the three worst
+  problems with timestamps, fix, re-render only those seconds, repeat until
+  every item is 8 or above. Two or three rounds is normal. Keep a
+  `qa/review_log.md`.
+- **Default-look warning.** "Dark background, centred big type, everything
+  fading in and out" is what appears when nothing constrains the model.
+  Name it in the brief's banned list.
+
+Verified here: `render.py` rendered a still and a 2 s clip with four
+sub-frames (60 frames x 4 samples in 66 s at 1280x720, PNG screenshots);
+`audio_tools.py sfx` synthesized a four-event effects track from a JSON
+timeline, `normalize` brought it to -15 LUFS / -0.9 dBTP (the docs warn that
+clips under 10 s land 1-2 LU off target), and `check` wrote waveform and
+spectrum images so a model that cannot hear can still inspect the mix.
+`check_env.py` reported Chromium 141 with WebGL2 and only ffprobe missing.
+
+### 9.2 lemo-opuscar (Lemomo): a style library with a voice pipeline
+
+Forty-three styles (ink wash, ukiyo-e, whiteboard, brick toy, paper pop-up,
+tilt-shift, sci-fi sitcom toon, data journalism, mid-century toon, and so
+on), each a `STYLE.md` plus a demo film made entirely in code. Installed as
+a Claude Code plugin (`claude plugin marketplace add lemomo-ai/lemo-opuscar`).
+The skill is a thin hand-off to the library's `AGENTS.md`: one round of
+questions in a single message, then `TREATMENT.md`, then style frames or a
+model sheet rendered with the real drawing code, then produce.
+
+**The style-prompt format.** `STYLE.md` holds only what is true for every
+film in the style, 6-11 KB, with fixed section numbers: 1 essence and what it
+is not, 2 materials and rendering, 3 colour logic, 4 type and subtitles, 5
+motion quality, 6 camera grammar (a table of move, what it expresses, what
+it can serve), 7 sound palette, 8 native moves (each with "fits content
+like"), 9 pitfalls of the medium, 10 engine, 11 variation space (three
+structures, three openings, three endings). Story, shots, BPM, palette and
+props go to `DEMO.md`, which must open with "One example among many. Don't
+reuse its story, arc, shots, props or timings." A number measured in the demo
+becomes a rule in the style ("the subject fills at least 1/3 of the frame").
+
+Examples of style invariants written as code-level rules:
+
+- Sci-fi toon: "Line width is constant in screen space: transform points to
+  screen, then stroke with an identity transform." Line boil: resample each
+  outline every ~7 px, displace along the normal with low-frequency noise at
+  ~1.7 px, cycle three boil drawings at 12 fps. Characters on twos (12 fps);
+  camera, portal swirl and wipes on ones (24 fps). One palette per world,
+  3-5 colours, maximally different from the previous world in hue and value.
+- Ink wash: a five-tone ink opacity table (焦 .96, 浓 .82, 重 .60, 淡 .34,
+  清 .16), one vermilion, never red type.
+- Whiteboard: no hands, markers float with a real cast shadow; circles start
+  at an angle and overlap past closure.
+- Brick toy (3D): ambient occlusion mandatory, supersample 2x, tungsten HDRI
+  turns whites orange.
+
+**The pipeline adds voice.** One timeline drives picture, voice, score, foley
+and subtitles:
+
+```text
+timeline (single source of truth)
+   picture:  web page with render(t) -> headless Chrome, frame by frame
+   voice:    TTS per line -> speech-to-text check -> word timings
+   music:    score from the same timeline (samples + synthesis)
+   sound:    procedural foley at event times
+   subtitles: .srt + burned-in captions
+mix (duck, compress, balance) -> mux, two-pass loudnorm -14 LUFS
+```
+
+- Each dialogue line keeps three texts: `text` for the TTS (phonetic
+  respellings, "buh, buh-broken"), `sub` for the subtitle, `asr` for what the
+  recognizer is expected to hear. Every generated line is transcribed back
+  with faster-whisper and regenerated until it matches (character similarity
+  at least 0.92 for CJK). Short clips get 0.6 s of silence padding or the
+  recognizer mishears them.
+- English voices use Kokoro offline, Chinese uses edge-tts. Voices are cast by
+  measuring median pitch and variance on test lines; each character gets its
+  own EQ. Interruptions are made by generating the line longer and truncating
+  the audio.
+- Lip sync comes from the audio: RMS (mouth open) and spectral centroid (wide
+  versus round) at 24 Hz, sampled at the 12 fps drawing time, driving a
+  parametric mouth with open, width, curl, skew, teeth, tongue.
+- Subtitle duration is `max(audio + 0.35 s, 0.9 s + chars / 17)`, clipped at
+  world cuts and before a silent beat. The burned-in captions and the `.srt`
+  come from the same `window.SUBS`. A read-check tool enforces on-screen time
+  of CJK chars / 4.5 + Latin chars / 15 + 1.5 s.
+- Music cues take their start times from `events.json` so the first beat of
+  each cue is the cut point; hard silences also zero the reverb tail
+  ("a cut music cue without its reverb tail cut is not dead silence").
+  Ducking is a 0.3 s max-filter of voice activity smoothed over 0.15 s,
+  music at 0.42 x (1 - 0.55 x duck).
+
+**Directing rules** (DIRECTOR.md): a film is judged in this order, sound,
+rhythm, camera, directing. At least two real silences; use sound as a
+transition at least twice; at least four different camera moves; blend every
+pose with keyframes and easing, never switch poses inside an `if`; at least
+four of six dimensions must differ from the demo. The failures seen most:
+subject too small or against the edge, colour on the same colour, subtitles
+covering the subject, a gag too fast to read, blank frames in transitions, a
+timed effect that stops tracking the subject after a camera move.
+
+### 9.3 mg-styles-15 (Vincentwei1021): fifteen motion-design films from one prompt each
+
+Fifteen 10-second films (flat vector, line art, isometric, 3D render,
+cel-boil, collage, liquid, morph, Bauhaus, synthwave, aurora glass, variety
+show captions, paperclip, pixel, HUD), each with its prompt, full source and
+soundtrack script. Every film went through make, review, revise at least
+twice with an AI jury and a separate `rubric.md` ("Judge it harshly. Most
+first renders deserve 5-7. Do not inflate.").
+
+**The prompt skeleton is identical across all 15 files**; only four sections
+change (Style, Output, Suggested technical route, Creative seed) plus a
+Chinese block of checkable "signature features and key techniques". The
+shared part is the most complete production brief in this study:
+
+```text
+You are the director, motion designer, engineer and sound designer of ONE
+10-second motion-design film. The goal is the most classic, yet most
+stunning form of this style, award-shortlist / high-end commercial quality.
+A clean, template-looking result is a fail. Benchmarks: Buck, ManvsMachine,
+Ordinary Folk, Giant Ant, Territory Studio, Apple keynote motion ...
+
+# How to work
+1. Treatment. One clear idea: a hook in the first 0.5 s (never open on more
+   than 0.3 s of empty or black), an escalation, one unmistakable hero
+   moment at ~60-75% of the runtime, and a composed end frame held
+   ~0.8-1.2 s with living micro-motion. Keep one cue sheet (beats and hit
+   times) that both the picture and the sound read from.
+2. Key frames before motion. Render stills at 6-10 key times and actually
+   look at them. Each still should be poster-worthy ... Iterate until nothing
+   looks default, generic, cramped or "AI-template".
+3. Motion. Preview at low resolution. Step through the fastest moves frame
+   by frame: spacing, easing, arcs, overlap, anticipation and follow-through.
+4. Sound. Genre-correct music and sound design locked to the cue sheet.
+   Check that visual hits land on audio onsets. Master to the output spec.
+5. Final. Check: exactly 10.00 s, resolution, fps, audio present and at the
+   right loudness, no black frames, no fallback fonts or tofu, no clipped
+   elements, no shimmer on thin lines, no gradient banding.
+6. Write an honest self-critique.
+
+# Before you deliver, score yourself honestly
+1-10 on style fidelity, concept wow, motion craft, design and typography,
+finish and texture, sound and sync, technical (6 = template-level, 8 =
+high-end agency, 9 = award shortlist). Aim for 9; fix whatever scores
+lowest first.
+```
+
+Output spec is fixed: exactly 10.000 s, H.264 with stereo AAC at 48 kHz,
+-14 LUFS integrated, true peak at most -1 dBTP; 1920x1080 at 30 fps, except
+cel and 3D at 24 fps and the caption film at 1080x1920. Assets must be CC0,
+public domain, OFL or Apache, recorded in CREDITS.md; brand names invented.
+
+Style-specific "key techniques" are written so a jury can check them. Three
+examples:
+
+- Cel-boil: animate on twos at 24 fps (12 drawings per second), cut to ones
+  for fast actions, threes for holds; smear frames stretch a fast-moving
+  object 150-300% for exactly one frame; line boil is 3-4 slightly different
+  drawings cycled; paper grain multiplied at 10-15%.
+- 3D render: a MoGraph-style cloner field with effector waves; material trio
+  of subsurface gummy, glossy plastic, frosted glass or chrome; long-tail
+  ease where 80% of the travel happens in the first 20% of the time;
+  24 fps with shallow depth of field.
+- Variety-show captions (花字): three-layer text (fill, thick white stroke,
+  coloured outer stroke or shadow); pop 0 -> 1.15 -> 1.0 in about 8 frames
+  with a 2-frame per-character stagger; appear 2-3 frames after the audio
+  moment, which reads more natural than exactly on it.
+
+**Harness.** `harness/render.mjs` expects `window.renderAt(t)` and
+`window.__ready`, seeks any CSS or WAAPI animations to `t` as well, gives
+each worker its own browser ("pages inside a single browser share one
+compositor and don't parallelize"), writes lossless FFV1 segments and
+concatenates them, and encodes with BT.709 tags and `-crf 14`. Motion blur
+is sub-frames centred in a shutter window, averaged by `tmix`; morph and
+line art use 4 samples, Bauhaus 8, the rest 1. Bauhaus snaps time to frame
+centres so sub-samples never straddle a hard cut.
+
+**Audio library.** `lib/audio/mgaudio`: polyBLEP oscillators, FM,
+Karplus-Strong, 103 CC0 instrument samples, genre recipes (synthwave,
+chiptune, lofi, guofeng, variety, explainer...), about 100 effects, and
+loudness-normalized one-shots. The rule that matters: every sound has a
+sync point (transients sync on the hit, a whoosh on its pass-by peak, a
+riser on its end), so scripts pass the visual event time and never
+pre-compute offsets. `hit_alignment()` reports onset error per hit (target
+within 5 ms). Pictures mickey-mouse the music: one xylophone note per title
+stroke, music muted 0.11 s before the big hit, a phone-speaker band check
+(350 Hz to 9 kHz) so the boom still reads on a phone. Data also flows back:
+the aurora film writes a 100 Hz loudness envelope that drives an on-screen
+waveform, and the line-art film dumps pen-tip speed from the page for the
+audio script.
+
+**Techniques worth lifting from the demos:**
+
+- Cel-boil: an exposure sheet `[[0, 8, 2], [8, 24, 1], ...]` (from, to,
+  exposure) quantizes time to drawings; every primitive is re-seeded per
+  drawing, which is what makes lines boil; fills are boiled separately and
+  offset by (-5, 4) px to mimic hand colouring; the paper tooth texture is
+  larger than the frame and shifted per drawing, "every cel is a new sheet";
+  title glyph outlines come from the font via opentype.js and are inked as
+  boiling strokes.
+- Morph: no morph library. Shapes are SVG paths sampled to a fixed point
+  count with `getPointAtLength`, same winding, start vertex matched by
+  brute-force cyclic shift, then lerped through a bridge circle (A -> circle
+  -> B) so unrelated shapes never tangle; holes collapse to their centroid
+  and re-open; stretch along the travel direction and a landing squash about
+  a pivot; colours mixed in OKLab.
+- 3D: all motion is simulated in plain Python (contact ODE for drops, damped
+  oscillator for jelly squash, gaussian effector sweeps for the cloner field)
+  into `anim.npz` plus `events.json`; Blender only keyframes from that file
+  and renders PNGs with Cycles; an HTML page composites the type, a hero
+  punch and grain on top. Renders write `.tmp.png` then atomic rename.
+- Synthwave: a VHS shader pass (YIQ, chroma blur, red smear trailing right,
+  tracking band, head-switch noise, 3-px scanline dimming, CRT power-off) and
+  a time remap to 15 fps "while tracking".
+- Pixel: an indexed 320x180 frame with semantic colour slots mapped through
+  a per-stage LUT into a 32-colour master palette, Bayer dithering, WebGL2
+  CRT pass at 6x.
+- Collage: `K = floor(t * 12)` step index with seeded placement jitter;
+  resting pieces boil at 6 fps.
+
+**Lessons the author wrote down.** "The same prompt makes a different film
+every time. Each original film went through several rounds of iteration; a
+single run usually does not reach the same finish." Only 4 of 15 soundtrack
+scripts reproduce the published audio bit for bit; the others drift with
+numerical library versions. Fonts are not shipped, so without them lettering
+falls back to system fonts.
+
+### 9.4 dashi-animationstyle (chuspeeism / 大师的AI小灶): narrated explainers in seven styles
+
+Skill number 4 in the post. It turns a 15-60 s Chinese narration into a
+1920x1080, 30 fps explainer with voice and subtitles, ready to drop into
+CapCut. Picture is HTML/Canvas only, no image model. Seven tested styles:
+flat flowchart, hand-drawn notes, retro newspaper, retro paper cut,
+surreal collage, 3D cartoon, black-gold tech; plus a style dictionary of 27
+more described as parameters.
+
+Three ways to use it: an existing style on your narration; a new style built
+from one reference image or video (2-4 rounds of stills, not guaranteed: the
+author kept 7 of 11 attempts); or a verbal description ("a warm chalkboard
+look") answered with 2-3 directions as stills.
+
+Pipeline, all in one project folder: narration audio, whisper transcription
+corrected against the script (it detects words in the audio that are not in
+the script, usually neighbour sentences caught when the clip was cut, and can
+trim them automatically), character-level subtitle timing, a storyboard
+written by Claude and approved by the user, a generated `window.TL` timeline,
+a page copied from the style template and rewritten shot by shot, three
+stills approved by the user, the full render, then checks.
+
+The design idea worth copying: **time comes from words, not seconds.**
+`marks` name a phrase in a given subtitle line; the timeline generator
+converts it to a second from the character timings, and the page asks
+`TL.mark('分词器')`. No hard-coded seconds, so re-recording the narration
+re-times every animation.
+
+Rules backed by sources or measurement (`knowledge/讲解动画通用规则.md`):
+
+- Subtitles at least 60 px, one line, about 20 characters. Any text the viewer
+  must read at least 48 px at 1920 wide, because on a phone it shrinks to
+  about 480 wide. Every still render also writes a 480-wide check image.
+- Contrast 4.5:1 for text (WCAG 1.4.3), 3:1 for graphics; computed on the
+  worst spot of a textured background.
+- Bottom ~170 px is subtitle-only; title-safe margins 5% (EBU R 95).
+- Two fixed highlight colours A and B for the two core nouns, used in
+  picture, data and subtitles alike; other colours avoid their hue families.
+- Dwell time: characters / 9 per second + ~0.5 s (from Netflix's Simplified
+  Chinese spec); hold at least 1 s after a conclusion or stamp.
+- Motion starts 0.03-0.1 s before its keyword; letter-by-letter text needs
+  about 0.3 s after the keyword before a still shows the full word.
+- No more than 3 flashes per second (WCAG 2.3.1).
+
+Richness rules from a blind test (`knowledge/动效和画面变化.md`): every shot
+lists entrance, main action, secondary action, exit or transition; a visible
+change every 2-3 s (calibrated on shot lengths of a popular Chinese tech
+channel, median 2.8-3.4 s), the first 3 s densest; secondary motion of
+2-6 px, 1-3% scale, 1-2 degrees on 1.5-4 s periods, at most two kinds at
+once; at least 3 transition types, never the same one 3 times in a row, and
+transitions that suit the material (paper falls and tears, chalkboards get
+erased, screens glitch, newspapers turn). A script measures this: one cell
+every 2.5 s, mean pixel difference between neighbours, pass at 10 or more
+with no near-identical pair. In the blind test, the version with the higher
+score was the one the author judged richer in all three pairs.
+
+A gotcha worth remembering: reset the whole canvas state at the start of
+every frame. A `lineCap`, `setLineDash` or `globalAlpha` left over from the
+previous frame is invisible in a sequential render but changes a single
+still; three of the author's own example pages had this bug. The skill ships
+a determinism check that compares "seek directly" against "seek elsewhere,
+then come back" at three times.
+
+Verified here: the bundled Token example in the hand-drawn-notes style was
+created, three stills rendered in 6.6 s, and the full 21.2 s film rendered
+in 165 s (259 ms per frame, software rendering). The richness check passed
+with a mean of 29.0, no near-identical pairs, 100% of frames moving. On
+Linux the macOS fonts fall back to WenQuanYi, and Chrome needs
+`--no-sandbox` when running as root.
+
+### 9.5 code-video-director (same author): motion feel you can measure
+
+Not confirmed as part of the post, but by the same author and the most
+technically ambitious of the set. It finishes unattended: "don't stop to
+ask; when unsure pick the safer option and record the trade-off." Steps:
+director sheet, route choice and one test frame, sound first (beats or
+narration timing), storyboard with a per-shot event table, three-pass build
+with locked layers, stills plus a 4 s motion sample, full render, automated
+QA and a rework loop of at most three rounds, delivery notes.
+
+What it adds that nothing else in this study has:
+
+- **A motion analyzer.** A numpy optical-flow script removes camera motion,
+  splits moves, and measures peak speed, move length, whether a move starts
+  fast and ends slow, wobble area, how often the camera is moving, the spread
+  of move durations, and cyclic repeats. Ten rules with thresholds calibrated
+  on reference films, each with a fix that names a template helper. The
+  diagnosis that motivated it: a weaker model's moves averaged 1.13 s at
+  219 px/s peak with the camera always pushing; the reference averaged
+  0.33 s at 963 px/s with peak speed in the first quarter of the move.
+- **Pacing tiers.** Calm, promo and MV, each with its own thresholds, and
+  switchable per section ("0-12 s promo, MV from 12 s").
+- **Events, not cycles.** Pin each action to `ev(bar, beat)` so it happens
+  once; escalate repeated hits with `ramp()`; `t % period` only for blinks,
+  sparks and scrolling backgrounds. A detector flags looped main actions and
+  storyboards where 30% of rows repeat the same sentence.
+- **Layer locking.** Main action, auxiliary motion and impact effects are
+  separate files, built and measured in three passes. Locking a layer records
+  its file hashes and metrics; a relock is refused if a metric regresses by
+  more than 10%, and the self-check puts "locked layer modified" at the top
+  of the rework sheet. This stops the see-saw where every fix quietly breaks
+  something that already passed.
+- **A director sheet written to be judged.** Each hard requirement is the
+  user's exact words beside a result that can be checked as right or wrong,
+  with a tick box before delivery. Style is named and has a "must not appear"
+  list. Motion chain: anticipation, acceleration, impact, squash or
+  overshoot, settle, aftershock.
+- **Sound alignment.** Song start = climax time in the song minus climax time
+  in the film. Trust the low-frequency energy jump over an automatic beat
+  grid. Narration is synthesized sentence by sentence and the scene changes
+  0.1-0.2 s before the sentence starts.
+- **Anti-slideshow composition checks**: dominant-colour share, correlation
+  of edge layouts between frames 3 s apart, adjacent-second similarity.
+
+### 9.6 huashu-art-motion (alchaincyf): art history as a renderer library
+
+Skill number 5 in the post. It began as a code-only remake of a 15-second
+"Art History Speedrun" and grew into a Canvas engine with 35 art-style
+renderers and 9 explainer grammars.
+
+**The speedrun mechanism.** One composition (a woman drinking tea, an orange
+cat, a table, a window) and one character skeleton are drawn by N different
+renderers. Consistency comes from the shared rig and choreography; the style
+comes from swapping the renderer. The index warns that this shared room is
+"the speedrun mechanism, not these styles' composition".
+
+**Styles.** 17 "material layer" styles usable on any topic (Van Gogh,
+Impressionism, Seurat, Ghibli watercolour, Chinese ink, Lichtenstein pop,
+8-bit, vaporwave, Shinkai light, Rembrandt, cubism, Matisse cut-outs, flat
+2026, Constructivism, Bauhaus, Pompeii mosaic, early ray-trace CGI) and 18
+"era specimens" (cave, Egyptian tomb, Attic black-figure, Gothic
+illumination, Renaissance sfumato, Mucha, Klimt, Munch, Dunhuang, Kusama,
+Dalí, Hopper, Kirby comics, Monet, Haring, 1930s rubber-hose, Chinese shadow
+puppet, Picasso blue period). Each recipe card records pipeline, hex values,
+"how the painting lives" (motif animation), a signature transition,
+performance, pitfalls and what is still weak, with frame-difference
+measurements from each revision.
+
+Rendering ideas worth copying from the recipes:
+
+- **The material's physical process is the renderer.** Cave: a noise relief
+  wall with lighting, pigment "eaten into rock" with a rock texture over it,
+  charcoal boil from 9 Hz pattern jitter, firelight as an overlay blend.
+  Ink: paper is the ground and ink only adds; brush resampled every 4 px of
+  arc length with a pressure profile and bristle gaps; whites dug out with
+  `destination-out`. 8-bit: everything painted on a 240x135 canvas and
+  upscaled 8x without smoothing; dithering is "the only way the NES made
+  gradients"; characters are rasterized per body part, quantized to a
+  14-colour palette and outlined per part, or the parts merge into a blob.
+- **A transition is the next style's signature language.** Two independent
+  reviewers called this the most valuable line in the skill: enter
+  Impressionism through dabs, Post-Impressionism through a swirl, Art
+  Nouveau through an organic wipe, Gothic through a page turn.
+- **Region palettes beat colour jitter**: a 7-8 colour swatch per region.
+- **Fix the flicker, keep the life.** The first Impressionism pass reshuffled
+  every stroke every 7-8 frames (frame difference 18, read as flicker); the
+  fix pinned stroke positions with a per-cell hash and moved the "aliveness"
+  into local motion (light dapples, poppies, clouds).
+- **Two frame-rate layers**: the camera moves smoothly every frame while
+  drawn elements step on twos or threes.
+
+**Rhythm.** 128 BPM on an eighth-note grid; era lengths shrink
+6, 4x5, 3x3, 2x3, 1x3, then a long ending: "speed comes from shorter
+segments, not a faster tempo". A three-note motif is re-orchestrated for each
+era. Hard onsets, no crossfades, no whooshes. The ending runs stop, suspend,
+smash, react, close.
+
+**Workflow.** Two tiers by model: an "open" tier for the strongest model,
+which may combine libraries freely, and a "rail" tier for every other model:
+shot table with three lock lines (style, palette, characters), a lint that
+blocks coding until it is clean, one clip per shot (at most 8 s), concat,
+QA per shot, and a delivery script that refuses to copy the film on a red
+light and writes a fingerprinted facts section. New characters or styles go
+through a three-direction gate with different compositions, "even when the
+style is named". An independent reviewer that sees only the finished film is
+mandatory; it caught a character raising a cup five times and a frame with
+two heads.
+
+**Characters.** "People come from AI frames; code composites." Code never
+draws faces or robots; the options are a frame library (8 transparent PNGs per
+action generated on green and keyed), hands and backs only, or none.
+Code-drawn chibis, white-shell robots and faces on objects are banned unless
+a designed mascot passed the three-direction gate.
+
+**Calibrated gates.** A film gate reports red when fast-motion frames are
+under 3.5% (calibrated on 13 films the author rated), when a blank run of
+0.3 s or more appears mid-film, or when blue-purple frames reach 30%
+(calibrated on 88 films, an "AI look" detector). Lesson: "the QA tools must
+themselves be QA'd"; an earlier checker was all green while never executing
+the transitions.
+
+**Camera.** Named moves with numbers: slow push 0.6-1.5 s, punch 0.25-0.35 s
+at 18-32%, whip 0.26-0.30 s, slam 0.17 s at scale 1.55 -> 0.94 -> 1.0.
+Accents at most a third of shots, never three push-ins in a row, a warning at
+8 or more push-ins per minute: "moving a bit every shot and slow-pushing every
+shot are the same disease" (one 102 s film had about 48 push-ins).
+
+**Explainer grammars.** 3Blue1Brown (one object on pure black, transforms,
+colour as the concept's name), keynote UI, finance chart (axes, then data,
+then one annotation, values honest), Kurzgesagt (the concept becomes an
+object, the camera travels between scales, log-space zoom), Vox (an evidence
+desk, the camera as an investigator's eye, elements stepping at 12 fps over a
+24 fps camera), whiteboard (say a line, write a line), storytime (snap poses,
+hold the reaction), kinetic type (the words are the actors), presenter.
+Each card was written after measuring 2-5 reference films.
+
+**Voice.** Reuse existing audio, the macOS system voice, or a Volcengine
+voice clone; keys referenced by environment variable name only, cloud and
+paid calls default to "ask". Cues name a word, not a second.
+
+Verified here: twelve style stills rendered from the gallery film and the
+14.4 s main film rendered at 30 fps (431 frames in about 210 s, software
+rendering), then muxed with the repo's synthesized example score. The score
+is a standalone example and drifts by one eighth note after the ninth
+segment, because its segment table has one more three-eighth era than the
+film.
+
+### 9.7 wtt-code-animation-studio (WaterDJiang): from a script, with provenance locks
+
+Skill number 6, a folder in the WaterDJiang/Wattter_openSkills collection.
+Pipeline: content, script, style recommendation and choice, storyboard and
+assets, voice timing, frame-by-frame drawing, MP4, audio and picture QA.
+
+- **Script first, by input type**: an idea becomes dilemma, attempt, result;
+  a product becomes task, capability, value; science becomes problem,
+  mechanism, example, application; a poem becomes imagery, change, emotional
+  landing. Named failure: a long article turned into a subtitle slideshow.
+- **The one approval that cannot be skipped is style**, placed after the
+  script and before the storyboard: one recommendation and two alternatives
+  compared on the same key shot, with the user's own words recorded. "Run it
+  all" does not count as consent, and silence never times out into a
+  default. If the user picks B, do B.
+- **Four independent visual axes per scene**: subject, style, motion
+  (action and effect), renderer. One shared silhouette feeds the flat body,
+  the sand mask and the particle targets, and the pose follows the global
+  frame, so a character keeps its identity and motion phase when the style
+  changes between shots.
+- **Audio sets the length**: `frames = max(ceil(visual x fps), lead + voice +
+  tail)` with the voice duration measured from the real WAV. A mismatch
+  between the voice file's recorded text and the script fails loudly. It
+  never speeds up the voice to fit a limit; it reports what to cut.
+- **Recipes**: sand draws the full outline offscreen and reveals it through a
+  time-varying mask, with grain fixed by seed; particles lerp from source to
+  target per index and never re-pair nearest points per frame; pixel draws
+  low-res and snaps poses to the grid; chalk uses broken multi-layer strokes
+  over a fixed powder texture. Only flat, sand and particles are implemented;
+  the other seven catalogue styles are implemented per film.
+- **Determinism test**: render frame f, render an unrelated frame, render f
+  again, compare hashes, at five points of the film.
+- **Asset provenance**: every image, font, sound, voice file, music track and
+  vendored library is registered with source URL and licence, sealed into a
+  versioned history with hashes, and any change goes through a diff plus an
+  authorization file. The render server refuses unregistered files and
+  files whose hash changed, and blocks any request to another origin.
+- **Offline voice cloning** with a local TTS model, enforced by an audit hook
+  that raises on any network connection; each voice file carries a sidecar
+  noting that a human still has to listen to it.
+
+macOS-centric (system `say`, an Apple-silicon TTS model). Not run here.
+
+### 9.8 video-shotcraft (Vincentwei1021): product promos from the real product
+
+Skill number 7. Remotion-based, for turning a web page or front-end project
+into a promo with 2.5D camera moves.
+
+- **Capture the real product, not a redraw.** Start the dev server with fake
+  but realistic data ("empty databases and lorem ipsum are scrap; real
+  customer data cannot ship"), then capture a full-page 2x texture, element
+  cutouts with transparent backgrounds, an "empty plate" with the element
+  hidden (the backplate a fly-in lands on), a 4x shot of the hero element,
+  and a `layout.json` of element boxes in page coordinates. Every animation
+  targets those coordinates, so a flying row lands exactly in its real slot.
+  Visual tokens come from the product's own design system.
+- **124 shot recipe cards** in ten categories (opening, camera, transition,
+  typography, UI entrance, interaction, data, light and emphasis, rhythm,
+  outro), each with intent, motion core, a parameter table of "typical value
+  / tuning feel", known pitfalls and a reference demo. "The card gives the
+  semantics; the demo source is the parameter truth": never rewrite an
+  approximation from the card name. Example, row embed: rows drop from the
+  air, `rotateX` flattens them, a 2 px accent seam flashes once at the moment
+  of contact, the flying row is a crop of the screenshot (never re-rendered,
+  because re-rendered text visibly differs), and cue spacing is computed
+  backwards from when the last row must land.
+- **The 2.5D camera** keeps text sharp by using CSS `zoom` instead of `scale`
+  inside a perspective container (`scale` makes Chromium rasterize the 3D
+  layer at layout size and upscale it, which blurs text); translate solves to
+  `960 / zoom - cx`. "Depth of field is atmosphere, never the fix for
+  sharpness." Parallax uses one drive value times per-layer factors 0.35,
+  0.7, 1.4, and the rail is computed backwards so the hero card stops
+  centred. Full-screen live blur roughly triples render time.
+- **Beat sync measured, not trusted**: a librosa beat track refit by least
+  squares because the tempo estimate can be off by 2% (129.2 against a true
+  131.97), residual within 15 ms, and a post-render check that the cuts still
+  land within 3 frames. Encoder priming in AAC (about 1.28 frames at 48 kHz)
+  is corrected as one constant. At most three whole-frame beat hits per film,
+  16 beats apart. Sound starts only after picture lock; SFX positions are
+  written relative to shot starts, never as bare frame numbers.
+- **A case-law rulebook**: each rule carries the user's real complaint and a
+  self-check. An independent reviewer runs in a clean context and must cite
+  frame numbers. CI renders the first frame of every demo. In one library
+  refresh, 66 demos were retired after an original, polish and redesign
+  comparison found the polished versions "clean but bland".
+- Ships an editable project, a BGM and no-BGM version from one timeline, and
+  an optional export to a CapCut (JianYing) draft.
+
+### 9.9 archival-doc (the post's author)
+
+Skill number 8, which the author wrote: it does not draw. It finds public
+domain and Creative Commons historical footage, checks each item's licence,
+and cuts a documentary. No public repository was found; the screenshot shows
+no link. Related public work for the same idea: the Internet Archive's own
+Claude skill for search and download, and documentary pipelines that search
+archive.org, NASA and Wikimedia Commons with licence filters.
+
+### 9.10 What the eight packages agree on
+
+- Interview first, one round, then a written plan (`brief.md`,
+  `TREATMENT.md`, a storyboard, shot table or director sheet, a cue sheet)
+  that the model follows and the user can reuse. Style is the decision most
+  often reserved for the user, compared on the same key shot.
+- Key frames before motion. Render 3-10 stills, look at them, fix layout.
+  Several also render a phone-width check image.
+- One timeline file feeds picture, sound and subtitles. Sounds are placed at
+  visual event times with a sync point. The narration-driven packages anchor
+  animation to words, and audio length sets shot length.
+- A scored self-review, the lowest score fixed first, two or three rounds
+  expected. The strongest packages turn taste into calibrated scripts
+  (richness, motion feel, AI-look colour, blank runs) and use an independent
+  reviewer that sees only the finished film and cites frame numbers.
+- A banned list that names the default look: dark or blue-purple gradient
+  background, centred big type, everything fading in and out, a slow push in
+  every shot.
+- Code is good at rules (type, charts, UI, pixel, painterly media); people
+  and photoreal scenes come from image or video models on green, keyed and
+  composited by code.
+- Deliver the MP4, the source, a report of check numbers, and an honest list
+  of weaknesses.
+
+## 10. Sources
 
 - https://github.com/yihui-dev/awesome-opus5-5-videos (389 prompts)
 - https://github.com/SuhaasNv/claude-opus5.5-video
@@ -548,6 +1187,15 @@ full film. Deliver the MP4, the source, and the list of tunable parameters.
 - https://github.com/Barty-Bart/motion-graphics
 - https://github.com/diggerhq/shipvideo
 - https://github.com/remotion-dev/skills
+- https://github.com/Kianzzz/xilo-opus-video (skill: three plans, previews, brief, scored QA)
+- https://github.com/lemomo-ai/lemo-opuscar (43 style prompts, voice and subtitle pipeline)
+- https://github.com/Vincentwei1021/mg-styles-15 (15 films, prompts, harness, audio library)
+- https://github.com/zhuyansen/awesome-claude-video-skills (290-repo index, security-graded)
+- https://github.com/chuspeeism/dashi-animationstyle (narrated explainers, 7 styles, word-anchored timing)
+- https://github.com/chuspeeism/code-video-director (motion analyzer, pacing tiers, layer locking)
+- https://github.com/alchaincyf/huashu-art-motion (35 art-style renderers, 9 explainer grammars)
+- https://github.com/WaterDJiang/Wattter_openSkills (folder wattter_skills/wtt-code-animation-studio)
+- https://github.com/Vincentwei1021/video-shotcraft (product promos, 124 shot recipe cards, 2.5D camera)
 
 ### Community examples quoted or studied
 
