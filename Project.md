@@ -488,55 +488,73 @@ handoffs; the skill allows back-out and elastic easing for hero reveals, the
 broll skill bans bouncy easing outright. Taste, not physics. Pick one and
 write it into the banned list.
 
-## 8. A synthesized prompt template
+## 8. The merged prompt template
+
+`prompts/video-prompt-template.txt` merges the rules from the community
+prompts (sections 3-5), the open-source reels (section 7) and the eight skill
+packages (section 9) into one prompt to paste into Claude Code. It replaces the
+earlier template in this section, which covered only motion-design pieces. It
+is plain text so it can be copied whole.
+
+How to use it:
+
+1. Fill every `{{...}}` slot in `<inputs>`; write "ask me" or "you decide"
+   where unsure. Values can be in Chinese.
+2. Keep one of the four blocks in `<type>` and delete the other three.
+3. Delete the "HOW TO USE" header and paste the rest into Claude Code
+   (Opus 5.5 or stronger), started in an empty folder.
+4. The model asks one round of questions, shows three plans with a real key
+   frame each, then builds, renders, scores itself and delivers.
+
+| Section | What it controls | Taken mainly from |
+|---|---|---|
+| `<role>` | The quality bar | mg-styles-15 |
+| `<inputs>` | 17 slots, including how often to check in | xilo-opus-video, wtt (style gate), code-video-director (unattended mode) |
+| `<process>` | One round of questions, three plans with real key frames, `brief.md`, shot-by-shot stills, low-res preview | xilo-opus-video, lemo-opuscar, wtt |
+| `<type>` A | Motion-design piece on a beat grid | mg-styles-15, @twoclipping |
+| `<type>` B | Narrated explainer anchored to words | dashi-animationstyle, huashu grammars, wtt |
+| `<type>` C | Product promo from captured real UI | video-shotcraft, shipvideo |
+| `<type>` D | Story or art-style short with characters | lemo-opuscar, P(doom) / ClaudeAnimationBase, huashu |
+| `<direction>` | Composition, colour, type sizes, contrast, dwell, pacing, banned list | dashi rules, opus-visual-motion-engine, mg-styles-15, code-video-director, huashu |
+| `<motion>` | Spring tiers, shot structure, events not cycles, camera vocabulary, transitions | xilo, dashi, code-video-director, huashu, @twoclipping |
+| `<sound>` | Cue sheet, sync points, beat fitting, narration first, ducking, mastering | mg-styles-15 audio library, video-shotcraft, code-video-director, lemo-opuscar |
+| `<build>` | Frame contract, determinism, fonts, renderer, motion blur | all of them; canvas reset from dashi, shutter rule from the SuhaasNv reel |
+| `<review>` | File checks, sheets, determinism test, scored rounds, independent reviewer | mg-styles-15 scale, xilo, wtt, huashu, video-shotcraft |
+| `<deliver>` | Files, credits and the report | mg-styles-15, lemo-opuscar |
+
+If you would rather install a skill than paste a prompt:
+
+| Type | Skill to install |
+|---|---|
+| A, motion design | mg-styles-15 (prompts, harness, audio library) or xilo-opus-video |
+| B, narrated explainer | dashi-animationstyle (Chinese narration, macOS) or huashu-art-motion |
+| C, product promo | video-shotcraft (Remotion) |
+| D, story or art style | lemo-opuscar, or huashu-art-motion for art-history looks |
+
+A filled `<inputs>` block for type B, as an example:
 
 ```text
-<inputs>
-Ask me for: the subject and a one-line promise, 8-12 moments or UI states,
-real data for each, brand colors and fonts, formats (16:9 / 1:1 / 9:16), and a
-royalty-free song around 120 BPM (or say "synthesize the score").
-</inputs>
-
-<direction>
-Studio-grade motion design. State the taste bar in one sentence (e.g. Apple
-keynote launch film, Dribbble-level UI motion, kinetic typography monument).
-Springs with a tiny overshoot at most. The camera reframes so each moment
-fills the frame. Last frame = first frame.
-Banned: crossfades, blur-ins, particle bursts, glows, lens flares, camera
-shake, gradients on UI chrome, holds over 1 s, dead time, anything that looks
-like a template, text too small to read.
-</direction>
-
-<structure>
-120 BPM, N bars, something happens on every beat. List the beats.
-</structure>
-
-<build>
-1. One self-contained HTML file. window.DURATION and async window.seek(t).
-   Every value computed from t: no CSS transitions, no timers, no rAF, no
-   state carried between frames, seeded randomness only.
-2. Closed-form springs; sum one spring per target change.
-3. Outgoing content leaves before incoming content enters the same space.
-4. If a song is supplied, measure its beat grid with numpy and start on a
-   downbeat; otherwise synthesize the score from the renderer's event list.
-5. Render with Playwright at 60 fps, 4 subframes per frame blended with
-   ffmpeg tmix. H.264, yuv420p, crf 18, faststart. Export every format.
-6. Before the full render: one frame per beat as a contact sheet. Fix
-   anything cramped, unreadable, off-grid or overlapping. Then scan the final
-   video for single-frame pops (frame-difference spikes 3x their neighbours).
-</build>
-
-<gotchas>
-No will-change on anything the camera scales. Floods overscale past the
-corners over ~0.3 s. Text inside a morphing container has its own mask and
-timing. Export [0, duration) without the endpoint frame.
-</gotchas>
-
-<start>
-Ask me for the inputs, then show the beat map and 4 stills before writing the
-full film. Deliver the MP4, the source, and the list of tunable parameters.
-</start>
+Topic, product or story: 大模型的「上下文窗口」是什么，为什么聊久了它会忘事
+The one thing the viewer must remember: 上下文窗口是模型一次能看到的全部文字，满了就要丢掉最早的
+Audience and where they watch: 普通用户，手机竖屏
+Source material: ./source/narration.wav and ./source/script.txt (my own recording)
+Facts that must appear exactly: none
+Duration: 45 s
+Aspect ratios: 9:16 1080x1920
+Frame rate: 30
+On-screen text language: 简体中文
+Style: hand-drawn notes, ink blue lines with one orange accent
+Brand colours and fonts: none
+Music: none
+Narration: my audio path above
+Subtitles: burned in, plus .srt
+Check-ins: pick plan, then approve stills
+Extra bans for this film: robots, glowing brains, binary code rain
 ```
+
+Not tested: the template has not been run end to end in Claude Code from
+this container, which has no Anthropic API key. Each rule comes from a
+source that was read, and the render recipes in section 6 were run here.
 
 ## 9. Skill packages: from one prompt to a repeatable workflow (added 2026-10-14)
 
