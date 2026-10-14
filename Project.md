@@ -492,25 +492,53 @@ write it into the banned list.
 
 `prompts/video-prompt-template.txt` merges the rules from the community
 prompts (sections 3-5), the open-source reels (section 7) and the eight skill
-packages (section 9) into one prompt to paste into Claude Code. It replaces the
-earlier template in this section, which covered only motion-design pieces. It
-is plain text so it can be copied whole.
+packages (section 9) into one prompt for Claude Code. It is plain text so it
+can be copied whole.
 
-How to use it:
+How to use it: paste the whole file into Claude Code (Opus 5.5 or stronger),
+started in an empty folder, and add one line saying what you want, or nothing.
+There is nothing to fill in and nothing to delete. The model then:
 
-1. Fill every `{{...}}` slot in `<inputs>`; write "ask me" or "you decide"
-   where unsure. Values can be in Chinese.
-2. Keep one of the four blocks in `<type>` and delete the other three.
-3. Delete the "HOW TO USE" header and paste the rest into Claude Code
-   (Opus 5.5 or stronger), started in an empty folder.
-4. The model asks one round of questions, shows three plans with a real key
-   frame each, then builds, renders, scores itself and delivers.
+1. Asks what the video is about and what material you have (one open
+   question, skipped if your first message already says it).
+2. Asks two rounds of multiple-choice questions through Claude Code's
+   question tool, where you can always type your own answer. It skips anything
+   your message or material already answers.
+3. Shows a one-screen brief card for you to confirm or correct, including the
+   one sentence the viewer should remember, which it writes from your material.
+4. Shows three plans with a real key frame each, then builds, renders, scores
+   itself and delivers.
+
+The questions it asks:
+
+| Round | Question | Options (several allowed where marked) |
+|---|---|---|
+| 1 | What is the video about, what material do you have, and what must or must not appear? | Free text: an article, a script, your narration audio, a product link or code folder, a reference video or image, your logo or brand colours |
+| 2 | Type (several) | Motion-design piece / narrated explainer / product promo from your web app or code / story or art-style short |
+| 2 | Where it will be watched (several) | Phone 9:16 / landscape 16:9 / square 1:1 |
+| 2 | Length | 10-15 s / about 30 s / about 60 s / as long as your narration |
+| 2 | Music | Made in code / you provide it / none |
+| 3 | Voice | Your own recording / AI voice-over / none |
+| 3 | Style | Propose three directions / you name one / follow your reference |
+| 3 | Check-ins | Plans and key stills / plans only / don't stop |
+
+Each question has at most four options, the limit of Claude Code's question
+tool. Subtitles and, when several types are picked, which type leads are not
+asked; the model proposes them on the brief card.
+
+Several types can be combined. The leading type sets the structure and the
+timing (beat grid, narration, product story or treatment); the others lend
+rules only where they fit, and the leading type wins a conflict. Typical
+combinations: a product promo led by narration (B leads, C lends the real-UI
+capture), an explainer with a character (B leads, D lends the character
+rules), a launch teaser in motion-design style (C leads, A lends the beat
+grid).
 
 | Section | What it controls | Taken mainly from |
 |---|---|---|
 | `<role>` | The quality bar | mg-styles-15 |
-| `<inputs>` | 17 slots, including how often to check in | xilo-opus-video, wtt (style gate), code-video-director (unattended mode) |
-| `<process>` | One round of questions, three plans with real key frames, `brief.md`, shot-by-shot stills, low-res preview | xilo-opus-video, lemo-opuscar, wtt |
+| `<intake>` | The questions, the brief card, the one sentence to remember | xilo-opus-video, wtt (style gate), dashi (one thing the film says), code-video-director (unattended mode) |
+| `<process>` | Three plans with real key frames, `brief.md`, shot-by-shot stills, low-res preview | xilo-opus-video, lemo-opuscar, wtt |
 | `<type>` A | Motion-design piece on a beat grid | mg-styles-15, @twoclipping |
 | `<type>` B | Narrated explainer anchored to words | dashi-animationstyle, huashu grammars, wtt |
 | `<type>` C | Product promo from captured real UI | video-shotcraft, shipvideo |
@@ -531,25 +559,24 @@ If you would rather install a skill than paste a prompt:
 | C, product promo | video-shotcraft (Remotion) |
 | D, story or art style | lemo-opuscar, or huashu-art-motion for art-history looks |
 
-A filled `<inputs>` block for type B, as an example:
+A sample brief card, as the model would show it after the questions for a
+narrated explainer:
 
 ```text
-Topic, product or story: 大模型的「上下文窗口」是什么，为什么聊久了它会忘事
-The one thing the viewer must remember: 上下文窗口是模型一次能看到的全部文字，满了就要丢掉最早的
-Audience and where they watch: 普通用户，手机竖屏
-Source material: ./source/narration.wav and ./source/script.txt (my own recording)
-Facts that must appear exactly: none
-Duration: 45 s
-Aspect ratios: 9:16 1080x1920
-Frame rate: 30
-On-screen text language: 简体中文
-Style: hand-drawn notes, ink blue lines with one orange accent
-Brand colours and fonts: none
-Music: none
-Narration: my audio path above
-Subtitles: burned in, plus .srt
-Check-ins: pick plan, then approve stills
-Extra bans for this film: robots, glowing brains, binary code rain
+About: what a model's context window is, and why it forgets in long chats
+Remember: the context window is everything the model can see at once; when it
+  is full, the oldest text falls out
+Audience: general public, watching on a phone
+Type: narrated explainer
+Length: 45 s (as long as your narration)   Format: 9:16 1080x1920, 30 fps (default)
+On-screen language: Simplified Chinese
+Music: none   Voice: your recording ./source/narration.wav
+Subtitles: burned in plus .srt (default)
+Style: three directions to propose
+Check-ins: plans and key stills
+Not wanted: robots, glowing brains, binary code rain
+Unverified facts: none
+Defaults used: frame rate, subtitle style
 ```
 
 Not tested: the template has not been run end to end in Claude Code from
