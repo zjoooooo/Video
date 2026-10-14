@@ -821,7 +821,7 @@ scripts reproduce the published audio bit for bit; the others drift with
 numerical library versions. Fonts are not shipped, so without them lettering
 falls back to system fonts.
 
-### 9.5 dashi-animationstyle (chuspeeism / 大师的AI小灶): narrated explainers in seven styles
+### 9.4 dashi-animationstyle (chuspeeism / 大师的AI小灶): narrated explainers in seven styles
 
 Skill number 4 in the post. It turns a 15-60 s Chinese narration into a
 1920x1080, 30 fps explainer with voice and subtitles, ready to drop into
@@ -891,7 +891,7 @@ with a mean of 29.0, no near-identical pairs, 100% of frames moving. On
 Linux the macOS fonts fall back to WenQuanYi, and Chrome needs
 `--no-sandbox` when running as root.
 
-### 9.6 code-video-director (same author): motion feel you can measure
+### 9.5 code-video-director (same author): motion feel you can measure
 
 Not confirmed as part of the post, but by the same author and the most
 technically ambitious of the set. It finishes unattended: "don't stop to
@@ -935,7 +935,7 @@ What it adds that nothing else in this study has:
 - **Anti-slideshow composition checks**: dominant-colour share, correlation
   of edge layouts between frames 3 s apart, adjacent-second similarity.
 
-### 9.7 What the five packages agree on
+### 9.6 What the five packages agree on
 
 - Interview first, one round, then a written plan (`brief.md`,
   `TREATMENT.md`, a storyboard or director sheet, a cue sheet) that the model
