@@ -49,7 +49,7 @@ def motif(t, inst, vel, notes=MOTIF, octave=0):
 
 # ---- the hook: one organ chord on the Sun, cut dead on "Look up." ---------------------------------
 for p in ("D1", "D2", "A2", "D3", "F3", "A3"): note(0.0, ORGAN, p, 104, CUE["look"] - 0.02, human=False)
-note(0.0, TIMP, "D2", 96, 1.2); note(0.0, DR, CRASH, 70, 3.8)
+note(0.0, TIMP, "D2", 88, 1.2); note(0.0, DR, CRASH, 64, 3.8)
 note(CUE["look"] + 0.35, CEL, "A6", 46, 1.6)                       # the words appear
 
 # ---- the bed, bar by bar -----------------------------------------------------------------------------
@@ -104,11 +104,11 @@ for k, p in enumerate(["D4", "E4", "F4", "G4", "A4", "Bb4", "C5", "D5", "E5", "F
 # the burst: everything on F
 for k, p in enumerate(("F1", "F2", "C3", "F3", "A3", "C4", "F4")): note(BURST + k * 0.02, ORGAN, p, 100, 3.8, human=False)
 for p in ("F4", "A4", "C5"): note(BURST, CHOIR, p, 76, 3.8, human=False)
-note(BURST, TIMP, "F2", 110, 1.4); note(BURST, DR, CRASH, 92, 4.0)
+note(BURST, TIMP, "F2", 96, 1.4); note(BURST, DR, CRASH, 80, 4.0)
 for k, p in enumerate(sorted(tones(BURST, 1) + tones(BURST, 2) + tones(BURST, 3))): note(BURST + 0.05 + k * 0.06, HARP, p, 62, 1.0)
 motif(BURST + 2 * BAR, STR, 70, MOTIF_F)                           # the motif returns, now in F
 # the jet: timpani hit and a low organ pedal
-note(JET, TIMP, "F2", 118, 1.6); note(JET + 0.25, TIMP, "C2", 92, 1.0); note(JET, DR, CRASH, 96, 3.6)
+note(JET, TIMP, "F2", 100, 1.6); note(JET + 0.25, TIMP, "C2", 82, 1.0); note(JET, DR, CRASH, 82, 3.6)
 note(JET, ORGAN, "F1", 96, BAR * 2 - 0.1, human=False)
 # the twist: a soft cymbal tail, then the piano alone restates the motif; the final chord at the URL
 note(TWIST, DR, CRASH, 50, 3.0)

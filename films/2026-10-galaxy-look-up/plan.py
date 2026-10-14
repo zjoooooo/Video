@@ -43,7 +43,7 @@ subs.append({"t0": 4.3, "t1": 6.0, "zh": SUBS["look"], "en": "Look up."})
 
 # I: the sky from Earth, one cut per figure, each cut on the moment capture.mjs selects it
 sky = 6.0
-for k, (t0, t1, at) in enumerate([(6.0, 9.0, 30), (9.0, 12.0, 345), (12.0, 16.0, 665)]):
+for k, (t0, t1, at) in enumerate([(6.0, 9.0, 30), (9.0, 12.0, 355), (12.0, 16.0, 685)]):
     shot("sky", t0, t1, at=at, zoom=1.86, zoom1=1.74, at_y=0.47)
 cue["figures"] = [6.0, 9.0, 12.0]
 line("eyes", sky + 1.0)
@@ -64,13 +64,16 @@ line("past", go + 6.5)                                  # "Past a living Sun" la
 burst = t
 shot("wormhole", burst, burst + 4.0, at=430, rate=[-0.8, -2.6])
 cue["burst"] = burst + 4.0
-shot("rise", burst + 4.0, burst + 14.0, grade="bulge")
+# the bulge's glow is a hard-edged disc centred on the frame; its radius (fraction of the frame height, by
+# footage frame) was measured from the capture, so the film can feather its edge away (a grade, not a change)
+HALO = [[0, .524], [60, .528], [120, .517], [180, .489], [240, .448], [300, .404], [360, .357], [420, .317], [480, .283]]
+shot("rise", burst + 4.0, burst + 12.0, zoom=1.25, zoom1=1.0, grade="halo", halo=HALO)
 line("stars", burst + 5.0)
 
 # III: beyond the Milky Way; the timpani lands on M87's jet with a zoom snap
-beyond = burst + 14.0
+beyond = burst + 12.0
 shot("lmc", beyond, beyond + 4.0, zoom=1.35, zoom1=1.2)
-shot("cena", beyond + 4.0, beyond + 10.0, zoom=2.0, zoom1=1.85, at_x=0.53)
+shot("cena", beyond + 4.0, beyond + 10.0, zoom=1.34, zoom1=1.24, at_x=0.52, grade="dither")
 line("jets", beyond + 0.5)
 
 # twist: M87 shrinks into a browser window; inside it, the real page takes over and is dragged
@@ -79,11 +82,16 @@ cue["jet"] = beyond + 10.0
 cue["twist"] = twist
 shot("m87", beyond + 10.0, twist + 3.1, zoom=1.3, zoom1=1.15, snap=True)
 cue["window"] = twist + 2.5                              # the window has settled; the page fades in
+m87 = reel[-1]
+z_at = m87["zoom"][0] + (m87["zoom"][1] - m87["zoom"][0]) * (cue["window"] - m87["t0"]) / (m87["t1"] - m87["t0"])
 s, e, _ = line("page", twist + 1.0)
 s, e, _ = line("open", e + 1.2)
 cue["url"] = beat(max(e + 0.5, twist + 9.0))
 end = bar(cue["url"] + 7.5)                         # the address stays readable before the iris
-shot("ui", cue["window"], end, at=330)                  # the drag (frames 480-600) starts 2.5 s in
+# ui starts exactly where m87 is at the dissolve (the same arrival and drift, UI on), at the same zoom, then eases out
+UI = json.loads((SHOTS / "ui/meta.json").read_text())["marks"]
+shot("ui", cue["window"], end, at=round((cue["window"] - m87["t0"]) * FPS), zoom=round(z_at, 4), zoom1=1.0,
+     zt=[cue["window"] + 0.6, cue["window"] + 2.1], marks=UI)
 
 
 def srt(key, path):

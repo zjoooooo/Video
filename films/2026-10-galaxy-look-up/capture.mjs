@@ -90,24 +90,29 @@ const ride = (id, frames, { turn, angle = -0.35, drift = 0.6, dolly = 0 } = {}) 
     await ptr(c, 'up', 960 + frames * drift, 540);
   },
 });
-// a galaxy beacon's own "fly to this galaxy", then a slow real drag around it while recording
+// a galaxy beacon's own "fly to this galaxy", the wheel zoom and a turn; then a slow real drag while recording
+async function arrive(c, label, zoom, turn) {
+  await c.page.evaluate(label => [...document.querySelectorAll('#beacons .beacon')].find(b => b.textContent.includes(label)).click(), label);
+  await c.step(20);
+  await c.page.evaluate(() => document.querySelector('#bp-flyto').click());
+  await c.until(() => getComputedStyle(document.getElementById('return-mw')).display !== 'none');
+  await c.page.evaluate(() => window.closeBeaconExtras());   // like closing the card: no selection ring left behind
+  for (let i = 0; i < zoom; i++) { await wheel(c, -100); await c.step(2); }
+  if (turn) await drag(c, turn[0], turn[1], 40);
+  await c.step(60);
+}
 const visit = (label, frames, zoom = 0, turn = null, dxPerFrame = 0.5) => ({
   prepare: 'galaxy-overview',
   run: async c => {
-    await c.page.evaluate(label => [...document.querySelectorAll('#beacons .beacon')].find(b => b.textContent.includes(label)).click(), label);
-    await c.step(20);
-    await c.page.evaluate(() => document.querySelector('#bp-flyto').click());
-    await c.until(() => getComputedStyle(document.getElementById('return-mw')).display !== 'none');
-    await c.page.evaluate(() => window.closeBeaconExtras());   // like closing the card: no selection ring left behind
-    for (let i = 0; i < zoom; i++) { await wheel(c, -100); await c.step(2); }
-    if (turn) await drag(c, turn[0], turn[1], 40);
-    await c.step(60);
+    await arrive(c, label, zoom, turn);
     await ptr(c, 'down', 700, 540);
     await c.rec(frames, i => ptr(c, 'move', 700 + i * dxPerFrame, 540));
     await ptr(c, 'up', 700 + frames * dxPerFrame, 540);
   },
 });
 const preset = (prepare, P, frames) => ({ prepare, run: c => c.rec(frames, i => cam(c.page, P, i / (frames - 1))) });
+
+const UI_MARKS = { release: 450, click: 510, drag: [690, 810], from: [760, 560], by: [720, 42] };   // ui shot frames
 
 export const SHOTS = {
   probe: { prepare: 'galaxy-overview', run: c => c.rec(30, i => cam(c.page, 'galaxy-slow-rotation', i / 600)) },
@@ -125,7 +130,7 @@ export const SHOTS = {
       });
     },
   },
-  earth: ride('earth', 300, { turn: [260, 0], drift: 0.7 }), moon: ride('moon', 300, { turn: [300, -40], drift: -0.6 }),
+  earth: ride('earth', 300, { drift: -0.6 }), moon: ride('moon', 300, { turn: [-300, -40], drift: 0.6 }),   // drifts that keep Jupiter out of frame
   sunwide: ride('sun', 300, { drift: 0.4, dolly: 7 }),   // pulling away from the Sun until the inner orbits show
   jupiter: ride('jupiter', 300, { drift: -0.8 }), saturn: ride('saturn', 300, { drift: 0.7 }), halley: ride('halley', 300, { angle: -0.2, drift: -0.5 }),
   // the real wormhole from the galaxy into the Solar System (the film plays it backwards)
@@ -140,17 +145,27 @@ export const SHOTS = {
   },
   rise: preset('galaxy-low-angle', 'fixed-wide-galaxy', 660),
   lmc: visit('Large Magellanic', 480, 6),
-  cena: visit('Centaurus A', 720, 12, [220, -120]),          // turned until the dust lane crosses the halo
+  cena: visit('Centaurus A', 720, 34, [220, -120]),          // close enough that its halo fills the frame; turned for the dust lane
   m87: visit('M87', 480, 8),
-  // the product as people see it: UI on, and a real drag that turns the galaxy
+  // the product as people see it, UI on. It starts exactly as the m87 shot does (same arrival, same drift),
+  // so the film can dissolve from one to the other; then the real "back to the Milky Way" button flies it
+  // home and a real drag swings the galaxy. The frames and the button's position go into meta.json for the film.
   ui: {
     ui: true, prepare: 'galaxy-overview',
-    run: c => c.rec(1300, async i => {
-      if (i <= 480) await cam(c.page, 'galaxy-slow-rotation', i / 999);   // drift; from the press on, the drag turns it
-      if (i === 480) await ptr(c, 'down', 760, 560);
-      if (i > 480 && i <= 600) await ptr(c, 'move', 760 + (i - 480) * 6, 560 + (i - 480) * 0.35);   // a wide, quick swing that tips it face-on
-      if (i === 601) await ptr(c, 'up', 1480, 602);
-    }),
+    run: async c => {
+      await arrive(c, 'M87', 8, null);
+      const R = UI_MARKS, b = await c.page.evaluate(() => { const r = document.getElementById('return-mw').getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height / 2]; });
+      c.marks = { ...R, button: b };
+      await ptr(c, 'down', 700, 540);
+      await c.rec(1350, async i => {
+        if (i < R.release) await ptr(c, 'move', 700 + i * 0.5, 540);
+        if (i === R.release) await ptr(c, 'up', 700 + i * 0.5, 540);
+        if (i === R.click) await c.page.evaluate(() => document.getElementById('return-mw').click());
+        if (i === R.drag[0]) await ptr(c, 'down', ...R.from);
+        if (i > R.drag[0] && i <= R.drag[1]) { const q = (i - R.drag[0]) / (R.drag[1] - R.drag[0]); await ptr(c, 'move', R.from[0] + R.by[0] * q, R.from[1] + R.by[1] * q); }
+        if (i === R.drag[1] + 1) await ptr(c, 'up', R.from[0] + R.by[0], R.from[1] + R.by[1]);
+      });
+    },
   },
 };
 
@@ -189,7 +204,7 @@ async function shoot(browser, url, name, dir) {
     },
   };
   await shot.run(c);
-  fs.writeFileSync(path.join(dir, 'meta.json'), JSON.stringify({ frames: n, fps: FPS }));
+  fs.writeFileSync(path.join(dir, 'meta.json'), JSON.stringify({ frames: n, fps: FPS, ...(c.marks && { marks: c.marks }) }));
   return hashes;
 }
 

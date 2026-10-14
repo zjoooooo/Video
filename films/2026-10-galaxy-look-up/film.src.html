@@ -36,10 +36,16 @@ function frameOf(r, t) {                               // a rate pair ramps line
   return clamp(Math.floor(r.in + FPS * (r0 * u + (r1 - r0) * u * u / (2 * (r.t1 - r.t0))) + 1e-6), 0, r.frames - 1);
 }
 const footage = (r, t) => img(`../../out/galaxy-look-up/shots/${r.shot}/${String(frameOf(r, t)).padStart(5, '0')}.jpg`);
-function drawFootage(im, r, t, dx, dy, dw, dh) {     // pushes in from zoom[0] to zoom[1] across the shot
-  const z = lerp(r.zoom[0], r.zoom[1], ramp(t, r.t0, r.t1)) * (r.snap ? 1 + 0.08 * Math.exp(-(t - r.t0) / 0.12) : 1);   // snap: a kick on the cut
-  const sw = im.naturalWidth / z, sh = im.naturalHeight / z;
-  const sx = clamp(r.c[0] * im.naturalWidth - sw / 2, 0, im.naturalWidth - sw), sy = clamp(r.c[1] * im.naturalHeight - sh / 2, 0, im.naturalHeight - sh);
+function zoomOf(r, t) {                               // zoom[0] to zoom[1] across the shot (or across r.zt); snap: a kick on the cut
+  const [a, b] = r.zt || [r.t0, r.t1];
+  return lerp(r.zoom[0], r.zoom[1], r.zt ? easeIO(ramp(t, a, b)) : ramp(t, a, b)) * (r.snap ? 1 + 0.08 * Math.exp(-(t - r.t0) / 0.12) : 1);
+}
+function cropOf(r, t, iw, ih) {                        // the source rectangle of the footage frame that fills the picture
+  const z = zoomOf(r, t), sw = iw / z, sh = ih / z;
+  return [clamp(r.c[0] * iw - sw / 2, 0, iw - sw), clamp(r.c[1] * ih - sh / 2, 0, ih - sh), sw, sh, z];
+}
+function drawFootage(im, r, t, dx, dy, dw, dh) {
+  const [sx, sy, sw, sh] = cropOf(r, t, im.naturalWidth, im.naturalHeight);
   ctx.drawImage(im, sx, sy, sw, sh, dx, dy, dw, dh);
 }
 
@@ -55,8 +61,8 @@ function text(s, x, y, { size = 40, weight = 200, font = TITLE, color = INK, alp
   ctx.restore();
 }
 const LABELS = {
-  earth: ['EARTH', '地球'], moon: ['THE MOON', '月球'], sunwide: ['THE SUN', '太阳'], jupiter: ['JUPITER', '木星'],
-  saturn: ['SATURN', '土星'], halley: ["HALLEY'S COMET", '哈雷彗星', 'right'], rise: ['THE MILKY WAY', '银河系'],
+  earth: ['EARTH', '地球'], moon: ['THE MOON', '月球'], sunwide: ['THE SUN', '太阳', 'right'], jupiter: ['JUPITER', '木星'],
+  saturn: ['SATURN', '土星', 'right'], halley: ["HALLEY'S COMET", '哈雷彗星', 'right'], rise: ['THE MILKY WAY', '银河系'],
   lmc: ['LARGE MAGELLANIC CLOUD', '大麦哲伦云'], cena: ['CENTAURUS A', '半人马座 A'], m87: ['M87', '室女座 A'],
 };
 const WHISPERS = [                                     // small facts, only ones the product's code shows; [from, to] after a scene starts
@@ -74,13 +80,14 @@ async function render(t) {
   // the twist: from CUE.twist the picture shrinks into a browser window (2.5 s), and moves up for the end card
   const k = easeIO(ramp(t, CUE.twist, CUE.twist + 2.5)), u = easeIO(ramp(t, CUE.url - 0.2, CUE.url + 0.9));
   const bars = BAR_H * (1 - k);
-  const scale = lerp(1 - 0.26 * k, 0.6, u), ww = W * scale, wh = H * scale, wx = (W - ww) / 2, wy = lerp(H / 2 - 20 * k, 430, u) - wh / 2;
+  const scale = lerp(1 - 0.26 * k, 0.6, u), ww = W * scale, wh = H * scale, wx = (W - ww) / 2, wy = lerp(H / 2 - 20 * k, 465, u) - wh / 2;
 
   if (t >= CUE.look && t < SC.sky) {                 // the hook card: black, "Look up."
     text('Look up.', W / 2, H / 2, { size: 88, weight: 100, track: 0.3, alpha: window01(t, CUE.look + 0.3, SC.sky - 0.1, 0.6, 0.35) });
   } else if (k <= 0) {
     drawFootage(ims[0], on[0], t, 0, 0, W, H);
-    if (on[0].grade === 'bulge') bulge(t, on[0]);
+    if (on[0].grade === 'halo') halo(t, on[0]);
+    if (on[0].grade) dither(t);
     vignette(0.55);
   } else {
     desk(k);
@@ -91,7 +98,8 @@ async function render(t) {
     if (on[1]) { ctx.globalAlpha = ease(ramp(t, on[1].t0, on[0].t1)); drawFootage(ims[1], on[1], t, wx, wy, ww, wh); ctx.globalAlpha = 1; }
     chrome(wx, wy - top, ww, top, k);
     ctx.restore();
-    cursor(t, wx, wy, scale);
+    const ui = on.find(x => x.shot === 'ui');
+    if (ui) cursor(t, ui, (fx, fy) => { const [sx, sy, sw, sh] = cropOf(ui, t, 1920, 1080); return [wx + (fx - sx) / sw * ww, wy + (fy - sy) / sh * wh]; });
   }
 
   // fade from black into the sky, and the white flash out of the wormhole
@@ -123,11 +131,11 @@ async function render(t) {
   // the end card: name and address below the window, then an iris
   const n = ramp(t, CUE.url + 0.3, CUE.url + 1.2);
   if (n > 0) {
-    text('Galaxy Explorer', W / 2, 852, { size: 64, weight: 100, track: 0.28, alpha: ease(n) });
-    text('zjoooooo.github.io/galaxy-explorer', W / 2, 930, { size: 32, weight: 300, track: 0.08, color: GOLD, alpha: ease(ramp(t, CUE.url + 0.7, CUE.url + 1.6)) });
+    text('Galaxy Explorer', W / 2, 887, { size: 64, weight: 100, track: 0.28, alpha: ease(n) });
+    text('zjoooooo.github.io/galaxy-explorer', W / 2, 965, { size: 32, weight: 300, track: 0.08, color: GOLD, alpha: ease(ramp(t, CUE.url + 0.7, CUE.url + 1.6)) });
     text('Narration: AI voice', W - 72, H - 44, { size: 26, weight: 300, align: 'right', alpha: 0.45 * ease(ramp(t, CUE.url + 1.5, CUE.url + 2.3)) });
   }
-  iris(t);
+  iris(t, W / 2, wy + wh / 2);                         // it closes on the galaxy in the window
   grain(t);
 }
 
@@ -146,12 +154,18 @@ function flash(t) {                                    // out of the wormhole: 3
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
   ctx.restore();
 }
-function bulge(t, r) {                                 // a highlight roll-off on the galactic bulge, which otherwise clips to a ball
-  const q = ramp(t, r.t0, r.t1), x = W / 2, y = lerp(H * 0.4, H * 0.5, q), R = lerp(H * 0.55, H * 0.32, q);
-  ctx.save(); ctx.globalCompositeOperation = 'multiply';
-  const g = ctx.createRadialGradient(x, y, 0, x, y, R);
-  g.addColorStop(0, 'rgb(196,196,196)'); g.addColorStop(0.6, 'rgb(228,228,228)'); g.addColorStop(1, 'rgb(255,255,255)');
-  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H); ctx.restore();
+function halo(t, r) {                                  // feathers the hard rim of the bulge's glow: subtract its last ~12 levels
+  const f = frameOf(r, t), T = r.halo, i = Math.max(0, T.findIndex(p => p[0] > f) - 1), [f0, r0] = T[i], [f1, r1] = T[Math.min(i + 1, T.length - 1)];
+  const R = lerp(r0, r1, f1 > f0 ? clamp((f - f0) / (f1 - f0)) : 0) * H * zoomOf(r, t);
+  const g = ctx.createRadialGradient(W / 2, H / 2, R * 0.55, W / 2, H / 2, R * 1.04);
+  g.addColorStop(0, 'rgb(0,0,0)'); g.addColorStop(0.62, 'rgb(5,4,3)'); g.addColorStop(0.96, 'rgb(11,10,7)'); g.addColorStop(1, 'rgb(0,0,0)');
+  ctx.save(); ctx.globalCompositeOperation = 'difference'; ctx.fillStyle = g; ctx.fillRect(0, 0, W, H); ctx.restore();
+}
+function dither(t) {                                   // extra noise where smooth glows band under 8-bit capture and H.264
+  const f = Math.floor(t * 24);
+  ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.02;
+  ctx.translate(-((f * 53) % 256), -((f * 89) % 256)); ctx.fillStyle = ctx.createPattern(GRAIN, 'repeat'); ctx.fillRect(0, 0, W + 256, H + 256);
+  ctx.restore();
 }
 const GRAIN = (() => {                                 // seeded noise tile; moved every 1/24 s it reads as film grain and dithers gradients
   const c = Object.assign(document.createElement('canvas'), { width: 256, height: 256 }), g = c.getContext('2d'), d = g.createImageData(256, 256);
@@ -183,25 +197,29 @@ function chrome(x, y, w, h, k) {                       // a plain browser bar: t
   ctx.restore();
   if (h > 24) text('zjoooooo.github.io/galaxy-explorer', x + w / 2, y + h / 2 + 1, { size: 26, weight: 400, color: '#c9ccd6', alpha: k });
 }
-const DRAG = [480, 600];                               // footage frames of the real drag in the ui shot (capture.mjs)
-function cursor(t, wx, wy, s) {                        // the pointer that does the drag, drawn where it happened
-  const r = TL.reel.find(x => x.shot === 'ui'), tDown = r.t0 + (DRAG[0] - r.in) / FPS, tUp = r.t0 + (DRAG[1] - r.in) / FPS;   // ui plays at rate 1
-  const a = window01(t, tDown - 1.0, tUp + 0.8, 0.4, 0.5);
+function cursor(t, r, toScreen) {                     // the pointer the ui shot recorded: drift, release, the button, the drag
+  const M = r.marks, f = r.in + (t - r.t0) * FPS, drift = x => [700 + x * 0.5, 540];
+  const end = [M.from[0] + M.by[0], M.from[1] + M.by[1]];
+  const a = window01(f, r.in, M.drag[1] + 60, 20, 30);
   if (a <= 0) return;
-  let fx, fy;                                          // footage coordinates: glide in, then follow the drag
-  if (t < tDown) { const q = ease(ramp(t, tDown - 1.0, tDown)); fx = lerp(1060, 760, q); fy = lerp(720, 560, q); }
-  else { const q = ramp(t, tDown, tUp); fx = 760 + 720 * q; fy = 560 + 42 * q; }
-  const x = wx + fx * s, y = wy + fy * s, z = t >= tDown && t <= tUp ? 0.92 : 1;
+  let p, down = false;
+  if (f < M.release) { p = drift(f); down = true; }
+  else if (f < M.click - 5) { const q = easeIO(ramp(f, M.release, M.click - 5)); p = [lerp(drift(M.release)[0], M.button[0], q), lerp(540, M.button[1] + 6, q)]; }
+  else if (f < M.click + 20) { p = [M.button[0], M.button[1] + 6]; down = f >= M.click - 2 && f < M.click + 4; }
+  else if (f < M.drag[0]) { const q = easeIO(ramp(f, M.click + 20, M.drag[0] - 10)); p = [lerp(M.button[0], M.from[0], q), lerp(M.button[1] + 6, M.from[1], q)]; }
+  else if (f <= M.drag[1]) { const q = ramp(f, M.drag[0], M.drag[1]); p = [lerp(M.from[0], end[0], q), lerp(M.from[1], end[1], q)]; down = true; }
+  else p = end;
+  const [x, y] = toScreen(...p), z = down ? 0.9 : 1;
   ctx.save(); ctx.globalAlpha = a; ctx.translate(x, y); ctx.scale(1.25 * z, 1.25 * z);
   ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, 21); ctx.lineTo(5, 16.5); ctx.lineTo(8.5, 24); ctx.lineTo(11.5, 22.6); ctx.lineTo(8, 15.4); ctx.lineTo(14.5, 15.4); ctx.closePath();
   ctx.fillStyle = '#fff'; ctx.strokeStyle = '#111'; ctx.lineWidth = 1.3; ctx.fill(); ctx.stroke();
   ctx.restore();
 }
-function iris(t) {
+function iris(t, cx, cy) {
   const q = easeIO(ramp(t, DURATION - 1.6, DURATION - 0.1));
   if (q <= 0) return;
-  const R = Math.hypot(W, H) / 2 * (1 - q);
-  ctx.save(); ctx.fillStyle = '#000'; ctx.beginPath(); ctx.rect(0, 0, W, H); ctx.arc(W / 2, H / 2, Math.max(0, R), 0, Math.PI * 2, true); ctx.fill('evenodd'); ctx.restore();
+  const R = Math.hypot(Math.max(cx, W - cx), Math.max(cy, H - cy)) * (1 - q);
+  ctx.save(); ctx.fillStyle = '#000'; ctx.beginPath(); ctx.rect(0, 0, W, H); ctx.arc(cx, cy, Math.max(0, R), 0, Math.PI * 2, true); ctx.fill('evenodd'); ctx.restore();
 }
 
 window.DURATION = DURATION;
