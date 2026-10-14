@@ -541,9 +541,9 @@ full film. Deliver the MP4, the source, and the list of tunable parameters.
 ## 9. Skill packages: from one prompt to a repeatable workflow (added 2026-10-14)
 
 Source: a post by @Cryptoxorz listing eight Claude video skills and a
-100-second film made with the first of them. Three of the eight were
-identified and cloned (xilo-opus-video, lemo-opuscar, mg-styles-15); the rest
-of the list was cut off. The 290-repo index at
+100-second film made with the first of them. Four of the eight were
+identified and cloned (xilo-opus-video, lemo-opuscar, mg-styles-15,
+dashi-animationstyle); the rest of the list was cut off. The 290-repo index at
 zhuyansen/awesome-claude-video-skills maps the wider field (promo 55,
 frameworks 48, explainers 48, editing 41, shorts 36, motion/logo 19, story
 and animation 17, music video 8).
@@ -821,23 +821,142 @@ scripts reproduce the published audio bit for bit; the others drift with
 numerical library versions. Fonts are not shipped, so without them lettering
 falls back to system fonts.
 
-### 9.4 What the three packages agree on
+### 9.5 dashi-animationstyle (chuspeeism / 大师的AI小灶): narrated explainers in seven styles
+
+Skill number 4 in the post. It turns a 15-60 s Chinese narration into a
+1920x1080, 30 fps explainer with voice and subtitles, ready to drop into
+CapCut. Picture is HTML/Canvas only, no image model. Seven tested styles:
+flat flowchart, hand-drawn notes, retro newspaper, retro paper cut,
+surreal collage, 3D cartoon, black-gold tech; plus a style dictionary of 27
+more described as parameters.
+
+Three ways to use it: an existing style on your narration; a new style built
+from one reference image or video (2-4 rounds of stills, not guaranteed: the
+author kept 7 of 11 attempts); or a verbal description ("a warm chalkboard
+look") answered with 2-3 directions as stills.
+
+Pipeline, all in one project folder: narration audio, whisper transcription
+corrected against the script (it detects words in the audio that are not in
+the script, usually neighbour sentences caught when the clip was cut, and can
+trim them automatically), character-level subtitle timing, a storyboard
+written by Claude and approved by the user, a generated `window.TL` timeline,
+a page copied from the style template and rewritten shot by shot, three
+stills approved by the user, the full render, then checks.
+
+The design idea worth copying: **time comes from words, not seconds.**
+`marks` name a phrase in a given subtitle line; the timeline generator
+converts it to a second from the character timings, and the page asks
+`TL.mark('分词器')`. No hard-coded seconds, so re-recording the narration
+re-times every animation.
+
+Rules backed by sources or measurement (`knowledge/讲解动画通用规则.md`):
+
+- Subtitles at least 60 px, one line, about 20 characters. Any text the viewer
+  must read at least 48 px at 1920 wide, because on a phone it shrinks to
+  about 480 wide. Every still render also writes a 480-wide check image.
+- Contrast 4.5:1 for text (WCAG 1.4.3), 3:1 for graphics; computed on the
+  worst spot of a textured background.
+- Bottom ~170 px is subtitle-only; title-safe margins 5% (EBU R 95).
+- Two fixed highlight colours A and B for the two core nouns, used in
+  picture, data and subtitles alike; other colours avoid their hue families.
+- Dwell time: characters / 9 per second + ~0.5 s (from Netflix's Simplified
+  Chinese spec); hold at least 1 s after a conclusion or stamp.
+- Motion starts 0.03-0.1 s before its keyword; letter-by-letter text needs
+  about 0.3 s after the keyword before a still shows the full word.
+- No more than 3 flashes per second (WCAG 2.3.1).
+
+Richness rules from a blind test (`knowledge/动效和画面变化.md`): every shot
+lists entrance, main action, secondary action, exit or transition; a visible
+change every 2-3 s (calibrated on shot lengths of a popular Chinese tech
+channel, median 2.8-3.4 s), the first 3 s densest; secondary motion of
+2-6 px, 1-3% scale, 1-2 degrees on 1.5-4 s periods, at most two kinds at
+once; at least 3 transition types, never the same one 3 times in a row, and
+transitions that suit the material (paper falls and tears, chalkboards get
+erased, screens glitch, newspapers turn). A script measures this: one cell
+every 2.5 s, mean pixel difference between neighbours, pass at 10 or more
+with no near-identical pair. In the blind test, the version with the higher
+score was the one the author judged richer in all three pairs.
+
+A gotcha worth remembering: reset the whole canvas state at the start of
+every frame. A `lineCap`, `setLineDash` or `globalAlpha` left over from the
+previous frame is invisible in a sequential render but changes a single
+still; three of the author's own example pages had this bug. The skill ships
+a determinism check that compares "seek directly" against "seek elsewhere,
+then come back" at three times.
+
+Verified here: the bundled Token example in the hand-drawn-notes style was
+created, three stills rendered in 6.6 s, and the full 21.2 s film rendered
+in 165 s (259 ms per frame, software rendering). The richness check passed
+with a mean of 29.0, no near-identical pairs, 100% of frames moving. On
+Linux the macOS fonts fall back to WenQuanYi, and Chrome needs
+`--no-sandbox` when running as root.
+
+### 9.6 code-video-director (same author): motion feel you can measure
+
+Not confirmed as part of the post, but by the same author and the most
+technically ambitious of the set. It finishes unattended: "don't stop to
+ask; when unsure pick the safer option and record the trade-off." Steps:
+director sheet, route choice and one test frame, sound first (beats or
+narration timing), storyboard with a per-shot event table, three-pass build
+with locked layers, stills plus a 4 s motion sample, full render, automated
+QA and a rework loop of at most three rounds, delivery notes.
+
+What it adds that nothing else in this study has:
+
+- **A motion analyzer.** A numpy optical-flow script removes camera motion,
+  splits moves, and measures peak speed, move length, whether a move starts
+  fast and ends slow, wobble area, how often the camera is moving, the spread
+  of move durations, and cyclic repeats. Ten rules with thresholds calibrated
+  on reference films, each with a fix that names a template helper. The
+  diagnosis that motivated it: a weaker model's moves averaged 1.13 s at
+  219 px/s peak with the camera always pushing; the reference averaged
+  0.33 s at 963 px/s with peak speed in the first quarter of the move.
+- **Pacing tiers.** Calm, promo and MV, each with its own thresholds, and
+  switchable per section ("0-12 s promo, MV from 12 s").
+- **Events, not cycles.** Pin each action to `ev(bar, beat)` so it happens
+  once; escalate repeated hits with `ramp()`; `t % period` only for blinks,
+  sparks and scrolling backgrounds. A detector flags looped main actions and
+  storyboards where 30% of rows repeat the same sentence.
+- **Layer locking.** Main action, auxiliary motion and impact effects are
+  separate files, built and measured in three passes. Locking a layer records
+  its file hashes and metrics; a relock is refused if a metric regresses by
+  more than 10%, and the self-check puts "locked layer modified" at the top
+  of the rework sheet. This stops the see-saw where every fix quietly breaks
+  something that already passed.
+- **A director sheet written to be judged.** Each hard requirement is the
+  user's exact words beside a result that can be checked as right or wrong,
+  with a tick box before delivery. Style is named and has a "must not appear"
+  list. Motion chain: anticipation, acceleration, impact, squash or
+  overshoot, settle, aftershock.
+- **Sound alignment.** Song start = climax time in the song minus climax time
+  in the film. Trust the low-frequency energy jump over an automatic beat
+  grid. Narration is synthesized sentence by sentence and the scene changes
+  0.1-0.2 s before the sentence starts.
+- **Anti-slideshow composition checks**: dominant-colour share, correlation
+  of edge layouts between frames 3 s apart, adjacent-second similarity.
+
+### 9.7 What the five packages agree on
 
 - Interview first, one round, then a written plan (`brief.md`,
-  `TREATMENT.md`, a cue sheet) that the model follows and the user can
-  reuse.
+  `TREATMENT.md`, a storyboard or director sheet, a cue sheet) that the model
+  follows and the user can reuse. One package (code-video-director) skips
+  the interview and records its own choices instead.
 - Key frames before motion. Render 3-10 stills, look at them, fix layout.
+  Several also render a phone-width check image.
 - One timeline file feeds picture, sound and subtitles; sounds are placed at
-  visual event times with a sync point, never by offset.
+  visual event times with a sync point, never by offset. The explainer
+  package goes further and anchors animation to words in the narration.
 - A scored self-review with a rubric, and the instruction to fix the lowest
   score first. Two or three rounds is the expected cost, not a failure.
-- A banned list that names the default look.
+  Two packages turn part of the review into scripts (richness, motion feel,
+  composition).
+- A banned list that names the default look: dark or gradient background,
+  centred big type, everything fading in and out.
 - Deliver the MP4, the source, a report of check numbers, and an honest list
   of weaknesses.
 
-Open items: the post's skills 4 to 8 (one is named dashi-animationstyle) were
-cut off in the screenshot and did not surface in search or in the 290-repo
-index.
+Open item: skills 5 to 8 of the post were cut off in the screenshot. X is not
+reachable from this container and search did not surface them.
 
 ## 10. Sources
 
@@ -853,6 +972,8 @@ index.
 - https://github.com/lemomo-ai/lemo-opuscar (43 style prompts, voice and subtitle pipeline)
 - https://github.com/Vincentwei1021/mg-styles-15 (15 films, prompts, harness, audio library)
 - https://github.com/zhuyansen/awesome-claude-video-skills (290-repo index, security-graded)
+- https://github.com/chuspeeism/dashi-animationstyle (narrated explainers, 7 styles, word-anchored timing)
+- https://github.com/chuspeeism/code-video-director (motion analyzer, pacing tiers, layer locking)
 
 ### Community examples quoted or studied
 
