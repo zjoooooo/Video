@@ -3,12 +3,33 @@
   "voice": "coral",
   "instructions": "Trailer narrator for a short film about exploring the universe. Hushed, intimate and full of wonder at first, growing in quiet awe as the film opens up. Unhurried, with long natural pauses. Never salesy. The last line is warm and simple, almost a smile.",
   "lines": [
-    {"id": "eyes",    "text": "For as long as we've had eyes, we've looked up, and drawn stories in the stars."},
-    {"id": "further", "text": "Now go further."},
-    {"id": "past",    "text": "Past the Moon. Past a living Sun."},
-    {"id": "stars",   "text": "Out into eighty-five thousand stars, every one of them made by code."},
-    {"id": "jets",    "text": "Further still, to galaxies that fire jets of plasma across the dark."},
-    {"id": "page",    "text": "And all of it lives in one web page."},
-    {"id": "open",    "text": "No install. Just open it, and look up."}
+    {
+      "id": "eyes",
+      "text": "For as long as we've had eyes, we've looked up, and drawn stories in the stars."
+    },
+    {
+      "id": "further",
+      "text": "Now go further."
+    },
+    {
+      "id": "past",
+      "text": "Past the Moon. Past a living Sun."
+    },
+    {
+      "id": "stars",
+      "text": "Out into eighty-five thousand points of light, every one of them made by code."
+    },
+    {
+      "id": "jets",
+      "text": "Further still, to galaxies that fire jets of plasma across the dark."
+    },
+    {
+      "id": "page",
+      "text": "And all of it lives in one web page."
+    },
+    {
+      "id": "open",
+      "text": "No install. Just open it, and look up."
+    }
   ]
 }

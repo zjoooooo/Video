@@ -51,7 +51,7 @@
 2. *For as long as we've had eyes, we've looked up, and drawn stories in the stars.* —— 自从有了眼睛，我们就抬头仰望，把故事画进星空。
 3. *Now go further.* —— 现在，走得更远。
 4. *Past the Moon. Past a living Sun.* —— 越过月球，越过一颗活着的太阳。
-5. *Out into eighty-five thousand stars, every one of them made by code.* —— 冲进八万五千颗星，每一颗都由代码生成。
+5. *Out into eighty-five thousand points of light, every one of them made by code.* —— 冲进八万五千个光点，每一个都由代码生成。（README 写的是"约 85,000 个尘埃点"，不说"星"）
 6. *Further still, to galaxies that fire jets of plasma across the dark.* —— 再远一些，有星系向黑暗射出等离子喷流。
 7. *And all of it lives in one web page.* —— 而这一切，都在一个网页里。
 8. *No install. Just open it, and look up.* —— 不用安装。打开它，抬头看。
@@ -105,3 +105,19 @@
 | 虫洞倒放不像"冲出去" | 改用银河素材的径向拉伸 + 白闪做光速转场 |
 | 无头 Chromium 上 WebGL 慢 | 逐帧录制不受渲染速度影响，只是耗时更长；用 GPU 启动参数（`galaxy-pro-video/src/browser.mjs` 的 `GPU_LAUNCH_ARGS`） |
 | 素材体积大 | 全关键帧素材只放在 `out/`（已 gitignore），不入库 |
+
+## 10. 成片（2026-10-14）
+
+美术总监评审了四轮：6 → 7.5 → 8.5 → 9/10。最终结构 78 秒：
+
+| 段 | 时间 | 镜头 |
+|---|---|---|
+| 钩子 | 0–6 | 太阳边缘特写（拉远）→ 黑场 *Look up.* |
+| I | 6–16 | 狮子座 / 天蝎座 / 人马座，三刀，各从选中那一刻切入 |
+| II | 16–34 | 地球（日面）、月球（凸月）、太阳拉远（行星入画）、木星、土星、哈雷彗星；4-4-4-2-2-2，拉远、偏离中心、录制时真实拖拽产生视差 |
+| 爆发 | 34–46 | 真实虫洞倒放加速 → 加法白闪 → 银河升起（`grade_rise.py` 离线羽化核球光晕硬边） |
+| III | 46–60 | 大麦哲伦云（含 SN 1987A 光环）、半人马座 A（尘埃带 + 双喷流）、M87（剪点上的镜头冲击） |
+| 反转 | 60–78 | M87 缩进浏览器窗口 → 同一机位的真实页面带 UI 溶入 → 光标点真实的 "Back to the Milky Way" → 飞回（1.6 倍）→ 拖拽到正面 → 片名 + 网址 → 光圈收在银河上 |
+
+评审中保留的产品特征（不是缺陷）：自转轴线和赤道环（飞入行星系统时产品就会显示）、SN 1987A 的光环、地球极光。
+技术记录：逐帧接管 rAF 的录制结果逐位一致；UI 镜头用 Web Animations API 把 CSS 动画拨到帧时钟上；Chrome 中鼠标和滚轮事件要等原生帧，所以拖拽和缩放改为直接派发 PointerEvent / WheelEvent；画布上画过渐变之后后续混合的光栅化会变，因此在 READY 前先预热一次。

@@ -53,7 +53,9 @@ function cropOf(r, t, iw, ih) {                        // the source rectangle o
 }
 function drawFootage(im, r, t, dx, dy, dw, dh) {
   const [sx, sy, sw, sh] = cropOf(r, t, im.naturalWidth, im.naturalHeight);
+  if (r.grade === 'dim') ctx.filter = 'brightness(0.9)';   // pulls a clipped highlight off flat white
   ctx.drawImage(im, sx, sy, sw, sh, dx, dy, dw, dh);
+  ctx.filter = 'none';
 }
 
 // ---- type ----------------------------------------------------------------------------------------------
@@ -74,7 +76,7 @@ const LABELS = {
 };
 const WHISPERS = [                                     // small facts, only ones the product's code shows; [from, to] after a scene starts
   ['sky', 1.2, 9.4, '25 constellations · real J2000 star positions'],
-  ['burst', 5.4, 13.2, '85,000 stars · generated in code'],
+  ['burst', 5.4, 13.2, '85,000 points of light · generated in code'],
 ];
 
 // ---- the frame -----------------------------------------------------------------------------------------
@@ -93,7 +95,7 @@ async function render(t) {
     text('Look up.', W / 2, H / 2, { size: 88, weight: 100, track: 0.3, alpha: window01(t, CUE.look + 0.3, SC.sky - 0.1, 0.6, 0.35) });
   } else if (k <= 0) {
     drawFootage(ims[0], on[0], t, 0, 0, W, H);
-    if (on[0].grade) dither(t);
+    if (on[0].grade === 'dither') dither(t);
     vignette(0.55);
   } else {
     desk(k);

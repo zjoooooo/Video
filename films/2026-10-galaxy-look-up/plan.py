@@ -55,7 +55,7 @@ plan = [("earth", 4.0, 0, 1.45, 1.25, 0.38), ("moon", 4.0, 120, 1.7, 1.45, 0.62)
 t = go
 cue["planets"] = []
 for name, d, at, z0, z1, ax in plan:
-    shot(name, t, t + d, at=at, zoom=z0, zoom1=z1, at_x=ax)
+    shot(name, t, t + d, at=at, zoom=z0, zoom1=z1, at_x=ax, **({"grade": "dim"} if name == "moon" else {}))
     cue["planets"].append(t); t += d
 line("further", go + 0.5)
 line("past", go + 6.5)                                  # "Past a living Sun" lands on the Sun

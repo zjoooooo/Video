@@ -52,20 +52,20 @@
   },
   {
    "id": "stars",
-   "text": "Out into eighty-five thousand stars, every one of them made by code.",
-   "dur": 5.152,
+   "text": "Out into eighty-five thousand points of light, every one of them made by code.",
+   "dur": 5.348,
    "phrases": [
     [
-     0.01,
-     0.36
+     0.03,
+     2.75
     ],
     [
-     0.59,
-     2.7
+     3.33,
+     4.22
     ],
     [
-     3.23,
-     5.12
+     4.4,
+     5.24
     ]
    ]
   },

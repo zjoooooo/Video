@@ -53,8 +53,8 @@
   {
    "id": "stars",
    "start": 39.0,
-   "dur": 5.152,
-   "text": "Out into eighty-five thousand stars, every one of them made by code."
+   "dur": 5.348,
+   "text": "Out into eighty-five thousand points of light, every one of them made by code."
   },
   {
    "id": "jets",
@@ -170,6 +170,7 @@
     0.4238,
     0.5
    ],
+   "grade": "dim",
    "frames": 420
   },
   {
@@ -400,8 +401,8 @@
   },
   {
    "t0": 39.0,
-   "t1": 44.502,
-   "zh": "冲进八万五千颗星，每一颗都由代码生成。"
+   "t1": 44.698,
+   "zh": "冲进八万五千个光点，每一个都由代码生成。"
   },
   {
    "t0": 46.5,
