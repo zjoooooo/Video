@@ -7,8 +7,9 @@ rise  -> shots/riseg: the bulge's glow is a disc centred on the frame whose last
          the outer part of the disc, clamped at black so nothing outside is lifted, and add seeded noise
          inside the disc to break up its 8-bit bands.
 earth -> shots/earthg: as the camera turns onto the night side (frames 200-270) the ambient-lit surface
-         drops toward black (the frame times itself), the warm city lights are lifted 1.5x, and the pink
-         twilight band and the aurora plumes past the poles lose half their saturation.
+         drops toward black (the frame times itself), the warm city lights are lifted 1.5x, the pink
+         twilight band loses half its saturation, and past the limb (radius measured: 567 px at frame 0,
+         573 at 260) the aurora plumes are matted 85% toward black over a 2% feather.
 """
 import json, pathlib, subprocess, sys, numpy as np
 
@@ -48,18 +49,16 @@ def rise(img, f):
 def earth(img, f):
     k = float(smooth(200, 270, np.float32(f)))
     luma = img @ np.array([0.299, 0.587, 0.114], np.float32)
-    disc = luma > 10                                      # the planet (and its glow) against black space
-    R = np.sqrt(disc.sum() / np.pi)
-    r, g, b = img[..., 0], img[..., 1], img[..., 2]
+    r, b = img[..., 0], img[..., 2]
     if k > 0:
         img *= (1 - 0.6 * k + 0.6 * k * img / 255)        # night side toward black; bright lights barely move
         lights = np.clip((r - b - 40) / 40, 0, 1) * np.clip((luma - 60) / 40, 0, 1) * k
         img *= 1 + 0.5 * lights[..., None]
     luma = img @ np.array([0.299, 0.587, 0.114], np.float32)
     pink = np.clip((img[..., 0] - img[..., 1] - 15) / 30, 0, 1) * np.clip((img[..., 2] - img[..., 1] + 5) / 30, 0, 1)
-    outside = smooth(1.0 * R, 1.06 * R, rr)               # the aurora plumes and glows past the limb
-    desat = 0.5 * np.maximum(pink, outside)
-    return img + (luma[..., None] - img) * desat[..., None]
+    img += (luma[..., None] - img) * (0.5 * pink)[..., None]
+    R = 567 + 6 * f / 260                                 # the limb, atmosphere included
+    return img * (1 - 0.85 * smooth(R, 1.02 * R, rr))[..., None]
 
 
 which = sys.argv[1]
