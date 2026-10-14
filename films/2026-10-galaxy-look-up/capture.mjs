@@ -130,7 +130,8 @@ export const SHOTS = {
       });
     },
   },
-  earth: ride('earth', 300, { drift: -0.6 }), moon: ride('moon', 300, { turn: [-300, -40], drift: 0.6 }),   // drifts that keep Jupiter out of frame
+  earth: ride('earth', 300, { drift: 0.6 }),                                    // the day side: the twilight band stays on the limb
+  moon: ride('moon', 420, { turn: [-100, -60], drift: 0.6 }),                    // a gibbous Moon; Earth has left the frame by 120
   sunwide: ride('sun', 300, { drift: 0.4, dolly: 7 }),   // pulling away from the Sun until the inner orbits show
   jupiter: ride('jupiter', 300, { drift: -0.8 }), saturn: ride('saturn', 300, { drift: 0.7 }), halley: ride('halley', 300, { angle: -0.2, drift: -0.5 }),
   // the real wormhole from the galaxy into the Solar System (the film plays it backwards)
@@ -157,7 +158,7 @@ export const SHOTS = {
       const R = UI_MARKS, b = await c.page.evaluate(() => { const r = document.getElementById('return-mw').getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height / 2]; });
       c.marks = { ...R, button: b };
       await ptr(c, 'down', 700, 540);
-      await c.rec(1350, async i => {
+      await c.rec(1400, async i => {
         if (i < R.release) await ptr(c, 'move', 700 + i * 0.5, 540);
         if (i === R.release) await ptr(c, 'up', 700 + i * 0.5, 540);
         if (i === R.click) await c.page.evaluate(() => document.getElementById('return-mw').click());

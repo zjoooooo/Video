@@ -50,7 +50,7 @@ line("eyes", sky + 1.0)
 
 # II: outwards through the Solar System; pull-outs, off-centre, the cuts quicken toward the wormhole
 go = 16.0
-plan = [("earth", 4.0, 0, 1.45, 1.25, 0.38), ("moon", 4.0, 0, 1.7, 1.45, 0.62), ("sunwide", 4.0, 0, 1.3, 1.1, 0.5),
+plan = [("earth", 4.0, 0, 1.45, 1.25, 0.38), ("moon", 4.0, 120, 1.7, 1.45, 0.62), ("sunwide", 4.0, 0, 1.3, 1.1, 0.5),
         ("jupiter", 2.0, 60, 1.5, 1.35, 0.62), ("saturn", 2.0, 40, 1.3, 1.18, 0.42), ("halley", 2.0, 0, 1.15, 1.05, 0.5)]
 t = go
 cue["planets"] = []
@@ -64,10 +64,8 @@ line("past", go + 6.5)                                  # "Past a living Sun" la
 burst = t
 shot("wormhole", burst, burst + 4.0, at=430, rate=[-0.8, -2.6])
 cue["burst"] = burst + 4.0
-# the bulge's glow is a hard-edged disc centred on the frame; its radius (fraction of the frame height, by
-# footage frame) was measured from the capture, so the film can feather its edge away (a grade, not a change)
-HALO = [[0, .524], [60, .528], [120, .517], [180, .489], [240, .448], [300, .404], [360, .357], [420, .317], [480, .283]]
-shot("rise", burst + 4.0, burst + 12.0, zoom=1.25, zoom1=1.0, grade="halo", halo=HALO)
+# the bulge's glow is a hard-edged disc; grade_rise.py feathers its rim away (a grade, not a change)
+shot("riseg", burst + 4.0, burst + 12.0, zoom=1.25, zoom1=1.0, grade="dither")   # riseg: rise graded by grade_rise.py
 line("stars", burst + 5.0)
 
 # III: beyond the Milky Way; the timpani lands on M87's jet with a zoom snap
@@ -90,8 +88,12 @@ cue["url"] = beat(max(e + 0.5, twist + 9.0))
 end = bar(cue["url"] + 7.5)                         # the address stays readable before the iris
 # ui starts exactly where m87 is at the dissolve (the same arrival and drift, UI on), at the same zoom, then eases out
 UI = json.loads((SHOTS / "ui/meta.json").read_text())["marks"]
-shot("ui", cue["window"], end, at=round((cue["window"] - m87["t0"]) * FPS), zoom=round(z_at, 4), zoom1=1.0,
-     zt=[cue["window"] + 0.6, cue["window"] + 2.1], marks=UI)
+# the fly home after the click plays at 1.6x, so the window is not left nearly black (warp: [film time, frame])
+at = round((cue["window"] - m87["t0"]) * FPS)
+k1 = cue["window"] + (UI["click"] + 10 - at) / FPS
+k2 = k1 + (UI["drag"][0] - 18 - UI["click"] - 10) / (1.6 * FPS)
+shot("ui", cue["window"], end, at=at, zoom=round(z_at, 4), zoom1=1.0, zt=[cue["window"] + 0.6, cue["window"] + 2.1], marks=UI,
+     warp=[[cue["window"], at], [round(k1, 4), UI["click"] + 10], [round(k2, 4), UI["drag"][0] - 18]])
 
 
 def srt(key, path):
@@ -107,6 +109,7 @@ for r in reel:                                           # every frame the film 
     r["frames"] = meta["frames"]
     rate = sum(r["rate"]) / 2 if isinstance(r["rate"], list) else r["rate"]
     last = r["in"] + (r["t1"] - r["t0"]) * FPS * rate
+    if "warp" in r: last = r["warp"][-1][1] + (r["t1"] - r["warp"][-1][0]) * FPS
     assert 0 <= min(r["in"], last) and max(r["in"], last) < meta["frames"], f"{r['shot']} needs frame {last:.0f}, has {meta['frames']}"
 assert all(abs(r["t0"] * 2 - round(r["t0"] * 2)) < 1e-6 for r in reel), "a cut is off the beat grid"
 assert all(abs(v / 2 - round(v / 2)) < 1e-6 for v in (sky, go, burst, beyond, twist)), "a scene starts off a bar line"
