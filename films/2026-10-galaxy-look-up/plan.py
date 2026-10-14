@@ -54,7 +54,7 @@ go = 16.0
 plan = [("earthg", 6.0, 0, 1.85, 1.65, 0.5, {"rate": 0.78}),   # 0.78: ends (frame 281) before the Sun enters
         ("moon", 4.0, 120, 1.7, 1.45, 0.62, {"grade": "dim"}),
         ("sunwide", 4.0, 0, 2.0, 1.0, 0.5, {"zt": None}),
-        ("jupiter", 4.0, 55, 1.5, 1.35, 0.62, {}), ("saturn", 2.0, 40, 1.3, 1.18, 0.42, {})]   # Halley's Comet rides in the Sun's shot
+        ("jupiter", 4.0, 0, 1.5, 1.35, 0.62, {}), ("saturn", 2.0, 40, 1.3, 1.18, 0.42, {})]   # Halley's Comet rides in the Sun's shot
 t = go
 cue["planets"] = []
 for name, d, at, z0, z1, ax, extra in plan:
