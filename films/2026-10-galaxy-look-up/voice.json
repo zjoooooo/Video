@@ -1,0 +1,134 @@
+{
+ "voice": "coral",
+ "lines": [
+  {
+   "id": "eyes",
+   "text": "For as long as we've had eyes, we've looked up, and drawn stories in the stars.",
+   "dur": 6.133,
+   "phrases": [
+    [
+     0.08,
+     1.78
+    ],
+    [
+     2.25,
+     3.0
+    ],
+    [
+     3.59,
+     4.91
+    ],
+    [
+     5.3,
+     6.1
+    ]
+   ]
+  },
+  {
+   "id": "further",
+   "text": "Now go further.",
+   "dur": 1.639,
+   "phrases": [
+    [
+     0.04,
+     1.57
+    ]
+   ]
+  },
+  {
+   "id": "past",
+   "text": "Past the Moon. Past a living Sun.",
+   "dur": 3.131,
+   "phrases": [
+    [
+     0.05,
+     0.78
+    ],
+    [
+     1.67,
+     2.99
+    ]
+   ]
+  },
+  {
+   "id": "stars",
+   "text": "Out into eighty-five thousand stars, every one of them made by code.",
+   "dur": 5.152,
+   "phrases": [
+    [
+     0.01,
+     0.36
+    ],
+    [
+     0.59,
+     2.7
+    ],
+    [
+     3.23,
+     5.12
+    ]
+   ]
+  },
+  {
+   "id": "jets",
+   "text": "Further still, to galaxies that fire jets of plasma across the dark.",
+   "dur": 6.43,
+   "phrases": [
+    [
+     0.08,
+     1.0
+    ],
+    [
+     1.79,
+     3.47
+    ],
+    [
+     3.65,
+     4.12
+    ],
+    [
+     4.27,
+     4.81
+    ],
+    [
+     5.3,
+     6.17
+    ],
+    [
+     6.33,
+     6.38
+    ]
+   ]
+  },
+  {
+   "id": "page",
+   "text": "And all of it lives in one web page.",
+   "dur": 2.642,
+   "phrases": [
+    [
+     0.01,
+     2.59
+    ]
+   ]
+  },
+  {
+   "id": "open",
+   "text": "No install. Just open it, and look up.",
+   "dur": 4.326,
+   "phrases": [
+    [
+     0.03,
+     1.12
+    ],
+    [
+     1.95,
+     2.83
+    ],
+    [
+     3.55,
+     4.13
+    ]
+   ]
+  }
+ ]
+}

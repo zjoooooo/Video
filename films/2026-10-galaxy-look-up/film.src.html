@@ -1,0 +1,184 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Look Up</title>
+<style>html,body{margin:0;background:#000;overflow:hidden}canvas{display:block}</style></head>
+<body><canvas width="1920" height="1080"></canvas>
+<script>
+// "Look Up": a promo film of Galaxy Explorer, edited from footage captured frame by frame (capture.mjs).
+// Frame contract: window.DURATION (seconds) and async window.seek(t); every value is a pure function of t.
+const TL = JSON.parse(__TEXT:timeline.json__), CUE = TL.cue, SC = TL.scenes;
+const W = 1920, H = 1080, DURATION = TL.duration, BAR_H = 138, FPS = 60;
+const INK = '#f3efe6', GOLD = '#ffd45a';
+const TITLE = '"Helvetica Neue", Helvetica, Arial, sans-serif', ZH = '"PingFang SC", "Hiragino Sans GB", sans-serif', MONO = 'Menlo, monospace';
+const cv = document.querySelector('canvas'), ctx = cv.getContext('2d');
+
+// ---- time helpers --------------------------------------------------------------------------------------
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const ramp = (t, a, b) => clamp((t - a) / (b - a));
+const ease = x => x * x * (3 - 2 * x);
+const easeIO = x => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
+const window01 = (t, a, b, fin = 0.4, fout = 0.4) => ease(ramp(t, a, a + fin)) * (1 - ease(ramp(t, b - fout, b)));
+const lerp = (a, b, k) => a + (b - a) * k;
+
+// ---- footage -------------------------------------------------------------------------------------------
+const cache = new Map();
+function img(src) {                                    // a few decoded frames; 4K frames are 33 MB each
+  if (!cache.has(src)) {
+    const im = new Image(); im.src = src;
+    cache.set(src, im.decode().then(() => im));
+    while (cache.size > 6) cache.delete(cache.keys().next().value);
+  }
+  return cache.get(src);
+}
+const shotAt = t => TL.reel.find(r => t >= r.t0 && t < r.t1) || TL.reel[TL.reel.length - 1];
+const frameOf = (r, t) => clamp(Math.floor(r.in + (t - r.t0) * FPS * r.rate + 1e-6), 0, r.frames - 1);
+const footage = (r, t) => img(`../../out/galaxy-look-up/shots/${r.shot}/${String(frameOf(r, t)).padStart(5, '0')}.jpg`);
+function drawFootage(im, r, t, dx, dy, dw, dh) {     // pushes in from zoom[0] to zoom[1] across the shot
+  const z = lerp(r.zoom[0], r.zoom[1], ramp(t, r.t0, r.t1));
+  const sw = im.naturalWidth / z, sh = im.naturalHeight / z;
+  const sx = clamp(r.c[0] * im.naturalWidth - sw / 2, 0, im.naturalWidth - sw), sy = clamp(r.c[1] * im.naturalHeight - sh / 2, 0, im.naturalHeight - sh);
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(im, sx, sy, sw, sh, dx, dy, dw, dh);
+}
+
+// ---- type ----------------------------------------------------------------------------------------------
+function text(s, x, y, { size = 40, weight = 200, font = TITLE, color = INK, alpha = 1, track = 0, align = 'center', blur = 0 } = {}) {
+  if (alpha <= 0.001) return;
+  ctx.save();
+  ctx.globalAlpha = alpha; ctx.fillStyle = color; ctx.textAlign = align; ctx.textBaseline = 'middle';
+  ctx.font = `${weight} ${size}px ${font}`; ctx.letterSpacing = `${track}em`;
+  if (blur) { ctx.shadowColor = 'rgba(0,0,0,0.85)'; ctx.shadowBlur = blur; }
+  // letterSpacing adds space after the last glyph too; shift centred text back by half of it
+  ctx.fillText(s, x + (align === 'center' ? track * size / 2 : 0), y);
+  ctx.restore();
+}
+const LABELS = {
+  earth: ['EARTH', '地球'], moon: ['THE MOON', '月球'], sun: ['THE SUN', '太阳'], jupiter: ['JUPITER', '木星'],
+  saturn: ['SATURN', '土星'], halley: ["HALLEY'S COMET", '哈雷彗星'], rise: ['THE MILKY WAY', '银河系'],
+  lmc: ['LARGE MAGELLANIC CLOUD', '大麦哲伦云'], cena: ['CENTAURUS A', '半人马座 A'], m87: ['M87', '室女座 A'],
+};
+const WHISPERS = [                                     // small facts, only ones the product's code shows
+  ['sky', 2.5, 11.0, '25 constellations · real J2000 star positions'],
+  ['rise', 1.6, 8.6, '85,000 stars · generated in code'],
+];
+
+// ---- the frame -----------------------------------------------------------------------------------------
+async function render(t) {
+  const r = shotAt(t), im = await footage(r, t);
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+
+  const twist = CUE.twist, k = easeIO(ramp(t, twist + 2, twist + 6));       // 0 = full frame, 1 = a window on a desk of space
+  const bars = BAR_H * (1 - easeIO(ramp(t, twist + 2, twist + 5)));
+  const scale = 1 - 0.38 * k, ww = W * scale, wh = H * scale, wx = (W - ww) / 2, wy = (H - wh) / 2 - 64 * k + 24 * k;
+
+  if (t >= CUE.look && t < SC.sky) {                 // the hook card: black, "Look up."
+    text('Look up.', W / 2, H / 2, { size: 88, weight: 100, track: 0.3, alpha: window01(t, CUE.look + 0.3, SC.sky - 0.1, 0.6, 0.35) });
+  } else if (r.shot !== 'ui') {
+    drawFootage(im, r, t, 0, 0, W, H);
+    vignette(0.55);
+  } else {
+    if (k > 0) desk(k);
+    ctx.save();
+    if (k > 0) { shadow(wx, wy - 44 * k, ww, wh + 44 * k, k); roundClip(wx, wy - 44 * k, ww, wh + 44 * k, 14 * k); }
+    drawFootage(im, r, t, wx, wy, ww, wh);
+    if (k > 0) chrome(wx, wy - 44 * k, ww, 44 * k, k);
+    ctx.restore();
+    cursor(t, wx, wy, scale);
+  }
+
+  // fades from black into the sky, and the white flash out of the wormhole
+  if (t >= SC.sky && t < SC.sky + 0.9) { ctx.fillStyle = `rgba(0,0,0,${1 - ease(ramp(t, SC.sky, SC.sky + 0.9))})`; ctx.fillRect(0, 0, W, H); }
+  flash(t);
+  if (t < 0.25) { ctx.fillStyle = `rgba(0,0,0,${1 - ramp(t, 0, 0.25)})`; ctx.fillRect(0, 0, W, H); }
+
+  // place names and small facts inside the picture, above the lower bar
+  if (LABELS[r.shot] && !(r.shot === 'sun' && t < SC.sky)) {
+    const a = window01(t, r.t0 + 0.35, r.t1 - 0.1, 0.5, 0.35) * 0.8, [en, zh] = LABELS[r.shot];
+    text(en, 96, H - BAR_H - 58, { size: 26, weight: 300, track: 0.32, align: 'left', alpha: a, blur: 10 });
+    ctx.save(); ctx.font = `300 26px ${TITLE}`; ctx.letterSpacing = '0.32em'; const enW = ctx.measureText(en).width; ctx.restore();
+    text(zh, 96 + enW + 22, H - BAR_H - 58, { size: 26, weight: 300, font: ZH, track: 0.18, align: 'left', alpha: a * 0.85, blur: 10 });
+  }
+  for (const [shot, a, b, s] of WHISPERS) {
+    const e = TL.reel.find(x => x.shot === shot); if (!e || t < e.t0 + a || t > e.t0 + b) continue;
+    text(s, W - 96, H - BAR_H - 58, { size: 24, weight: 400, font: MONO, align: 'right', alpha: 0.55 * window01(t, e.t0 + a, e.t0 + b, 0.6, 0.6), blur: 8 });
+  }
+
+  // the letterbox, then subtitles inside the lower bar
+  if (bars > 0.5) { ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, bars); ctx.fillRect(0, H - bars, W, bars); }
+  for (const s of TL.subs) {
+    if (t < s.t0 || t > s.t1) continue;
+    text(s.zh, W / 2, H - BAR_H / 2, { size: 34, weight: 300, font: ZH, track: 0.06, alpha: 0.92 * window01(t, s.t0, s.t1, 0.15, 0.2) });
+  }
+
+  // the end card: name and address below the window, then an iris
+  const n = ramp(t, CUE.url, CUE.url + 0.9);
+  if (n > 0) {
+    text('Galaxy Explorer', W / 2, H - 205, { size: 64, weight: 100, track: 0.28, alpha: ease(n) });
+    text('zjoooooo.github.io/galaxy-explorer', W / 2, H - 128, { size: 32, weight: 300, track: 0.08, color: GOLD, alpha: ease(ramp(t, CUE.url + 0.4, CUE.url + 1.3)) });
+    text('Narration: AI voice', W - 72, H - 44, { size: 26, weight: 300, align: 'right', alpha: 0.45 * ease(ramp(t, CUE.url + 1.2, CUE.url + 2)) });
+  }
+  iris(t);
+}
+
+function vignette(strength) {
+  const g = ctx.createRadialGradient(W / 2, H / 2, H * 0.35, W / 2, H / 2, H * 1.05);
+  g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, `rgba(0,0,0,${strength})`);
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+}
+function flash(t) {                                    // out of the wormhole: white, then a glow that fades into the galaxy
+  const b = CUE.burst, a = ease(ramp(t, b - 0.35, b)) * (1 - ease(ramp(t, b, b + 1.3)));
+  if (a <= 0) return;
+  const g = ctx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, W * 0.75);
+  g.addColorStop(0, `rgba(255,252,244,${a})`); g.addColorStop(0.5, `rgba(255,246,228,${a * 0.9})`); g.addColorStop(1, `rgba(255,236,210,${a * 0.65})`);
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+}
+function desk(k) {                                     // the dark around the window
+  const g = ctx.createRadialGradient(W / 2, H * 0.42, 80, W / 2, H * 0.5, W * 0.7);
+  g.addColorStop(0, `rgba(22,26,44,${k})`); g.addColorStop(1, `rgba(4,5,9,${k})`);
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+}
+function roundClip(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect(x, y, w, h, r); ctx.clip(); }
+function shadow(x, y, w, h, k) {
+  ctx.save(); ctx.shadowColor = `rgba(0,0,0,${0.7 * k})`; ctx.shadowBlur = 60; ctx.shadowOffsetY = 18;
+  ctx.fillStyle = '#000'; ctx.beginPath(); ctx.roundRect(x, y, w, h, 14 * k); ctx.fill(); ctx.restore();
+}
+function chrome(x, y, w, h, k) {                       // a plain browser bar: three dots and the real address
+  ctx.save(); ctx.globalAlpha = k;
+  ctx.fillStyle = '#1b1d24'; ctx.fillRect(x, y, w, h);
+  ['#ff5f57', '#febc2e', '#28c840'].forEach((c, i) => { ctx.fillStyle = c; ctx.globalAlpha = k * 0.85; ctx.beginPath(); ctx.arc(x + 24 + i * 22, y + h / 2, 6.5, 0, Math.PI * 2); ctx.fill(); });
+  if (h > 24) { ctx.globalAlpha = k; ctx.fillStyle = '#2a2d36'; ctx.beginPath(); ctx.roundRect(x + w * 0.27, y + 8, w * 0.46, h - 16, (h - 16) / 2); ctx.fill(); }
+  ctx.restore();
+  if (h > 24) text('zjoooooo.github.io/galaxy-explorer', x + w / 2, y + h / 2 + 1, { size: 26, weight: 400, color: '#c9ccd6', alpha: k });
+}
+const DRAG = [480, 600];                               // footage frames of the real drag in the ui shot (capture.mjs)
+function cursor(t, wx, wy, s) {                        // the pointer that does the drag, drawn where it happened
+  const r = TL.reel.find(x => x.shot === 'ui'), tDown = r.t0 + (DRAG[0] - r.in) / FPS, tUp = r.t0 + (DRAG[1] - r.in) / FPS;
+  const a = window01(t, tDown - 1.0, tUp + 0.8, 0.4, 0.5);
+  if (a <= 0) return;
+  let fx, fy;                                          // footage coordinates: glide in, then follow the drag
+  if (t < tDown) { const q = ease(ramp(t, tDown - 1.0, tDown)); fx = lerp(1060, 760, q); fy = lerp(720, 560, q); }
+  else { const q = ramp(t, tDown, tUp); fx = 760 + 360 * q; fy = 560 - 48 * q; }
+  const x = wx + fx * s, y = wy + fy * s, z = t >= tDown && t <= tUp ? 0.92 : 1;
+  ctx.save(); ctx.globalAlpha = a; ctx.translate(x, y); ctx.scale(1.25 * z, 1.25 * z);
+  ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, 21); ctx.lineTo(5, 16.5); ctx.lineTo(8.5, 24); ctx.lineTo(11.5, 22.6); ctx.lineTo(8, 15.4); ctx.lineTo(14.5, 15.4); ctx.closePath();
+  ctx.fillStyle = '#fff'; ctx.strokeStyle = '#111'; ctx.lineWidth = 1.3; ctx.fill(); ctx.stroke();
+  ctx.restore();
+}
+function iris(t) {
+  const q = easeIO(ramp(t, DURATION - 1.6, DURATION - 0.1));
+  if (q <= 0) return;
+  const R = Math.hypot(W, H) / 2 * (1 - q);
+  ctx.save(); ctx.fillStyle = '#000'; ctx.beginPath(); ctx.rect(0, 0, W, H); ctx.arc(W / 2, H / 2, Math.max(0, R), 0, Math.PI * 2, true); ctx.fill('evenodd'); ctx.restore();
+}
+
+window.DURATION = DURATION;
+window.EVENTS = { bpm: TL.bpm, duration: DURATION, cuts: TL.reel.slice(1).map(r => r.t0) };
+window.seek = async t => render(clamp(t, 0, DURATION - 1e-6));
+Promise.all([`100 88px ${TITLE}`, `300 34px ${ZH}`, `400 24px ${MONO}`].map(f => document.fonts.load(f))).then(() => { window.READY = true; });
+if (!/[?&]norun/.test(location.search) && !navigator.webdriver) {   // opened by hand: play it
+  const t0 = performance.now();
+  const loop = async () => { await render(((performance.now() - t0) / 1000) % DURATION); requestAnimationFrame(loop); };
+  requestAnimationFrame(loop);
+}
+</script>
+</body></html>

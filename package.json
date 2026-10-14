@@ -13,7 +13,11 @@
     "report-oct": "python3 scripts/voice.py films/2026-10-it-report/narration.json && python3 films/2026-10-it-report/plan.py && node scripts/render.mjs films/2026-10-it-report/film.src.html --out out/it-report-2026-10.video.mp4 --sub 8 && uv run --with numpy films/2026-10-it-report/music.py out/it-report-2026-10.wav && ffmpeg -y -loglevel error -i out/it-report-2026-10.video.mp4 -i out/it-report-2026-10.wav -map 0:v -map 1:a -c:v copy -c:a aac -b:a 192k -shortest -movflags +faststart out/it-report-2026-10.mp4",
     "promo": "python3 scripts/voice.py films/2026-10-parkops-promo/narration.json && python3 films/2026-10-parkops-promo/plan.py && node scripts/render.mjs films/2026-10-parkops-promo/film.src.html --out out/parkops-promo.video.mp4 --sub 8 && uv run --with numpy films/2026-10-parkops-promo/music.py out/parkops-promo.wav && ffmpeg -y -loglevel error -i out/parkops-promo.video.mp4 -i out/parkops-promo.wav -map 0:v -map 1:a -c:v copy -c:a aac -b:a 192k -shortest -movflags +faststart out/parkops-promo.mp4",
     "promo:sheet": "node scripts/render.mjs films/2026-10-parkops-promo/film.src.html --sheet --step 2",
-    "promo:check": "node scripts/render.mjs films/2026-10-parkops-promo/film.src.html --check"
+    "promo:check": "node scripts/render.mjs films/2026-10-parkops-promo/film.src.html --check",
+    "look-up": "python3 scripts/voice.py films/2026-10-galaxy-look-up/narration.json && python3 films/2026-10-galaxy-look-up/plan.py && node scripts/render.mjs films/2026-10-galaxy-look-up/film.src.html --out out/galaxy-look-up.video.mp4 --sub 8 && uv run --with numpy films/2026-10-galaxy-look-up/music.py out/galaxy-look-up.wav && ffmpeg -y -loglevel error -i out/galaxy-look-up.video.mp4 -i out/galaxy-look-up.wav -map 0:v -map 1:a -c:v copy -c:a aac -b:a 192k -shortest -movflags +faststart out/galaxy-look-up.mp4",
+    "look-up:capture": "node films/2026-10-galaxy-look-up/capture.mjs",
+    "look-up:sheet": "node scripts/render.mjs films/2026-10-galaxy-look-up/film.src.html --sheet --step 2",
+    "look-up:check": "node scripts/render.mjs films/2026-10-galaxy-look-up/film.src.html --check"
   },
   "repository": {
     "type": "git",

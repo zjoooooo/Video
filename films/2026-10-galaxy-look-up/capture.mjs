@@ -4,7 +4,8 @@
 //
 //   node films/2026-10-galaxy-look-up/capture.mjs [shot ...] [--verify]
 //
-// Writes out/galaxy-look-up/shots/<shot>/NNNNN.jpg (1920x1080) and meta.json. --verify captures each
+// Writes out/galaxy-look-up/shots/<shot>/NNNNN.jpg (3840x2160, so the film can push in without loss;
+// the ui shot is a 1920x1080 page screenshot) and meta.json. --verify captures each
 // shot twice on fresh pages and exits 1 if any frame differs. The product repo gets its video hooks
 // (galaxy-pro-video/video-patch.sh) only while this runs.
 import { chromium } from 'playwright';
@@ -36,11 +37,14 @@ function stepper() {                                   // runs in the page befor
   };
   window.cancelAnimationFrame = k => q.delete(k);
   window.__step = () => { const run = [...q.values()]; q = new Map(); const ts = performance.now(); run.forEach(cb => cb(ts)); };
-  window.__frame = () => {                             // render one frame and read it before it is presented
+  window.__ptr = (type, x, y) => {                     // synthetic mouse pointer: real ones only arrive with native frames
+    const target = type === 'down' ? document.getElementById('cv') : document;
+    target.dispatchEvent(new PointerEvent(`pointer${type}`, { pointerId: 1, pointerType: 'mouse', isPrimary: true, button: 0, buttons: type === 'up' ? 0 : 1, clientX: x, clientY: y, bubbles: true, cancelable: true }));
+  };
+  window.__anim = ms => document.getAnimations().forEach(a => { a.pause(); a.currentTime = ms; });   // CSS animations onto the frame clock
+  window.__frame = () => {                             // render one frame and read the 3840x2160 backing before it is presented
     window.__step();
-    const src = document.getElementById('cv'), c = window.__c ||= Object.assign(document.createElement('canvas'), { width: 1920, height: 1080 });
-    const g = c.getContext('2d'); g.imageSmoothingQuality = 'high'; g.drawImage(src, 0, 0, 1920, 1080);
-    const u = c.toDataURL('image/jpeg', 0.93); return u.slice(u.indexOf(',') + 1);
+    const u = document.getElementById('cv').toDataURL('image/jpeg', 0.93); return u.slice(u.indexOf(',') + 1);
   };
 }
 
@@ -57,17 +61,46 @@ const slerp = (a, b, t) => {
   const s = Math.sin(th), wa = Math.sin((1 - t) * th) / s, wb = Math.sin(t * th) / s;
   return { x: a.x * wa + b.x * wb, y: a.y * wa + b.y * wb, z: a.z * wa + b.z * wb };
 };
-// fly the solar camera to a body (or the comet) with the product's own fly-to, then ride along
-const ride = (id, frames) => ({
+// a real mouse drag over `frames` frames (OrbitControls turns the camera), released at the end
+const ptr = (c, type, x, y) => c.page.evaluate(([type, x, y]) => window.__ptr(type, x, y), [type, x, y]);
+async function drag(c, dx, dy, frames) {
+  await ptr(c, 'down', 960, 540);
+  for (let i = 1; i <= frames; i++) { await ptr(c, 'move', 960 + dx * i / frames, 540 + dy * i / frames); await c.step(); }
+  await ptr(c, 'up', 960 + dx, 540 + dy);
+}
+// fly the solar camera to a body (or the comet) with the product's own fly-to, optionally turn
+// around it with a drag (to find the terminator), then ride along
+const ride = (id, frames, turn, angle = -0.35) => ({
   prepare: 'solar-overview',
   run: async c => {
-    await c.page.evaluate(id => {
-      if (id === 'halley') { solarComets[0].angle = -0.35; selectSolarComet(0); flySolarToComet(0); }
+    await c.page.evaluate(([id, angle]) => {
+      if (id === 'halley') { solarComets[0].angle = angle; selectSolarComet(0); flySolarToComet(0); }
       else { selectSolarBody(id); flySolarTo(id); }
-    }, id);
+    }, [id, angle]);
     await c.until(() => window.solarFly === null);
-    await c.step(30);                                  // let the arrival settle
+    if (turn) await drag(c, turn[0], turn[1], 40);
+    await c.step(60);                                  // let the arrival (and the drag's damping) settle
     await c.rec(frames);
+  },
+});
+// a galaxy beacon's own "fly to this galaxy", then a slow real drag around it while recording
+const visit = (label, frames, zoom = 0, turn = null, dxPerFrame = 0.5) => ({
+  prepare: 'galaxy-overview',
+  run: async c => {
+    await c.page.evaluate(label => [...document.querySelectorAll('#beacons .beacon')].find(b => b.textContent.includes(label)).click(), label);
+    await c.step(20);
+    await c.page.evaluate(() => document.querySelector('#bp-flyto').click());
+    await c.until(() => getComputedStyle(document.getElementById('return-mw')).display !== 'none');
+    await c.page.evaluate(() => window.closeBeaconExtras());   // like closing the card: no selection ring left behind
+    for (let i = 0; i < zoom; i++) {                   // the product's own wheel zoom (Playwright's wheel waits for native frames)
+      await c.page.evaluate(() => document.getElementById('cv').dispatchEvent(new WheelEvent('wheel', { deltaY: -100, clientX: 960, clientY: 540, bubbles: true, cancelable: true })));
+      await c.step(2);
+    }
+    if (turn) await drag(c, turn[0], turn[1], 40);
+    await c.step(60);
+    await ptr(c, 'down', 700, 540);
+    await c.rec(frames, i => ptr(c, 'move', 700 + i * dxPerFrame, 540));
+    await ptr(c, 'up', 700 + frames * dxPerFrame, 540);
   },
 });
 const preset = (prepare, P, frames) => ({ prepare, run: c => c.rec(frames, i => cam(c.page, P, i / (frames - 1))) });
@@ -80,7 +113,7 @@ export const SHOTS = {
     prepare: 'sky-overview',
     run: async c => {
       const [leo, sco, sgr] = await c.page.evaluate(() => [4, 7, 8].map(i => window.skyConDir(i)));
-      const legs = [[0, 240, leo, leo, 4], [240, 420, leo, sco, -1], [420, 600, sco, sco, 7], [600, 780, sco, sgr, -1], [780, 960, sgr, sgr, 8]];
+      const legs = [[0, 200, leo, leo, 4], [200, 320, leo, sco, -1], [320, 520, sco, sco, 7], [520, 640, sco, sgr, -1], [640, 960, sgr, sgr, 8]];
       await c.rec(960, async i => {
         const [a, b, from, to, sel] = legs.find(([a, b]) => i >= a && i < b);
         const v = slerp(from, to, smooth((i - a) / (b - a)));
@@ -88,7 +121,7 @@ export const SHOTS = {
       });
     },
   },
-  earth: ride('earth', 300), moon: ride('moon', 300), jupiter: ride('jupiter', 300), saturn: ride('saturn', 300), halley: ride('halley', 300),
+  earth: ride('earth', 300, [260, 0]), moon: ride('moon', 300, [300, -40]), jupiter: ride('jupiter', 300), saturn: ride('saturn', 300), halley: ride('halley', 300, null, -0.2),
   // the real wormhole from the galaxy into the Solar System (the film plays it backwards)
   wormhole: {
     warm: 'solar-overview', prepare: 'galaxy-solar-beacon',
@@ -100,17 +133,17 @@ export const SHOTS = {
     },
   },
   rise: preset('galaxy-low-angle', 'fixed-wide-galaxy', 660),
-  lmc: preset('galaxy-external-overview', 'magellanic-clouds-wide', 480),
-  cena: { prepare: 'centaurus-a-arrival', run: c => c.rec(720, i => i < 360 ? cam(c.page, 'centaurus-a-dust-lane-and-jet', i / 359) : cam(c.page, 'centaurus-a-pull-away', (i - 360) / 359)) },
-  m87: preset('m87-arrival', 'm87-jet-axis', 360),
+  lmc: visit('Large Magellanic', 480, 6),
+  cena: visit('Centaurus A', 720, 12, [220, -120]),          // turned until the dust lane crosses the halo
+  m87: visit('M87', 360, 8),
   // the product as people see it: UI on, and a real drag that turns the galaxy
   ui: {
     ui: true, prepare: 'galaxy-overview',
-    run: c => c.rec(900, async i => {
-      if (i < 200) await cam(c.page, 'galaxy-slow-rotation', i / 899);
-      if (i === 200) { await c.page.mouse.move(760, 560); await c.page.mouse.down(); }
-      if (i > 200 && i <= 320) await c.page.mouse.move(760 + (i - 200) * 3, 560 - (i - 200) * 0.4);
-      if (i === 321) await c.page.mouse.up();
+    run: c => c.rec(1000, async i => {
+      if (i <= 480) await cam(c.page, 'galaxy-slow-rotation', i / 999);   // drift; from the press on, the drag turns it
+      if (i === 480) await ptr(c, 'down', 760, 560);
+      if (i > 480 && i <= 600) await ptr(c, 'move', 760 + (i - 480) * 3, 560 - (i - 480) * 0.4);
+      if (i === 601) await ptr(c, 'up', 1120, 512);
     }),
   },
 };
@@ -142,7 +175,7 @@ async function shoot(browser, url, name, dir) {
       for (let i = 0; i < k; i++) {
         if (perFrame) await perFrame(i);
         let buf;
-        if (shot.ui) { await page.evaluate(() => window.__step()); buf = await page.screenshot({ type: 'jpeg', quality: 93 }); }
+        if (shot.ui) { await page.evaluate(n => { window.__step(); window.__anim(n * 1000 / 60); }, n); buf = await page.screenshot({ type: 'jpeg', quality: 93 }); }
         else buf = Buffer.from(await page.evaluate(() => window.__frame()), 'base64');
         fs.writeFileSync(path.join(dir, `${String(n++).padStart(5, '0')}.jpg`), buf);
         hashes.push(createHash('md5').update(buf).digest('hex'));
