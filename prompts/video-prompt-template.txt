@@ -68,9 +68,9 @@ Work in ./film/<slug>/ with source/, previews/, brief.md, index.html, audio/, qa
 </process>
 
 <type>
---- A. Motion-design piece (brand ident, showreel, launch teaser) ---
-- Usually 10-20 s, on a 120 BPM grid (one beat = 0.5 s). Something intentional happens on
-  every beat; cuts land on beats or half-bars.
+--- A. Motion-design piece (brand ident, showreel, launch teaser) --- - Usually
+  10-20 s, on a 120 BPM grid (one beat = 0.5 s). Something intentional happens
+  on every beat; cuts land on beats or half-bars.
 - Write the style's signature features as a checklist an expert could verify
   (for cel animation: on twos at 24 fps, one smear frame on fast moves, line
   boil every 2 frames, paper grain multiplied at 10-15%) and map each to a moment.
@@ -101,7 +101,8 @@ Work in ./film/<slug>/ with source/, previews/, brief.md, index.html, audio/, qa
 - Give the two core nouns two fixed accent colours, used the same way in
   picture, data and subtitles.
 - Subtitles: one line, about 20 CJK characters at most, the bottom 170 px kept
-  for them (higher on 9:16 if the platform's buttons cover the bottom). Also export an .srt and a version without burned-in subtitles.
+  for them (higher on 9:16 if the platform's buttons cover the bottom). Also
+  export an .srt and a version without burned-in subtitles.
 - Do not draw faces or people in code. Use hands, objects, or a character I
   provide.
 
@@ -153,11 +154,11 @@ Work in ./film/<slug>/ with source/, previews/, brief.md, index.html, audio/, qa
   second. Same character or object looks the same in every shot.
 - Composition: the subject fills at least a third of the frame height; 5% safe
   margins; a 60% full frame reads deliberate, a 95% full frame reads generated.
-- Colour: one main colour and one or two accents.
-- Type, for a frame whose short side is 1080 px: subtitles at least 60 px, any text the viewer must read at
-  least 48 px, titles at least 72 px, at most two type sizes per frame. Contrast
-  at least 4.5:1 for text and 3:1 for graphics, measured on the worst spot of a
-  textured background.
+- Colour: one main colour and one or two accents. - Type, for a frame whose
+  short side is 1080 px: subtitles at least 60 px, any text the viewer must read
+  at least 48 px, titles at least 72 px, at most two type sizes per frame.
+  Contrast at least 4.5:1 for text and 3:1 for graphics, measured on the worst
+  spot of a textured background.
 - Text dwell: one idea per screen; CJK characters / 9 + 0.5 s, Latin words / 3
   + 0.5 s, never under 1.2 s; hold at least 1 s after a conclusion or a stamp.
 - Pacing: a hook in the first 0.5 s, never more than 0.3 s of empty or black; a
