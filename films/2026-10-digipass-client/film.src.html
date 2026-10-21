@@ -837,8 +837,7 @@ function sEnd() {
   tags.forEach((s, i) => { pill(s, x + pw[i] / 2, 650, i === 2 ? C.green : C.blue, i === 2 ? C.greenBg : C.blueBg, pop(L('tag', i)), 36); x += pw[i] + gap; });
   alpha(fade(1.0, 1.6), () => {
     logo(W / 2, 810, 70);
-    label('Prepared for Mount Alvernia Hospital \u00b7 October 2026', W / 2, 920, 28, { w: 700, c: C.navy, align: 'center' });
-    label('Example values are illustrative \u00b7 Narration voice is AI-generated', W / 2, 990, 22, { w: 500, c: C.muted, align: 'center' });
+    label('October 2026', W / 2, 920, 28, { w: 700, c: C.navy, align: 'center' });
   });
 }
 
