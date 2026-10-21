@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>NUS DigiPass: event parking workflow</title>
+<title>Re Sustainability DigiPass: event parking workflow</title>
 <style>
   html, body { margin: 0; height: 100%; background: #F7F9FC; }
   canvas { display: block; width: 100vw; height: 100vh; object-fit: contain; }
@@ -16,7 +16,7 @@
 // Every visual value is a pure function of t; render() resets the canvas each frame.
 // Facts come from "jev /output/nus-digipass-workflow.md" (public-portal research, not an NUS spec);
 // timing comes from timeline.json, which plan.py lays out around the narration.
-// Colours keep one meaning each: blue = seen in the public portal, orange = inferred / NUS to confirm,
+// Colours keep one meaning each: blue = seen in the public portal, orange = inferred / Re Sustainability to confirm,
 // green = a ticket used. Sample values (50 tickets, SXX 1234 X, 1234567890) are labelled as examples.
 // Open film.html#play for a live preview; the renderer never uses that path.
 
@@ -267,7 +267,7 @@ const TRAY_SLOT = i => [72 + (i % 4) * 166, 140 + Math.floor(i / 4) * 86];     /
 const LANES = [560, 700, 840], CAR_X = 1330, CAR_W = 230;
 function sOpen() {
   // the title, then one line under it that changes with the narration
-  rise('NUS DigiPass', W / 2, 230, 120, { w: 800, align: 'center', at: 0.3 });
+  rise('Re Sustainability DigiPass', W / 2, 230, 120, { w: 800, align: 'center', at: 0.3 });
   const lines = [['Not a season pass.', 'season', 'pool', C.muted], ['A prepaid ticket pool for one event.', 'pool', 'buyOnce', C.blue],
                  ['Buy once.', 'buyOnce', 'share', C.navy], ['Share with guests’ cars.', 'share', 'perExit', C.navy], ['One ticket per eligible exit.', 'perExit', null, C.green]];
   lines.forEach(([s, a, b, c]) => rise(s, W / 2, 330, 52, { w: 700, c, align: 'center', at: L(a), out: b ? L(b) - 0.35 : 1e9 }));
@@ -443,9 +443,9 @@ function sBuy() {
   formAt(1);                                              // the application, carried over from step 2
   stamp('APPROVED', 390, 520, C.blue, L('approved'), -0.12);
   stamp('PAID', 480, 625, C.green, L('paid'), 0.08);
-  const n = pop(L('paid') + 1.0);                         // what still needs NUS: approval levels and when the pool goes live
+  const n = pop(L('paid') + 1.0);                         // what Re Sustainability still has to confirm: approval levels and when the pool goes live
   if (n > 0) scaled(390, 790, n, () => { box(150, 740, 480, 104, 18, C.orangeBg, C.orangeLine);
-    label('Approval levels & go-live timing', 176, 784, 26, { w: 700, c: C.orange }); label('to confirm with NUS', 176, 822, 26, { w: 600, c: C.orange }); });
+    label('Approval levels & go-live timing', 176, 784, 26, { w: 700, c: C.orange }); label('to confirm with Re Sustainability', 176, 822, 26, { w: 600, c: C.orange }); });
   // the pool: empty slots first, filled on "its own ticket pool"
   scaled(1230, 600, pop(-0.8), () => {
     box(720, 340, 1050, 520, 26, C.card, C.line);
@@ -469,7 +469,7 @@ function sBuy() {
 
 // 4 · the registration link
 const GATES = ['Token is valid', 'Before the registration deadline', 'The event is still on', 'Tickets left in the pool'];
-const URLX = 246, URL_PATH = 'nus-park…/digipass-register-vehicle/public/';
+const URLX = 246, URL_PATH = '…resustainability.com.sg/digipass-register-vehicle/public/';
 function sLink() {
   header('STEP 4 · EVENT ORGANISER', 'Share a registration link');
   // the address bar types itself; the token is its own chip
@@ -641,9 +641,10 @@ function crossBadge(x, y, r, at, c) {                   // a filled disc with a 
 function exitPanel(s, rows) {                             // rows: [state, at] per check; state 'ok' | 'fail' | 'none'
   scaled(1560, 350, s, () => {
     box(1350, 150, 420, 400, 24, C.card, C.orangeLine, 3);
-    label('Exit check', 1382, 204, 32, { w: 800, c: C.navy });
-    const str = 'Inferred · NUS to confirm', pw = width(str, 26, 700) + 26 * 1.4;
-    pill(str, 1382 + pw / 2, 250, C.orange, C.orangeBg, 1, 26);
+    label('Exit check', 1382, 204, 32, { w: 800, c: C.navy });       // who confirms goes on its own line: the name is long
+    const pw = width('Inferred', 26, 700) + 26 * 1.4;
+    pill('Inferred', 1382 + width('Exit check', 32, 800) + 16 + pw / 2, 194, C.orange, C.orangeBg, 1, 26);
+    label('Re Sustainability to confirm', 1382, 256, 26, { w: 700, c: C.orange });
     CHECKS.forEach((c, i) => { const [st, at] = rows[i], y = 330 + i * 58;
       if (st === 'ok') checkBadge(1402, y - 10, 20, at, C.orange);
       else if (st === 'fail') crossBadge(1402, y - 10, 20, at, C.orange);
@@ -799,19 +800,19 @@ function sAfter() {
       });
     });
     const rf = pop(L('actions', 1) + 0.4);
-    if (rf > 0) pill('Refund rules: NUS to confirm', 190 + 330 + 150, 868, C.orange, C.orangeBg, rf, 26, { border: C.orangeLine });
+    if (rf > 0) pill('Refund rules: Re Sustainability to confirm', 190 + 330 + 150, 868, C.orange, C.orangeBg, rf, 26, { border: C.orangeLine });
     const ex = prog(t, L('actions', 2), L('actions', 2) + 0.6);
     if (ex > 0) { const x = lerp(1000, 1270, outCubic(ex)), y = 800;
       box(x - 55, y - 64, 110, 128, 14, C.card, C.blue, 3); ICON.file(x, y - 10, 60, C.blue); label('Report', x, y + 48, 26, { w: 800, c: C.blue, align: 'center' }); }
   });
 }
 
-// 9 · what NUS still needs to confirm
+// 9 · what Re Sustainability still needs to confirm
 const OPEN = ['What one ticket covers', 'Which car parks & exits', 'Longest allowed stay', 'Stays across event dates', 'Refunds for unused tickets', 'Cars without an IU / OBU'];
 function sConfirm() {
-  header('BEFORE ANYTHING IS BUILT', 'What NUS still needs to confirm', { c: C.orange });
+  header('BEFORE ANYTHING IS BUILT', 'What Re Sustainability still needs to confirm', { c: C.orange });
   // the legend: one centred row under the rail
-  const LEG = [['dot', C.blue, 'Seen in the public portal', 'legend'], ['dot', C.orange, 'Inferred — NUS to confirm', 'orange'], ['bang', C.orange, 'Assumed or partly seen — details to confirm', 'orange']];
+  const LEG = [['dot', C.blue, 'Seen in the public portal', 'legend'], ['dot', C.orange, 'Inferred — Re Sustainability to confirm', 'orange'], ['bang', C.orange, 'Assumed or partly seen — details to confirm', 'orange']];
   const lw = LEG.map(([, , s]) => width(s, 28, 700) + 40), gap = 64, total = lw.reduce((a, b) => a + b, 0) + gap * 2;
   let lx = W / 2 - total / 2;
   LEG.forEach(([kind, c, s, cue], i) => {
@@ -840,12 +841,12 @@ function sConfirm() {
 function sEnd() {
   const tk = pop(-0.6);
   if (tk > 0) ticket(W / 2, 330, 220, 112, { s: tk, state: t > L('final') ? 'green' : 'blue' });
-  rise('NUS DigiPass', W / 2, 540, 128, { w: 800, align: 'center', at: -0.2 });
+  rise('Re Sustainability DigiPass', W / 2, 540, 128, { w: 800, align: 'center', at: -0.2 });
   const tags = ['Buy once', 'Share a link', 'One ticket per exit'], pw = tags.map(s => width(s, 36, 700) + 36 * 1.4), gap = 40;
   let x = W / 2 - (pw.reduce((a, b) => a + b, 0) + gap * 2) / 2;
   tags.forEach((s, i) => { pill(s, x + pw[i] / 2, 650, i === 2 ? C.green : C.blue, i === 2 ? C.greenBg : C.blueBg, pop(L('tag', i)), 36); x += pw[i] + gap; });
   alpha(fade(1.0, 1.6), () => {
-    label('Research summary of the public NUS Parking portal and NUS UCI parking pages · not an official NUS specification · 21 Oct 2026', W / 2, 960, 22, { w: 600, c: C.muted, align: 'center' });
+    label('Research summary of the public Re Sustainability parking portal and NUS UCI parking pages · not an official Re Sustainability specification · 21 Oct 2026', W / 2, 960, 22, { w: 600, c: C.muted, align: 'center' });
     label('Example values are illustrative · Narration voice is AI-generated · Music rendered with MuseScore_General (MIT)', W / 2, 996, 22, { w: 500, c: C.muted, align: 'center' });
   });
 }

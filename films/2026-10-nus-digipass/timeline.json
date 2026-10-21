@@ -1,7 +1,7 @@
 {
  "estimated": false,
  "bpm": 120,
- "duration": 172.0,
+ "duration": 174.0,
  "scenes": {
   "open": 0,
   "admin": 20.0,
@@ -18,13 +18,13 @@
  },
  "cue": {
   "title": 1.5,
-  "season": 3.0,
-  "notSeason": 5.0,
-  "pool": 6.0,
-  "oneEvent": 9.0,
-  "buyOnce": 12.0,
-  "share": 14.0,
-  "perExit": 16.0,
+  "season": 3.5,
+  "notSeason": 6.0,
+  "pool": 7.0,
+  "oneEvent": 9.5,
+  "buyOnce": 12.5,
+  "share": 14.5,
+  "perExit": 16.5,
   "product": 23.5,
   "rows": [
    25.0,
@@ -90,7 +90,7 @@
    138.0
   ],
   "legend": 143.0,
-  "orange": 145.5,
+  "orange": 145.0,
   "cards": [
    151.0,
    153.0,
@@ -100,22 +100,22 @@
    158.5
   ],
   "tag": [
-   164.5,
    166.0,
-   167.5
+   167.5,
+   169.0
   ],
-  "final": 168.0
+  "final": 169.5
  },
  "lines": [
   {
    "id": "what",
    "start": 1.5,
-   "dur": 8.392,
-   "text": "NUS DigiPass is not a season pass. It's a pool of prepaid parking tickets for one event."
+   "dur": 8.975,
+   "text": "Re Sustainability DigiPass is not a season pass. It's a pool of prepaid parking tickets for one event."
   },
   {
    "id": "idea",
-   "start": 11.0,
+   "start": 11.5,
    "dur": 7.339,
    "text": "The organiser buys the tickets once, shares them with guests' cars, and each eligible exit uses one ticket."
   },
@@ -188,8 +188,8 @@
   {
    "id": "inferred",
    "start": 141.0,
-   "dur": 8.782,
-   "text": "The exit check is our reading of the public portal, so NUS still needs to confirm it, along with a few other rules:"
+   "dur": 8.737,
+   "text": "The exit check is our reading of the public portal, so Re Sustainability still needs to confirm it, along with a few other rules:"
   },
   {
    "id": "rules",
@@ -200,8 +200,8 @@
   {
    "id": "end",
    "start": 162.5,
-   "dur": 6.025,
-   "text": "NUS DigiPass. Buy once. Share a link. One ticket per exit."
+   "dur": 7.456,
+   "text": "Re Sustainability DigiPass. Buy once. Share a link. One ticket per exit."
   }
  ]
 }

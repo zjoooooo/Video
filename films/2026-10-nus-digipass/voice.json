@@ -3,28 +3,28 @@
  "lines": [
   {
    "id": "what",
-   "text": "NUS DigiPass is not a season pass. It's a pool of prepaid parking tickets for one event.",
-   "dur": 8.392,
+   "text": "Re Sustainability DigiPass is not a season pass. It's a pool of prepaid parking tickets for one event.",
+   "dur": 8.975,
    "phrases": [
     [
      0.03,
-     1.0
+     1.62
     ],
     [
-     1.23,
-     3.66
+     1.86,
+     2.67
     ],
     [
-     4.25,
-     5.22
+     3.0,
+     4.65
     ],
     [
-     5.37,
-     6.9
+     5.31,
+     7.67
     ],
     [
-     7.31,
-     8.34
+     7.92,
+     8.92
     ]
    ]
   },
@@ -390,28 +390,28 @@
   },
   {
    "id": "inferred",
-   "text": "The exit check is our reading of the public portal, so NUS still needs to confirm it, along with a few other rules:",
-   "dur": 8.782,
+   "text": "The exit check is our reading of the public portal, so Re Sustainability still needs to confirm it, along with a few other rules:",
+   "dur": 8.737,
    "phrases": [
     [
-     0.11,
-     1.24
+     0.05,
+     3.03
     ],
     [
-     1.59,
-     3.5
+     3.51,
+     5.02
     ],
     [
-     4.1,
-     6.43
+     5.2,
+     6.64
     ],
     [
-     7.1,
-     7.71
+     7.15,
+     7.69
     ],
     [
-     7.9,
-     8.74
+     7.86,
+     8.69
     ]
    ]
   },
@@ -452,24 +452,28 @@
   },
   {
    "id": "end",
-   "text": "NUS DigiPass. Buy once. Share a link. One ticket per exit.",
-   "dur": 6.025,
+   "text": "Re Sustainability DigiPass. Buy once. Share a link. One ticket per exit.",
+   "dur": 7.456,
    "phrases": [
     [
-     0.01,
-     1.43
+     0.04,
+     0.5
     ],
     [
-     2.0,
-     2.67
+     0.67,
+     2.53
     ],
     [
-     3.13,
-     3.9
+     3.46,
+     4.14
     ],
     [
-     4.57,
-     5.98
+     4.67,
+     5.39
+    ],
+    [
+     6.2,
+     7.4
     ]
    ]
   }

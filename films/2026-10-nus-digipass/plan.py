@@ -17,12 +17,12 @@ P = Planner(HERE)
 say, phrase, beat, bar, cue = P.say, P.phrase, P.beat, P.bar, P.cue
 end_of = lambda ph, i: ph[i][1] if i < len(ph) else ph[-1][1]
 
-# 0. what DigiPass is: "NUS DigiPass" "is not a season pass." "It's a pool" "of prepaid parking tickets" "for one event."
+# 0. what DigiPass is: "Re Sustainability DigiPass" "is not" "a season pass." "It's a pool of prepaid parking tickets" "for one event."
 s, e, ph = say("what", 1.5)
 cue["title"] = s
 cue["season"] = beat(phrase(ph, 1, 0.2))
-cue["notSeason"] = beat(end_of(ph, 1) - 0.6)                 # the season card is struck out on "season pass"
-cue["pool"] = beat(phrase(ph, 2, 0.5))
+cue["notSeason"] = beat(end_of(ph, 2) - 0.6)                 # the season card is struck out on "season pass"
+cue["pool"] = beat(phrase(ph, 3, 0.5))
 cue["oneEvent"] = beat(phrase(ph, 4, 0.85))
 # "The organiser buys the tickets" "once," "shares them with guests' cars," "and each eligible exit" "uses one ticket."
 s, e, ph = say("idea", e + 0.7)
@@ -113,20 +113,21 @@ cue["dash"] = beat(phrase(ph, 1, 0.2) + 1.0)
 cue["log"] = beat(phrase(ph, 2, 0.4))
 cue["actions"] = [beat(phrase(ph, 3, 0.6)), beat(phrase(ph, 4, 0.7) + 0.3), beat(phrase(ph, 5, 0.85))]
 
-# 9. to confirm: "The exit check" "is our reading of the public portal," "so NUS still needs to confirm it," "along with" "a few other rules:"
+# 9. to confirm: "The exit check is our reading of the public portal," "so Re Sustainability" "still needs to confirm it,"
+#    "along with" "a few other rules:"
 confirm = bar(e + 0.8)
 s, e, ph = say("inferred", confirm + 1.0)
-cue["legend"] = beat(phrase(ph, 1, 0.2))
-cue["orange"] = beat(phrase(ph, 2, 0.45))
+cue["legend"] = beat(phrase(ph, 0) + 1.5)
+cue["orange"] = beat(phrase(ph, 1, 0.4))
 # "what" "one ticket covers," "which car parks," "the longest stay," "stays across event dates," "refunds," "and cars without an IU."
 s, e, ph = say("rules", e + 0.3)
 cue["cards"] = [beat(phrase(ph, i, i / 7) - 0.3) for i in (1, 2, 3, 4, 5, 6)]
 
-# 10. end: "NUS DigiPass." "Buy once." "Share a link." "One ticket per exit."
+# 10. end: "Re" "Sustainability DigiPass." "Buy once." "Share a link." "One ticket per exit."
 end = bar(e + 1.0)
 s, e, ph = say("end", end + 0.5)
-cue["tag"] = [beat(phrase(ph, i, i / 4)) for i in (1, 2, 3)]
-cue["final"] = beat(phrase(ph, 3, 0.75) + 0.5)
+cue["tag"] = [beat(phrase(ph, i, i / 5)) for i in (2, 3, 4)]
+cue["final"] = beat(phrase(ph, 4, 0.8) + 0.5)
 
 P.write({"open": 0, "admin": admin, "apply": apply, "buy": buy, "link": link, "register": register, "sync": sync,
          "exit": exit_, "choice": choice, "after": after, "confirm": confirm, "end": end}, bar(cue["final"] + 3.5))

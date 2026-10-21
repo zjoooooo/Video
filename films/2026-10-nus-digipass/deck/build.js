@@ -1,9 +1,10 @@
-// Builds the English NUS DigiPass workflow deck from "/Users/justin/Project/jev /output/nus-digipass-workflow.md".
+// Builds the English Re Sustainability DigiPass workflow deck from "/Users/justin/Project/jev /output/nus-digipass-workflow.md".
 //
 //   cd films/2026-10-nus-digipass/deck && npm install && node build.js [out.pptx]
 //
-// The source is public-portal research, not an NUS specification, and the deck says so. Colours keep
-// the film's meanings: blue = seen in the public portal, orange = inferred / NUS to confirm (an orange
+// The source is public-portal research, not an official specification, and the deck says so. NUS appears only in
+// the two NUS source citations on the last slide. Colours keep the film's meanings: blue = seen in the public
+// portal, orange = inferred / Re Sustainability to confirm (an orange
 // "!" on a blue card = the step is seen but its details need confirming), green = a ticket used.
 // Layout is 13.33 x 7.5 in. Body text is 18 pt, captions 16 pt; only the footer and step numbers are 14.
 const pptxgen = require('pptxgenjs');
@@ -12,8 +13,8 @@ const { renderToStaticMarkup } = require('react-dom/server');
 const sharp = require('sharp');
 const Fa = require('react-icons/fa6');
 
-const OUT = process.argv[2] || '/Users/justin/Project/jev /output/NUS-DigiPass-Workflow.pptx';
-const THEME = { name: 'NUS DigiPass', headFontFace: 'Arial', bodyFontFace: 'Arial', colors: {
+const OUT = process.argv[2] || '/Users/justin/Project/jev /output/Re-Sustainability-DigiPass-Workflow.pptx';
+const THEME = { name: 'Re Sustainability DigiPass', headFontFace: 'Arial', bodyFontFace: 'Arial', colors: {
   dk1: '1F2937', lt1: 'FFFFFF', dk2: '0B2A5B', lt2: 'F7F9FC', accent1: '1D5FD1', accent2: 'F26B1D', accent3: '16A34A',
   accent4: 'EAF2FD', accent5: 'FFF1E6', accent6: '4B5563', hlink: '1D5FD1', folHlink: '0B2A5B' } };
 const HEX = THEME.colors;
@@ -23,8 +24,8 @@ const W = 13.333, M = 0.6, CW = W - 2 * M;           // slide width, side margin
 const pres = new pptxgen();
 pres.layout = 'LAYOUT_WIDE';
 pres.theme = { headFontFace: THEME.headFontFace, bodyFontFace: THEME.bodyFontFace };
-pres.title = 'NUS DigiPass: event parking workflow';
-pres.subject = 'Workflow of the NUS DigiPass prepaid event parking tickets (public-portal research)';
+pres.title = 'Re Sustainability DigiPass: event parking workflow';
+pres.subject = 'Workflow of the Re Sustainability DigiPass prepaid event parking tickets (public-portal research)';
 pres.author = 'Justin';
 const C = pres.SchemeColor;
 const S = pres.shapes;
@@ -43,7 +44,7 @@ const label = name => name.slice(2).replace(/([a-z])([A-Z])/g, '$1 $2').toLowerC
 async function pic(s, name, hex, o) { s.addImage({ data: await icon(name, hex), altText: label(name), ...o }); }
 
 // ---- layouts ------------------------------------------------------------------------------------
-const FOOT = 'NUS DigiPass · public-portal research, not an official NUS specification';
+const FOOT = 'Re Sustainability DigiPass · public-portal research, not an official Re Sustainability specification';
 pres.defineSlideMaster({
   title: 'CONTENT', background: { color: C.background1 },
   objects: [
@@ -58,11 +59,11 @@ pres.defineSlideMaster({
 pres.defineSlideMaster({
   title: 'TITLE', background: { color: C.text2 },
   objects: [
-    { placeholder: { options: { name: 'kicker', type: 'body', x: 0.8, y: 1.75, w: 7.4, h: 0.34, fontSize: 16, bold: true,
+    { placeholder: { options: { name: 'kicker', type: 'body', x: 0.8, y: 1.3, w: 7.4, h: 0.34, fontSize: 16, bold: true,
       color: C.accent4, charSpacing: 2, margin: 0, valign: 'top' }, text: '' } },
-    { placeholder: { options: { name: 'title', type: 'title', x: 0.8, y: 2.15, w: 7.4, h: 1.1, fontSize: 64, bold: true,
+    { placeholder: { options: { name: 'title', type: 'title', x: 0.8, y: 1.7, w: 7.4, h: 2.0, fontSize: 60, bold: true,
       color: C.background1, margin: 0, valign: 'top', align: 'left' }, text: '' } },
-    { placeholder: { options: { name: 'sub', type: 'body', x: 0.8, y: 3.4, w: 7.4, h: 0.45, fontSize: 24,
+    { placeholder: { options: { name: 'sub', type: 'body', x: 0.8, y: 3.85, w: 7.4, h: 0.45, fontSize: 24,
       color: C.accent4, margin: 0, valign: 'top' }, text: '' } },
   ],
 });
@@ -148,10 +149,10 @@ const STEPS = [   // icon, title, body, status: seen | detail (assumed or partly
 async function build() {
   // 1 ── title ──────────────────────────────────────────────────────────────────────────────────
   pres.addSection({ title: 'Introduction' });
-  let s = slide('TITLE', 'Introduction', 'WORKFLOW BRIEFING · 21 OCTOBER 2026', 'NUS DigiPass');
+  let s = slide('TITLE', 'Introduction', 'WORKFLOW BRIEFING · 21 OCTOBER 2026', 'Re Sustainability DigiPass');
   s.addText('How prepaid event parking works', { placeholder: 'sub' });
-  s.addText('Public-portal research · not an official NUS specification', { shape: S.ROUNDED_RECTANGLE,
-    x: 0.8, y: 4.25, w: 7.0, h: 0.54, rectRadius: 0.27, fill: { color: C.text2 }, line: { color: C.accent2, width: 1.5 },
+  s.addText('Portal research · not an official Re Sustainability specification', { shape: S.ROUNDED_RECTANGLE,
+    x: 0.8, y: 4.6, w: 7.2, h: 0.54, rectRadius: 0.27, fill: { color: C.text2 }, line: { color: C.accent2, width: 1.5 },
     color: C.accent2, fontSize: 16, bold: true, align: 'center', valign: 'middle', margin: 0 });
   // the ticket stack
   const tx = 8.4, tw0 = 4.1, ty = 2.35;
@@ -171,9 +172,9 @@ async function build() {
   line(s, 0.8 + d0 / 2, ry + d0 / 2, 0.8 + 7 * 0.6 + d0 / 2, ry + d0 / 2, C.accent1, 2);
   for (let i = 0; i < 8; i++) num(s, i + 1, 0.8 + i * 0.6, ry, d0, C.accent1, C.background1);
   T(s, '8 steps · 3 roles · 1 shared ticket pool', 5.55, ry + 0.03, 5, 0.32, { fontSize: 16, color: C.accent4 });
-  notes(s, '0:45', `This briefing walks through NUS DigiPass, the prepaid event parking product on the NUS Parking portal.
+  notes(s, '0:45', `This briefing walks through Re Sustainability DigiPass, the prepaid event parking product on the Re Sustainability parking portal.
 
-One caveat up front: everything here comes from what the public NUS Parking portal shows, plus NUS's public parking pages. It is not an official NUS business specification. Blue means we saw it in the public portal. Orange means we inferred it, and NUS needs to confirm it.
+One caveat up front: everything here comes from what the public parking portal shows. It is not an official Re Sustainability business specification. Blue means we saw it in the public portal. Orange means we inferred it, and Re Sustainability needs to confirm it.
 
 The story has eight steps and three roles: the admin who sets up the product, the organiser who buys tickets for an event, and the drivers who use them. All of them share one pool of prepaid tickets.
 
@@ -212,12 +213,12 @@ The story has eight steps and three roles: the admin who sets up the product, th
 
 An organiser buys a batch of tickets. Those tickets sit in the event's pool. They are allocated to the cars of the people attending. And each time one of those cars makes an eligible exit from a car park, one ticket is used.
 
-Three things to know. It is not Singpass, and it is not a monthly season pass bound to one person and one car. There is no QR code to open the gate: NUS car parks use ERP-style electronic parking, so the car is recognised mainly by its plate and its IU or OBU unit. And it is made for events, conferences and department visitors. A good English working name is "Digital Event Parking Voucher".`,
-  'NUS already has several passes, so where does this one fit?',
+Three things to know. It is not Singpass, and it is not a monthly season pass bound to one person and one car. There is no QR code to open the gate: the car parks use ERP-style electronic parking, so the car is recognised mainly by its plate and its IU or OBU unit. And it is made for events, conferences and department visitors. A good English working name is "Digital Event Parking Voucher".`,
+  'Re Sustainability already offers several passes, so where does this one fit?',
   ['How much does a ticket cost? The public portal doesn\'t show how tickets are priced. Whether one ticket covers the whole fee or only a fixed amount is open question 1.']);
 
   // 3 ── vs other passes ────────────────────────────────────────────────────────────────────────────
-  s = slide('CONTENT', 'Introduction', 'HOW IT COMPARES', 'How DigiPass differs from the other NUS passes');
+  s = slide('CONTENT', 'Introduction', 'HOW IT COMPARES', 'How DigiPass differs from the other passes');
   const PASSES = [
     ['FaCalendarDays', 'Season Pass', 'Monthly; bound to one user and one car'],
     ['FaUser', 'Guest Pass', 'One visitor, on a set visit date'],
@@ -243,7 +244,7 @@ Three things to know. It is not Singpass, and it is not a monthly season pass bo
     await pic(s, DP[i][0], HEX.lt1, { x: bx + 0.45, y: y + 0.03, w: 0.34, h: 0.34 });
     T(s, DP[i][1], bx + 1.0, y, bw - 1.45, 0.4, { bold: true, color: C.background1 });
   }
-  notes(s, '1:00', `NUS Parking already has several kinds of pass, so it helps to place DigiPass among them.
+  notes(s, '1:00', `The Re Sustainability parking portal already offers several kinds of pass, so it helps to place DigiPass among them.
 
 A Season Pass is long-term and monthly, and it is bound to a user and a vehicle. A Guest Pass is for one specific visitor on a specific date. A Capped Rate Pass stops a single parking fee from rising past a set amount. A Post-paid Pass lets you park first and have a designated account settle later.
 
@@ -253,9 +254,9 @@ DigiPass is different in kind. An event organiser buys a batch of tickets up fro
   // 4 ── the eight steps (hero) ─────────────────────────────────────────────────────────────────────
   pres.addSection({ title: 'Workflow' });
   s = slide('CONTENT', 'Workflow', 'THE WORKFLOW', 'End to end in eight steps');
-  const LEG = [['blue', 'Seen in the public portal', 0, 0, 2.55], ['orange', 'Inferred — NUS to confirm', 3.3, 0, 2.8],
-               ['bang', 'Assumed or partly seen — details to confirm', 0, 0.4, 4.6]];
-  const lx0 = W - M - 6.5;                         // a two-row key, right-aligned above the cards
+  const LEG = [['blue', 'Seen in the public portal', 0, 0, 2.6], ['bang', 'Assumed or partly seen — details to confirm', 3.3, 0, 4.5],
+               ['orange', 'Inferred — Re Sustainability to confirm', 3.3, 0.4, 4.0]];
+  const lx0 = W - M - 8.2;                         // a two-column key above the cards; row 2 clears the title
   for (const [k, text, dx, dy, tw] of LEG) {
     const x = lx0 + dx, y = 0.4 + dy;
     if (k === 'bang') bang(s, x, y + 0.01, 0.3);
@@ -344,7 +345,7 @@ Step two: an event organiser, or another authorised user, submits a DigiPass app
 
 Step three: once the application is approved and paid, the system creates a ticket pool just for this event. It records four numbers: tickets bought, tickets allocated to vehicles, tickets used at exits, and tickets left.
 
-What we cannot see from the portal is the approval chain, the payment method, and exactly when the tickets become active. Those need NUS to confirm.`,
+What we cannot see from the portal is the approval chain, the payment method, and exactly when the tickets become active. Those need Re Sustainability to confirm.`,
   'With a pool in place, the cars need to get onto the event.');
 
   // 6 ── steps 4–5 ───────────────────────────────────────────────────────────────────────────────
@@ -407,7 +408,7 @@ When the registration succeeds, the system allocates one or more tickets from th
   box(s, M, 1.8, lw, 4.85, { fill: C.background2 });
   T(s, 'Every change takes time to reach the gate', M + 0.35, 2.02, lw - 0.6, 0.4, { bold: true, color: C.text2 });
   await badge(s, 'FaGlobe', M + 0.55, 2.62, 0.85, C.background1, HEX.accent1);
-  T(s, 'NUS Parking portal', M + 0.15, 3.55, 1.65, 0.58, { fontSize: 16, bold: true, color: C.text2, align: 'center' });
+  T(s, 'Parking portal', M + 0.15, 3.55, 1.65, 0.58, { fontSize: 16, bold: true, color: C.text2, align: 'center' });
   await badge(s, 'FaSquareParking', M + lw - 1.4, 2.62, 0.85, C.background1, HEX.accent1);
   T(s, 'Car park system (EPS)', M + lw - 1.8, 3.55, 1.65, 0.58, { fontSize: 16, bold: true, color: C.text2, align: 'center' });
   arrow(s, M + 1.55, 3.05, M + lw - 1.55, 3.05, C.accent1, 2.5);
@@ -434,7 +435,7 @@ When the registration succeeds, the system allocates one or more tickets from th
   }
   notes(s, '1:00', `Step six is the sync, and it is also where drivers take control.
 
-Registration happens on the NUS Parking portal, but the gate is run by the car park system, the EPS. The portal tells people to allow about thirty minutes for new or changed details to sync, so the car park may not recognise the car until then.
+Registration happens on the Re Sustainability parking portal, but the gate is run by the car park system, the EPS. The portal tells people to allow about thirty minutes for new or changed details to sync, so the car park may not recognise the car until then.
 
 The confirmation email carries an edit link. With it, the driver can change the plate or the IU or OBU number. Once every ticket on that car is used up, the details can no longer be changed.
 
@@ -445,7 +446,7 @@ The same page has one important switch: "Use a ticket on your next exit". With i
   // 8 ── step 7: exit (inferred) ──────────────────────────────────────────────────────────────────
   s = slide('CONTENT', 'Workflow', 'STEP 7 · EXIT REDEMPTION', 'What happens at the exit');
   rail(s, [7]);
-  chip(s, 'Inferred from portal behaviour · to confirm with NUS and the car park operator', M, 1.65, 8.9);
+  chip(s, 'Inferred from portal behaviour · to confirm with Re Sustainability and the car park operator', M, 1.65, 10.4);
   const nw = 2.0, ng = (CW - 5 * nw) / 4, ny = 2.35, nh = 1.55;
   const NODES = [
     [[{ text: 'EPS reads IU/OBU and plate ', options: { bold: true } }, { text: 'at entry or exit', options: { bold: false } }], 'read'],
@@ -480,7 +481,7 @@ The same page has one important switch: "Use a ticket on your next exit". With i
   T(s, 'Normal parking charges apply', bx1, by, bx2 - bx1, 0.8, { fontSize: 20, bold: true, color: C.text2, align: 'center', valign: 'middle' });
   T(s, 'Expected order, based on how the portal behaves. Matching priority, retries and reversals are not visible from outside.',
     M, 6.15, CW, 0.65, { fontSize: 16, color: C.accent6 });
-  notes(s, '1:15', `Step seven is the moment that matters to the driver: leaving the car park. This slide is orange because it is our inference from how the portal behaves and how NUS car parks recognise cars. NUS or the car park operator needs to confirm it.
+  notes(s, '1:15', `Step seven is the moment that matters to the driver: leaving the car park. This slide is orange because it is our inference from how the portal behaves and how these car parks recognise cars. Re Sustainability or the car park operator needs to confirm it.
 
 The expected order is: the EPS reads the car's IU or OBU and its plate, at the entry or the exit. It looks for a valid DigiPass bound to that vehicle. It checks the event dates, whether this car park is covered, and whether there are tickets left. Then it checks whether the driver's "Use Ticket" switch is on.
 
@@ -534,7 +535,7 @@ On the left is the idea, not real data: the pool splits into tickets used, ticke
 
 From the portal they can see which vehicles are registered, check the allocated, used and remaining tickets, and look through the redemption history. They can top up the pool with more tickets, make refund requests, and export transaction and usage reports.
 
-One gap: what happens to tickets already allocated when a refund is made is not visible from the portal. NUS needs to confirm it.`,
+One gap: what happens to tickets already allocated when a refund is made is not visible from the portal. Re Sustainability needs to confirm it.`,
   'Let me pull that together.',
   ['Can unused tickets be refunded after the event? Not known. That is open question 11.']);
 
@@ -599,8 +600,8 @@ Drivers can save a ticket for later by switching "Use Ticket" off. Any registrat
   const ix = M + kw + 0.35, iw = W - M - ix;
   box(s, ix, 1.8, iw, 4.85, { fill: C.accent5 });
   await badge(s, 'FaQuestion', ix + 0.3, 2.0, 0.55, C.accent2, HEX.lt1, 0.5);
-  T(s, 'Inferred: NUS to confirm', ix + 1.0, 2.05, iw - 1.2, 0.45, { fontSize: 20, bold: true, color: C.text2, valign: 'middle' });
-  let iy = 2.75;
+  T(s, 'Inferred: Re Sustainability to confirm', ix + 1.0, 1.95, iw - 1.2, 0.72, { fontSize: 20, bold: true, color: C.text2, valign: 'middle' });
+  let iy = 2.85;
   for (const k of INFER) {
     const lines = Math.ceil(k.length * 0.112 / (iw - 1.05));
     s.addShape(S.OVAL, { x: ix + 0.4, y: iy + 0.11, w: 0.16, h: 0.16, fill: { color: C.accent2 }, line: { type: 'none' } });
@@ -616,7 +617,7 @@ On the right, in orange, is what we inferred from that behaviour. The approval l
 
   // 12 ── open questions ─────────────────────────────────────────────────────────────────────────
   pres.addSection({ title: 'Before we build' });
-  s = slide('CONTENT', 'Before we build', 'OPEN QUESTIONS', 'Twelve rules NUS needs to confirm');
+  s = slide('CONTENT', 'Before we build', 'OPEN QUESTIONS', 'Twelve rules Re Sustainability needs to confirm');
   const QS = [   // numbered in reading order; the source's own numbers are in the notes
     ['FaCoins', 'Coverage and pricing', ['Does one ticket cover the full fee, or a fixed amount?', 'Which car parks and exits accept DigiPass?',
       'Is there a maximum parking time?', 'What if a stay crosses the event\'s start or end date?']],
@@ -642,7 +643,7 @@ On the right, in orange, is what we inferred from that behaviour. The approval l
     });
     qy += h + 0.08;
   }
-  notes(s, '1:30', `Before anyone designs or builds on this, twelve rules need a clear answer from NUS.
+  notes(s, '1:30', `Before anyone designs or builds on this, twelve rules need a clear answer from Re Sustainability.
 
 Coverage and pricing: does one ticket cover the whole parking fee, or only a fixed amount? Which car parks and exits accept DigiPass? Is there a maximum parking time? And what happens when a stay crosses the event's start or end date?
 
@@ -657,7 +658,7 @@ Numbering on this slide runs in reading order. In the source document (section 6
 
   // 13 ── data model ─────────────────────────────────────────────────────────────────────────────
   s = slide('CONTENT', 'Before we build', 'IF WE BUILD IT', 'A proposed data model for ParkOps or a similar platform');
-  chip(s, 'Proposal · not NUS\'s own schema', W - M - 4.4, 0.36, 4.4, 'neutral');
+  chip(s, 'Proposal · not Re Sustainability\'s own schema', W - M - 5.5, 0.36, 5.5, 'neutral');
   const L = [['DigiPassOrder', 'Quantity, price, payment and approval status'], ['TopUpTransaction', 'Additional tickets bought for the event'],
              ['RefundRequest', 'Refunds for unused tickets or exceptions']];
   const R = [['RegistrationToken', 'Public link, token and expiry'], ['RegisteredVehicle', 'Plate, IU/OBU, Autopass and email'],
@@ -688,7 +689,7 @@ Numbering on this slide runs in reading order. In the source document (section 6
   T(s, 'AuditLog', M + 0.25, 6.15, 1.6, 0.6, { bold: true, color: C.background1, valign: 'middle' });
   T(s, 'The trail of every create, approve, edit, allocate, redeem and refund, across all objects', M + 1.85, 6.15, CW - 2.1, 0.6,
     { fontSize: 16, color: C.background1, valign: 'middle' });
-  notes(s, '0:45', `The source suggests that if a similar feature is needed in ParkOps or another parking platform, these are the core objects to start from. It is a proposal, not NUS's schema.
+  notes(s, '0:45', `The source suggests that if a similar feature is needed in ParkOps or another parking platform, these are the core objects to start from. It is a proposal, not Re Sustainability's own schema.
 
 At the centre is the DigiPass Event: its name, description, valid dates and registration deadline.
 
@@ -701,28 +702,28 @@ Underneath everything sits an audit log of every create, approve, edit, allocate
 
   // 14 ── conclusion ─────────────────────────────────────────────────────────────────────────────
   pres.addSection({ title: 'Close' });
-  s = slide('DARK', 'Close', 'CONCLUSION', 'Clear concept; the rules need NUS sign-off');
+  s = slide('DARK', 'Close', 'CONCLUSION', 'The rules need Re Sustainability sign-off');
   T(s, 'DigiPass is an event-linked prepaid ticket pool: organisers buy tickets, guests register their cars, and the car park uses one ticket per eligible exit and logs it.',
     0.8, 2.2, 11.7, 0.95, { fontSize: 22, color: C.accent4 });
-  box(s, 0.8, 3.5, 11.7, 0.8, { fill: C.background1, r: 0.12 });
-  T(s, [{ text: 'Decision needed: ', options: { bold: true, color: C.accent1 } },
-        { text: 'agree to take the 12 open questions to NUS and the car park operator.', options: { color: C.text2 } }],
-    1.1, 3.5, 11.1, 0.8, { fontSize: 20, valign: 'middle' });
-  box(s, 0.8, 4.55, 11.7, 1.2, { fill: C.background1, tr: 90, line: C.accent1 });
-  await pic(s, 'FaFileLines', HEX.accent4, { x: 1.1, y: 4.9, w: 0.5, h: 0.5 });
-  T(s, 'After NUS answers: turn the confirmed rules and the data model into a build spec', 1.9, 4.55, 10.3, 1.2,
+  box(s, 0.8, 3.4, 11.7, 1.05, { fill: C.background1, r: 0.12 });
+  T(s, [{ text: 'Decision needed:', options: { bold: true, color: C.accent1, breakLine: true } },
+        { text: 'agree to take the 12 open questions to Re Sustainability and the car park operator.', options: { color: C.text2 } }],
+    1.1, 3.4, 11.1, 1.05, { fontSize: 20, valign: 'middle' });
+  box(s, 0.8, 4.7, 11.7, 1.2, { fill: C.background1, tr: 90, line: C.accent1 });
+  await pic(s, 'FaFileLines', HEX.accent4, { x: 1.1, y: 5.05, w: 0.5, h: 0.5 });
+  T(s, [{ text: 'After Re Sustainability answers:', options: { breakLine: true } }, { text: 'turn the confirmed rules and the data model into a build spec' }], 1.9, 4.7, 10.3, 1.2,
     { fontSize: 20, color: C.background1, valign: 'middle' });
   T(s, 'Status: public-source research summary; explains the concept and flow, not yet a development spec.',
     0.8, 6.3, 11.7, 0.36, { fontSize: 16, color: C.accent4 });
   notes(s, '1:00', `To sum up. DigiPass is not a long-term pass. It is a prepaid ticket pool tied to an event: the organiser buys the tickets, guests register their cars, and the car park uses one ticket per eligible exit and keeps a full record.
 
-What we have is enough to explain the concept and the main flow, but not enough for a final development spec. Billing, which car parks it covers, exception handling, refunds and the priority between entitlements all need NUS and the car park operator to confirm.
+What we have is enough to explain the concept and the main flow, but not enough for a final development spec. Billing, which car parks it covers, exception handling, refunds and the priority between entitlements all need Re Sustainability and the car park operator to confirm.
 
-The decision I'm asking for today is agreement to take the twelve open questions to NUS and the car park operator. After NUS answers, we turn the confirmed rules and the data model into a build specification.
+The decision I'm asking for today is agreement to take the twelve open questions to Re Sustainability and the car park operator. After Re Sustainability answers, we turn the confirmed rules and the data model into a build specification.
 
-[Before presenting: say who will take the questions to NUS and by when. The research doesn't name an owner or a date, so none is on the slide.]
+[Before presenting: say who will take the questions to Re Sustainability and by when. The research doesn't name an owner or a date, so none is on the slide.]
 
-[For an NUS-facing version: hide slide 13 (our proposed data model) and change the Decision bar to "What we'd like from NUS: answers to the 12 questions".]`,
+[For a version shown to the Re Sustainability team that owns these rules: hide slide 13 (our proposed data model) and change the Decision bar to "What we'd like from you: answers to the 12 questions".]`,
   'The sources are on the last slide if anyone wants them.');
 
   // 15 ── sources ───────────────────────────────────────────────────────────────────────────────
@@ -730,7 +731,7 @@ The decision I'm asking for today is agreement to take the twelve open questions
   const HOME = 'https://nus-park.resustainability.com.sg/';
   const SRC = [    // icon, label, what it is, where the label links, the full source URL (in the notes)
     ['FaFileLines', 'NUS UCI parking information page', 'NUS public parking information', 'https://uci.nus.edu.sg/campus-life/campus-services/transportation/parking-information/'],
-    ['FaFileLines', 'NUS Parking portal page', 'nus-park.resustainability.com.sg', HOME],
+    ['FaFileLines', 'Re Sustainability parking portal page', 'Public portal home page', HOME],
     ['FaFileLines', 'Public DigiPass registration page', 'Where guests register a vehicle', HOME, 'https://nus-park.resustainability.com.sg/assets/DigiPassRegisterVehicle-Bn3PwUtW.js'],
     ['FaFileLines', 'Public DigiPass edit & redemption page', 'Where drivers edit details and ticket use', HOME, 'https://nus-park.resustainability.com.sg/assets/DigiPassEditVehicle-Dfa8Jr-f.js'],
     ['FaFilePdf', 'NUS car park locations page (PDF)', 'Map of NUS car parks, January 2024', 'https://uci.nus.edu.sg/wp-content/uploads/2024/03/Location-of-Carparks-as-at-Jan-2024-002-1.pdf'],
@@ -739,11 +740,11 @@ The decision I'm asking for today is agreement to take the twelve open questions
     const y = 1.8 + i * 0.86;
     box(s, M, y, CW, 0.74, { fill: i % 2 ? C.background1 : C.background2, line: EDGE });
     await pic(s, ic, HEX.accent1, { x: M + 0.3, y: y + 0.2, w: 0.34, h: 0.34 });
-    T(s, [{ text: name, options: { hyperlink: { url, tooltip: url }, color: C.accent1, bold: true } }], M + 0.9, y, 5.6, 0.74, { valign: 'middle' });
+    T(s, [{ text: name, options: { hyperlink: { url }, color: C.accent1, bold: true } }], M + 0.9, y, 5.6, 0.74, { valign: 'middle' });
     T(s, desc, M + 6.6, y, CW - 6.8, 0.74, { fontSize: 16, color: C.accent6, valign: 'middle' });
   }
   T(s, 'Research compiled 21 October 2026 from public pages and the portal\'s public front-end modules.', M, 6.25, CW, 0.36, { fontSize: 16, color: C.accent6 });
-  notes(s, '0:15', `For reference, these are the sources: the NUS University Campus Infrastructure parking information page, the NUS Parking portal itself, the portal's two public DigiPass pages for vehicle registration and for vehicle editing and ticket use, and the NUS map of car park locations. All of it is public, compiled on 21 October 2026.
+  notes(s, '0:15', `For reference, these are the sources: the NUS University Campus Infrastructure parking information page, the Re Sustainability parking portal itself, the portal's two public DigiPass pages for vehicle registration and for vehicle editing and ticket use, and the NUS map of car park locations. All of it is public, compiled on 21 October 2026.
 
 Full links:
 ${SRC.map(r => r[4] || r[3]).join('\n')}
