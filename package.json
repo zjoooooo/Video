@@ -21,7 +21,10 @@
     "digipass": "python3 scripts/voice.py films/2026-10-nus-digipass/narration.json && python3 films/2026-10-nus-digipass/plan.py && node scripts/render.mjs films/2026-10-nus-digipass/film.src.html --out out/nus-digipass.video.mp4 --sub 8 && uv run --with numpy films/2026-10-nus-digipass/music.py out/nus-digipass.wav && ffmpeg -y -loglevel error -i out/nus-digipass.video.mp4 -i out/nus-digipass.wav -map 0:v -map 1:a -c:v copy -c:a aac -b:a 192k -shortest -movflags +faststart out/nus-digipass.mp4",
     "digipass:sheet": "node scripts/render.mjs films/2026-10-nus-digipass/film.src.html --sheet --step 2",
     "digipass:check": "node scripts/render.mjs films/2026-10-nus-digipass/film.src.html --check",
-    "digipass:deck": "cd films/2026-10-nus-digipass/deck && npm install --silent && node build.js"
+    "digipass:deck": "cd films/2026-10-nus-digipass/deck && npm install --silent && node build.js",
+    "digipass-client": "python3 scripts/voice.py films/2026-10-digipass-client/narration.json && python3 films/2026-10-digipass-client/plan.py && node scripts/render.mjs films/2026-10-digipass-client/film.src.html --out out/digipass-client.video.mp4 --sub 8 && uv run --with numpy films/2026-10-digipass-client/music.py out/digipass-client.wav && ffmpeg -y -loglevel error -i out/digipass-client.video.mp4 -i out/digipass-client.wav -map 0:v -map 1:a -c:v copy -c:a aac -b:a 192k -shortest -movflags +faststart out/digipass-client.mp4",
+    "digipass-client:check": "node scripts/render.mjs films/2026-10-digipass-client/film.src.html --check",
+    "digipass-client:deck": "cd films/2026-10-digipass-client/deck && npm install --silent && node build.js"
   },
   "repository": {
     "type": "git",

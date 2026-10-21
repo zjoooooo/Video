@@ -1,0 +1,912 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Re Sustainability DigiPass: client walkthrough</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #F7F9FC; }
+  canvas { display: block; width: 100vw; height: 100vh; object-fit: contain; }
+</style>
+</head>
+<body>
+<canvas id="c" width="1920" height="1080"></canvas>
+<script>
+'use strict';
+// Frame contract: window.DURATION (seconds) and async window.seek(t).
+// Every visual value is a pure function of t; render() resets the canvas each frame.
+// The client version of films/2026-10-nus-digipass: the same workflow presented as the design, for a client's
+// management team (no research framing, no open questions). Facts come from "jev /output/nus-digipass-workflow.md";
+// timing comes from timeline.json, which plan.py lays out around the narration.
+// Colours keep one meaning each: blue = the service, green = a ticket used. Sample values (50 tickets, SXX 1234 X, 1234567890) are labelled as examples.
+// Open film.html#play for a live preview; the renderer never uses that path.
+
+const TL = JSON.parse(__TEXT:timeline.json__), CUE = TL.cue, SC = TL.scenes;
+const W = 1920, H = 1080, DURATION = TL.duration, BEAT = 60 / TL.bpm;
+const cv = document.getElementById('c');
+const ctx = cv.getContext('2d');
+
+// ---- tunables: the deck's tokens -----------------------------------------------------
+const C = { bg: '#F7F9FC', card: '#FFFFFF', line: '#D9E2EF', navy: '#0B2A5B', ink: '#1F2937', muted: '#64748B',
+            blue: '#1D5FD1', blueBg: '#EAF2FD', blueLine: '#BFD4F6',
+            green: '#16A34A', greenBg: '#E8F7EE', grey: '#CBD5E1', glass: '#CFE0F7' };
+const FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
+const MONO = 'ui-monospace, SFMono-Regular, Menlo, monospace';
+const MX = 150;
+const SEAM = 0.3;                 // half-length of a transition (s)
+const POP = [3.0, 0.72];          // spring for pops: frequency (Hz), damping
+const PLATE = 'SXX 1234 X', IU = '1234567890', POOL = 50;   // example values, shown as examples
+
+// ---- time toolkit ---------------------------------------------------------------------
+const clamp = (x, a = 0, b = 1) => (x < a ? a : x > b ? b : x);
+const prog = (t, a, b) => clamp((t - a) / (b - a));
+const lerp = (a, b, u) => a + (b - a) * u;
+const outExpo = u => (u >= 1 ? 1 : 1 - Math.pow(2, -10 * u));
+const inExpo = u => (u <= 0 ? 0 : Math.pow(2, 10 * u - 10));
+const inOutExpo = u => (u <= 0 ? 0 : u >= 1 ? 1 : u < 0.5 ? Math.pow(2, 20 * u - 10) / 2 : (2 - Math.pow(2, -20 * u + 10)) / 2);
+const outCubic = u => 1 - Math.pow(1 - u, 3);
+const inOutCubic = u => (u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2);
+function spring(t, f = 3, z = 0.7) {             // closed-form step response
+  if (t <= 0) return 0;
+  const w = 2 * Math.PI * f;
+  if (z < 1) { const wd = w * Math.sqrt(1 - z * z);
+    return 1 - Math.exp(-z * w * t) * (Math.cos(wd * t) + (z * w / wd) * Math.sin(wd * t)); }
+  return 1 - Math.exp(-w * t) * (1 + w * t);
+}
+const pop = at => spring(t - at, ...POP);
+const fade = (a, b) => outCubic(prog(t, a, b));
+
+// ---- drawing helpers (scene functions read the local time `t` and their cues through L) ----
+let t = 0, T0 = 0;
+const L = (k, i) => (i === undefined ? CUE[k] : CUE[k][i]) - T0;
+const font = (size, w = 600, f = FONT) => { ctx.font = `${w} ${size}px ${f}`; };
+const bg = (c = C.bg) => { ctx.fillStyle = c; ctx.fillRect(0, 0, W, H); };
+function dot(x, y, r, c) { if (r <= 0) return; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fillStyle = c; ctx.fill(); }
+function rr(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect(x, y, w, h, r); }
+function box(x, y, w, h, r, fill, stroke, lw = 2) {
+  rr(x, y, w, h, r); if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+  if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lw; ctx.stroke(); }
+}
+function line(x0, y0, x1, y1, c, w) {
+  ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1);
+  ctx.strokeStyle = c; ctx.lineWidth = w; ctx.lineCap = 'round'; ctx.stroke();
+}
+function label(str, x, y, size, o = {}) {
+  const { w = 600, c = C.ink, align = 'left', f = FONT, base = 'alphabetic', ls = '0px' } = o;
+  font(size, w, f); ctx.letterSpacing = ls; ctx.fillStyle = c; ctx.textAlign = align; ctx.textBaseline = base;
+  ctx.fillText(str, x, y); ctx.letterSpacing = '0px';
+}
+function width(str, size, w = 600, f = FONT) { font(size, w, f); return ctx.measureText(str).width; }
+function scaled(cx, cy, s, fn) { if (s <= 0) return; ctx.save(); ctx.translate(cx, cy); ctx.scale(s, s); ctx.translate(-cx, -cy); fn(); ctx.restore(); }
+function alpha(a, fn) { if (a <= 0) return; ctx.save(); ctx.globalAlpha *= clamp(a); fn(); ctx.restore(); }
+
+// Kinetic type: words rise from under the baseline inside a clip and leave upward.
+function rise(str, x, y, size, o = {}) {
+  const { w = 700, c = C.navy, align = 'left', at = 0, out = 1e9, gap = 0.06, dur = 0.7, f = FONT } = o;
+  if (t < at || t > out + 1) return;
+  font(size, w, f);
+  const words = str.split(' ');
+  const sp = ctx.measureText(' ').width;
+  const ws = words.map(s => ctx.measureText(s).width);
+  const total = ws.reduce((a, b) => a + b, 0) + sp * (words.length - 1);
+  let cx = align === 'center' ? x - total / 2 : align === 'right' ? x - total : x;
+  ctx.save();
+  ctx.beginPath(); ctx.rect(cx - 16, y - size * 1.05, total + 32, size * 1.4); ctx.clip();
+  ctx.fillStyle = c; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  words.forEach((s, i) => {
+    const a = outExpo(prog(t, at + i * gap, at + i * gap + dur));
+    const b = inExpo(prog(t, out + i * gap * 0.5, out + i * gap * 0.5 + 0.3));
+    if (a > 0 && b < 1) ctx.fillText(s, cx, y + (1 - a) * size * 1.3 - b * size * 1.3);
+    cx += ws[i] + sp;
+  });
+  ctx.restore();
+}
+function pill(str, cx, cy, fg, bgc, s = 1, size = 26, o = {}) {
+  if (s <= 0) return 0;
+  const { w = 700, border = null } = o;
+  font(size, w); const pw = ctx.measureText(str).width + size * 1.4, ph = size * 1.8;
+  ctx.save(); ctx.translate(cx, cy); ctx.scale(s, s);
+  rr(-pw / 2, -ph / 2, pw, ph, ph / 2); ctx.fillStyle = bgc; ctx.fill();
+  if (border) { ctx.strokeStyle = border; ctx.lineWidth = 2; ctx.stroke(); }
+  ctx.fillStyle = fg; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(str, 0, 2);
+  ctx.restore();
+  return pw;
+}
+function tick(x, y, s, at, c, lw = 0.2) {               // stroke-drawn check mark
+  const p = outCubic(prog(t, at, at + 0.25)); if (p <= 0) return;
+  const a = [x - 0.45 * s, y + 0.02 * s], b = [x - 0.12 * s, y + 0.34 * s], d = [x + 0.48 * s, y - 0.32 * s];
+  const p1 = clamp(p / 0.4), p2 = clamp((p - 0.4) / 0.6);
+  ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(lerp(a[0], b[0], p1), lerp(a[1], b[1], p1));
+  if (p2 > 0) ctx.lineTo(lerp(b[0], d[0], p2), lerp(b[1], d[1], p2));
+  ctx.strokeStyle = c; ctx.lineWidth = s * lw; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.stroke();
+}
+function checkBadge(x, y, r, at, c = C.blue) {          // a filled disc with a white tick
+  const s = pop(at); if (s <= 0) return;
+  dot(x, y, r * s, c); tick(x, y + r * 0.05, r * 1.0, at + 0.08, '#fff', 0.22);
+}
+
+// The protagonist: a parking ticket with a perforated stub and two notches.
+function ticketPath(x, y, w, h, r, sx, nr) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y); ctx.lineTo(sx - nr, y); ctx.arc(sx, y, nr, Math.PI, 0, true);
+  ctx.lineTo(x + w - r, y); ctx.arcTo(x + w, y, x + w, y + r, r);
+  ctx.lineTo(x + w, y + h - r); ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+  ctx.lineTo(sx + nr, y + h); ctx.arc(sx, y + h, nr, 0, Math.PI, true);
+  ctx.lineTo(x + r, y + h); ctx.arcTo(x, y + h, x, y + h - r, r);
+  ctx.lineTo(x, y + r); ctx.arcTo(x, y, x + r, y, r); ctx.closePath();
+}
+// (cx, cy) is the centre; state: 'blue' | 'green' | 'ghost' (an empty slot) | 'grey'
+function ticket(cx, cy, w, h, o = {}) {
+  const { state = 'blue', s = 1, rot = 0, text = '', sub = '' } = o;
+  if (s <= 0) return;
+  const col = { blue: C.blue, green: C.green, ghost: C.grey, grey: C.muted }[state];
+  const tint = { blue: C.blueBg, green: C.greenBg, ghost: 'rgba(0,0,0,0)', grey: '#EEF2F7' }[state];
+  const x = -w / 2, y = -h / 2, sx = x + w * 0.7, nr = Math.max(4, h * 0.12), r = Math.max(4, h * 0.14);
+  ctx.save(); ctx.translate(cx, cy); ctx.rotate(rot); ctx.scale(s, s);
+  ticketPath(x, y, w, h, r, sx, nr);
+  if (state === 'ghost') { ctx.setLineDash([6, 6]); ctx.strokeStyle = C.grey; ctx.lineWidth = 2; ctx.stroke(); ctx.restore(); return; }
+  ctx.fillStyle = C.card; ctx.fill();
+  ctx.save(); ctx.clip(); ctx.fillStyle = tint; ctx.fillRect(sx, y, w, h); ctx.restore();
+  ctx.strokeStyle = col; ctx.lineWidth = Math.max(2, h * 0.05); ctx.stroke();
+  ctx.setLineDash([h * 0.07, h * 0.07]); line(sx, y + nr + 3, sx, y + h - nr - 3, col, Math.max(1.5, h * 0.03)); ctx.setLineDash([]);
+  // stub: a P in a rounded square, or a tick once used
+  const k = Math.min(w * 0.3 - 10, h * 0.6);
+  if (state === 'green') tick(sx + w * 0.15, 0, k * 0.8, -1e9, C.green, 0.2);
+  else { box(sx + w * 0.15 - k / 2, -k / 2, k, k, k * 0.22, col); label('P', sx + w * 0.15, k * 0.36, k * 0.78, { w: 800, c: '#fff', align: 'center' }); }
+  // face: a title and a sub line, or two text bars when there's no text
+  if (text) {
+    label(text, x + w * 0.08, sub ? -h * 0.04 : h * 0.12, Math.min(h * 0.26, 40), { w: 800, c: C.navy });
+    if (sub) label(sub, x + w * 0.08, h * 0.28, Math.min(h * 0.17, 28), { w: 600, c: C.muted });
+  } else {
+    box(x + w * 0.1, -h * 0.17, w * 0.42, h * 0.12, h * 0.06, col);
+    box(x + w * 0.1, h * 0.07, w * 0.28, h * 0.1, h * 0.05, C.blueLine);
+  }
+  ctx.restore();
+}
+
+// A side-view car facing right: x is its left edge, g the ground line.
+function car(x, g, w, o = {}) {
+  const { body = C.navy } = o;
+  ctx.save();
+  rr(x, g - w * 0.27, w, w * 0.17, w * 0.06); ctx.fillStyle = body; ctx.fill();
+  ctx.beginPath(); ctx.moveTo(x + w * 0.16, g - w * 0.26); ctx.lineTo(x + w * 0.3, g - w * 0.42);
+  ctx.lineTo(x + w * 0.64, g - w * 0.42); ctx.lineTo(x + w * 0.82, g - w * 0.26); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = C.glass;
+  ctx.beginPath(); ctx.moveTo(x + w * 0.23, g - w * 0.27); ctx.lineTo(x + w * 0.325, g - w * 0.385); ctx.lineTo(x + w * 0.465, g - w * 0.385); ctx.lineTo(x + w * 0.465, g - w * 0.27); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(x + w * 0.495, g - w * 0.27); ctx.lineTo(x + w * 0.495, g - w * 0.385); ctx.lineTo(x + w * 0.625, g - w * 0.385); ctx.lineTo(x + w * 0.745, g - w * 0.27); ctx.closePath(); ctx.fill();
+  rr(x + w * 0.955, g - w * 0.235, w * 0.035, w * 0.045, 3); ctx.fillStyle = '#FDE68A'; ctx.fill();
+  rr(x + w * 0.01, g - w * 0.235, w * 0.03, w * 0.045, 3); ctx.fillStyle = '#FCA5A5'; ctx.fill();
+  for (const wx of [0.22, 0.78]) { dot(x + w * wx, g - w * 0.085, w * 0.085, '#1F2937'); dot(x + w * wx, g - w * 0.085, w * 0.038, C.grey); }
+  ctx.restore();
+}
+function phone(x, y, w, h) {                               // the frame; returns the screen rect
+  box(x, y, w, h, 44, C.navy);
+  box(x + 12, y + 12, w - 24, h - 24, 34, C.card);
+  box(x + w / 2 - 50, y + 22, 100, 22, 11, C.navy);
+  return [x + 12, y + 12, w - 24, h - 24];
+}
+// Small drawn icons, centred on (x, y), size s.
+const ICON = {
+  calendar(x, y, s, c) { box(x - s / 2, y - s * 0.38, s, s * 0.82, s * 0.12, null, c, s * 0.09); line(x - s / 2, y - s * 0.12, x + s / 2, y - s * 0.12, c, s * 0.09);
+    line(x - s * 0.22, y - s * 0.5, x - s * 0.22, y - s * 0.3, c, s * 0.09); line(x + s * 0.22, y - s * 0.5, x + s * 0.22, y - s * 0.3, c, s * 0.09);
+    for (let i = 0; i < 3; i++) dot(x - s * 0.24 + i * s * 0.24, y + s * 0.14, s * 0.06, c); },
+  person(x, y, s, c) { dot(x, y - s * 0.2, s * 0.2, c); ctx.beginPath(); ctx.arc(x, y + s * 0.42, s * 0.36, Math.PI, 0); ctx.closePath(); ctx.fillStyle = c; ctx.fill(); },
+  coin(x, y, s, c) { ctx.beginPath(); ctx.arc(x, y, s * 0.46, 0, 7); ctx.strokeStyle = c; ctx.lineWidth = s * 0.09; ctx.stroke(); label('$', x, y + s * 0.2, s * 0.56, { w: 800, c, align: 'center' }); },
+  pin(x, y, s, c) { ctx.beginPath(); ctx.arc(x, y - s * 0.12, s * 0.34, Math.PI * 0.85, Math.PI * 0.15); ctx.lineTo(x, y + s * 0.5); ctx.closePath(); ctx.fillStyle = c; ctx.fill();
+    label('P', x, y - s * 0.01, s * 0.38, { w: 800, c: '#fff', align: 'center' }); },
+  link(x, y, s, c) { ctx.save(); ctx.translate(x, y); ctx.rotate(-Math.PI / 4);
+    for (const d of [-1, 1]) { rr(d * s * 0.2 - s * 0.26, -s * 0.15, s * 0.52, s * 0.3, s * 0.15); ctx.strokeStyle = c; ctx.lineWidth = s * 0.09; ctx.stroke(); }
+    ctx.restore(); },
+  lock(x, y, s, c) { box(x - s * 0.32, y - s * 0.05, s * 0.64, s * 0.48, s * 0.08, c);
+    ctx.beginPath(); ctx.arc(x, y - s * 0.08, s * 0.2, Math.PI, 0); ctx.strokeStyle = c; ctx.lineWidth = s * 0.09; ctx.stroke(); },
+  mail(x, y, s, c) { box(x - s / 2, y - s * 0.34, s, s * 0.68, s * 0.08, null, c, s * 0.08);
+    ctx.beginPath(); ctx.moveTo(x - s / 2 + 4, y - s * 0.3); ctx.lineTo(x, y + s * 0.06); ctx.lineTo(x + s / 2 - 4, y - s * 0.3); ctx.strokeStyle = c; ctx.lineWidth = s * 0.08; ctx.stroke(); },
+  gear(x, y, s, c) { ctx.save(); ctx.translate(x, y); ctx.fillStyle = c;
+    for (let i = 0; i < 8; i++) { ctx.rotate(Math.PI / 4); ctx.fillRect(-s * 0.08, -s * 0.5, s * 0.16, s * 0.24); }
+    ctx.beginPath(); ctx.arc(0, 0, s * 0.33, 0, 7); ctx.fill(); dot(0, 0, s * 0.13, '#fff'); ctx.restore(); },
+  file(x, y, s, c) { ctx.beginPath(); ctx.moveTo(x - s * 0.34, y - s * 0.46); ctx.lineTo(x + s * 0.14, y - s * 0.46); ctx.lineTo(x + s * 0.34, y - s * 0.26);
+    ctx.lineTo(x + s * 0.34, y + s * 0.46); ctx.lineTo(x - s * 0.34, y + s * 0.46); ctx.closePath(); ctx.strokeStyle = c; ctx.lineWidth = s * 0.08; ctx.lineJoin = 'round'; ctx.stroke();
+    for (let i = 0; i < 3; i++) line(x - s * 0.18, y - s * 0.1 + i * s * 0.17, x + s * 0.18, y - s * 0.1 + i * s * 0.17, c, s * 0.07); },
+  plus(x, y, s, c) { line(x - s * 0.3, y, x + s * 0.3, y, c, s * 0.12); line(x, y - s * 0.3, x, y + s * 0.3, c, s * 0.12); },
+  back(x, y, s, c) { ctx.beginPath(); ctx.arc(x + s * 0.05, y + s * 0.05, s * 0.3, -Math.PI * 0.5, Math.PI * 0.6); ctx.strokeStyle = c; ctx.lineWidth = s * 0.1; ctx.lineCap = 'round'; ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x - s * 0.2, y - s * 0.25); ctx.lineTo(x + s * 0.08, y - s * 0.42); ctx.lineTo(x + s * 0.08, y - s * 0.08); ctx.closePath(); ctx.fillStyle = c; ctx.fill(); },
+  down(x, y, s, c) { line(x, y - s * 0.36, x, y + s * 0.16, c, s * 0.1); ctx.beginPath(); ctx.moveTo(x - s * 0.22, y); ctx.lineTo(x, y + s * 0.24); ctx.lineTo(x + s * 0.22, y);
+    ctx.strokeStyle = c; ctx.lineWidth = s * 0.1; ctx.lineJoin = 'round'; ctx.stroke(); line(x - s * 0.34, y + s * 0.4, x + s * 0.34, y + s * 0.4, c, s * 0.1); },
+  qr(x, y, s, c) { const m = s / 7; ctx.fillStyle = c;
+    for (const [cx, cy] of [[0, 0], [4, 0], [0, 4]]) { ctx.fillRect(x - s / 2 + cx * m, y - s / 2 + cy * m, 3 * m, 3 * m); ctx.fillStyle = '#fff'; ctx.fillRect(x - s / 2 + (cx + 0.75) * m, y - s / 2 + (cy + 0.75) * m, 1.5 * m, 1.5 * m); ctx.fillStyle = c; }
+    for (let i = 0; i < 12; i++) { const a = Math.floor((i * 7 + 3) % 4) + 3, b = Math.floor((i * 5 + 1) % 7); if (a > 3 || b > 3) ctx.fillRect(x - s / 2 + a * m, y - s / 2 + b * m, m, m); } },
+  globe(x, y, s, c) { ctx.beginPath(); ctx.arc(x, y, s * 0.44, 0, 7); ctx.strokeStyle = c; ctx.lineWidth = s * 0.08; ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(x, y, s * 0.18, s * 0.44, 0, 0, 7); ctx.stroke(); line(x - s * 0.44, y, x + s * 0.44, y, c, s * 0.07); },
+};
+
+const IMG = {};
+function logo(cx, cy, h) { const im = IMG.logo, w = h * im.width / im.height; ctx.drawImage(im, cx - w / 2, cy - h / 2, w, h); }
+
+// ---- the locked header: a numbered kicker over a 72 px title ----------------------------------
+function header(kicker, title, o = {}) {
+  const { c = C.blue, at = -0.3 } = o;   // the title is already rising as the wipe passes
+  alpha(fade(at, at + 0.4), () => label(kicker, MX, 128, 26, { w: 800, c, ls: '3px' }));
+  rise(title, MX, 212, 72, { w: 800, at: at + 0.1 });
+}
+
+// ---- the workflow rail: eight steps along the bottom, the film's spine ---------------------------
+const STEPS = ['Set up', 'Apply', 'Approve', 'Link', 'Register', 'Sync', 'Exit', 'Manage'];
+const STEP_AT = [['admin', 0], ['apply', 1], ['buy', 2], ['link', 3], ['register', 4], ['sync', 5], ['exit', 6], ['after', 7]];
+function rail(T) {
+  const show = outExpo(prog(T, SC.admin - 1.6, SC.admin - 0.6)) * (1 - inOutCubic(prog(T, SC.end - SEAM, SC.end + SEAM * 0.5)));
+  if (show <= 0) return;
+  let P = -1;                                            // the active step, eased across each cut
+  for (const [k, i] of STEP_AT) if (T >= SC[k] - 0.2) P = i - 1 + outExpo(prog(T, SC[k] - 0.2, SC[k] + 0.6));
+  const review = inOutCubic(prog(T, SC.why - 0.2, SC.why + 0.9));              // the rail rises for the benefits
+  const cy = lerp(985, 380, review), x0 = lerp(300, 260, review), x1 = lerp(1620, 1660, review), r = lerp(16, 24, review);
+  const ly = cy + lerp(56, 66, review), lsz = lerp(26, 30, review);
+  const nx = i => lerp(x0, x1, i / 7);
+  ctx.save(); ctx.globalAlpha = show;
+  const grow = outExpo(prog(T, SC.admin - 1.6, SC.admin - 0.4));
+  line(x0, cy, lerp(x0, x1, grow), cy, C.line, 6);
+  if (P >= 0) line(x0, cy, nx(Math.min(P, 7)), cy, C.blue, 6);
+  STEPS.forEach((name, i) => {
+    const s = spring(T - (SC.admin - 1.5 + i * 0.08), ...POP); if (s <= 0) return;
+    const done = P >= i - 0.5, active = Math.abs(P - i) < 0.5 && review < 0.5;
+    const fill = done ? C.blue : C.card;
+    const rad = r * s * (active ? 1.25 : 1);
+    if (active) { const b = ((T % BEAT) + BEAT) % BEAT; dot(nx(i), cy, rad + 10 + 6 * Math.exp(-b * 6), 'rgba(29,95,209,.14)'); }
+    dot(nx(i), cy, rad, fill);
+    if (!done) { ctx.beginPath(); ctx.arc(nx(i), cy, rad, 0, 7); ctx.strokeStyle = C.grey; ctx.lineWidth = 3; ctx.stroke(); }
+    label(String(i + 1), nx(i), cy + rad * 0.36, rad * 1.0, { w: 800, c: done ? '#fff' : C.muted, align: 'center' });
+    label(name, nx(i), ly, lsz, { w: active || review > 0.5 ? 800 : 600, c: active || review > 0.5 ? C.navy : C.muted, align: 'center' });
+  });
+  ctx.restore();
+}
+
+// ---- scenes -----------------------------------------------------------------------------
+// 0 · what DigiPass is
+const TRAY_A = [1040, 430], TRAY_B = [210, 430], TRAY_W = 640, TRAY_H = 400;
+const TRAY_SLOT = i => [72 + (i % 4) * 166, 140 + Math.floor(i / 4) * 86];     // ticket centres inside the tray
+const LANES = [560, 700, 840], CAR_X = 1330, CAR_W = 230;
+function sOpen() {
+  // the title, then one line under it that changes with the narration
+  const up = inOutCubic(prog(t, L('season') - 0.9, L('season') - 0.1));
+  alpha(fade(0.1, 0.6), () => logo(W / 2, lerp(400, 74, up), lerp(110, 56, up)));
+  rise('Re Sustainability DigiPass', W / 2, lerp(600, 230, up), 120, { w: 800, align: 'center', at: 0.3 });
+  const lines = [['Not a season pass.', 'season', 'pool', C.muted], ['A prepaid ticket pool for one event.', 'pool', 'buyOnce', C.blue],
+                 ['Buy once.', 'buyOnce', 'share', C.navy], ['Share with guests’ cars.', 'share', 'perExit', C.navy], ['One ticket per eligible exit.', 'perExit', null, C.green]];
+  lines.forEach(([s, a, b, c]) => rise(s, W / 2, 330, 52, { w: 700, c, align: 'center', at: L(a), out: b ? L(b) - 0.35 : 1e9 }));
+  // the season pass: a card, struck out
+  const sOut = inOutCubic(prog(t, L('buyOnce') - 1.6, L('buyOnce') - 1.0));
+  const sIn = pop(L('season'));
+  if (sIn > 0 && sOut < 1) {
+    ctx.save(); ctx.translate(-sOut * 700, 0); ctx.globalAlpha = 1 - sOut;
+    scaled(480, 600, sIn, () => {
+      const dim = 1 - 0.5 * outCubic(prog(t, L('notSeason'), L('notSeason') + 0.4));
+      ctx.save(); ctx.globalAlpha *= dim;
+      box(250, 450, 460, 300, 24, C.card, C.line);
+      rr(250, 450, 460, 78, [24, 24, 0, 0]); ctx.fillStyle = C.navy; ctx.fill();
+      label('SEASON PASS', 290, 502, 30, { w: 800, c: '#fff', ls: '3px' });
+      ICON.calendar(310, 600, 44, C.navy); label('Monthly', 352, 612, 32, { w: 700, c: C.ink });
+      ICON.person(310, 682, 44, C.navy); label('One holder, one car', 352, 694, 32, { w: 700, c: C.ink });
+      ctx.restore();
+      const k = outCubic(prog(t, L('notSeason'), L('notSeason') + 0.35));
+      if (k > 0) line(240, 760, lerp(240, 720, k), lerp(760, 440, k), C.ink, 10);
+    });
+    ctx.restore();
+  }
+  // the pool: a tray of tickets; it slides left when the cars arrive
+  const move = inOutCubic(prog(t, L('buyOnce') - 1.4, L('buyOnce') - 0.6));
+  const tx = lerp(TRAY_A[0], TRAY_B[0], move), ty = TRAY_A[1];
+  const trayIn = pop(L('pool') - 0.2);
+  scaled(tx + TRAY_W / 2, ty + TRAY_H / 2, trayIn, () => {
+    box(tx, ty, TRAY_W, TRAY_H, 26, C.card, C.line);
+    label('Event ticket pool', tx + 36, ty + 62, 32, { w: 800, c: C.navy });
+    const ev = pop(L('oneEvent'));
+    if (ev > 0) { const pw = width('One event', 26, 700) + 26 * 1.4 + 40;
+      scaled(tx + TRAY_W - 36 - pw / 2, ty + 52, ev, () => { box(tx + TRAY_W - 36 - pw, ty + 29, pw, 46, 23, C.blueBg);
+        ICON.calendar(tx + TRAY_W - 36 - pw + 32, ty + 54, 24, C.blue); label('One event', tx + TRAY_W - 36 - pw + 54, ty + 62, 26, { w: 700, c: C.blue }); }); }
+  });
+  for (let i = 0; i < 12; i++) {
+    const [sx, sy] = TRAY_SLOT(i), s = pop(L('pool') + 0.1 + i * 0.05) * (trayIn > 0.2 ? 1 : 0);
+    if (i < 3 && t > L('share')) {                      // three tickets fly to the cars
+      ticket(tx + sx, ty + sy, 130, 66, { state: 'ghost' });
+      const u = inOutCubic(prog(t, L('share') + i * 0.18, L('share') + 0.8 + i * 0.18));
+      const [ex, ey] = [CAR_X - 90, LANES[i] - 60];
+      const used = i === 0 && t > L('perExit') + 0.2;
+      const drive = i === 0 ? 900 * inExpo(prog(t, L('perExit') + 0.5, L('perExit') + 2.2)) : 0;
+      const x = lerp(tx + sx, ex, u) + drive, y = lerp(ty + sy, ey, u) - Math.sin(u * Math.PI) * 120;
+      ticket(x, y, lerp(130, 120, u), lerp(66, 62, u), { state: used ? 'green' : 'blue', rot: Math.sin(u * Math.PI) * 0.2 });
+    } else ticket(tx + sx, ty + sy, 130, 66, { s });
+  }
+  // three cars, one lane each; the first leaves through a barrier
+  const gate = outExpo(prog(t, L('share') - 0.6, L('share')));
+  if (gate > 0) { const lift = inOutCubic(prog(t, L('perExit') + 0.1, L('perExit') + 0.6)), px = 1690, py = LANES[0] - 70;
+    alpha(gate, () => { box(px - 7, py - 20, 14, 90, 4, C.muted);
+      ctx.save(); ctx.translate(px, py); ctx.rotate(lift * Math.PI / 2); box(-120, -8, 120, 16, 8, C.card, C.muted); ctx.restore(); dot(px, py, 10, C.navy); }); }
+  LANES.forEach((g, i) => {
+    const s = outExpo(prog(t, L('share') - 0.8 + i * 0.12, L('share') + i * 0.12));
+    if (s <= 0) return;
+    const drive = i === 0 ? 900 * inExpo(prog(t, L('perExit') + 0.5, L('perExit') + 2.2)) : 0;
+    ctx.save(); ctx.globalAlpha = s;
+    line(1180, g + 2, 1760, g + 2, C.line, 4);
+    car(CAR_X + (1 - s) * 260 + drive, g, CAR_W);
+    ctx.restore();
+  });
+}
+
+// 1 · admin sets up the product
+const ROWS = [['coin', 'Price', 'Price plan', 'Price'], ['person', 'Who may apply', 'Approved roles', 'Roles'],
+              ['calendar', 'Valid dates', 'Start – End', 'Dates'], ['pin', 'Car parks', 'Selected car parks', 'Car parks']];
+const CHIP = i => [300 + (i % 2) * 236, 586 + Math.floor(i / 2) * 104];          // chip centres on the ticket
+function chip(i, cx, cy, s = 1) {
+  const [ic, , , name] = ROWS[i];
+  scaled(cx, cy, s, () => { box(cx - 110, cy - 36, 220, 72, 16, C.blueBg, C.blueLine);
+    ICON[ic](cx - 74, cy, 34, C.blue); label(name, cx - 44, cy + 10, 27, { w: 700, c: C.navy }); });
+}
+function sAdmin() {
+  header('STEP 1 · ADMIN', 'Set up the ticket product');
+  // the template ticket; each setting flies onto it as a chip
+  const solid = outCubic(prog(t, L('product'), L('product') + 0.5));
+  scaled(500, 590, pop(-0.9), () => {
+    const x = 150, y = 390, w = 700, h = 400, sx = x + w * 0.74;
+    ticketPath(x, y, w, h, 30, sx, 26);
+    ctx.fillStyle = C.card; ctx.fill();
+    ctx.setLineDash(solid < 1 ? [16, 12] : []); ctx.strokeStyle = solid > 0 ? C.blue : C.grey; ctx.lineWidth = 5; ctx.stroke(); ctx.setLineDash([]);
+    ctx.save(); ticketPath(x, y, w, h, 30, sx, 26); ctx.clip(); ctx.globalAlpha = solid; ctx.fillStyle = C.blueBg; ctx.fillRect(sx, y, w, h); ctx.restore();
+    ctx.setLineDash([12, 12]); line(sx, y + 40, sx, y + h - 40, solid > 0 ? C.blue : C.grey, 4); ctx.setLineDash([]);
+    alpha(solid, () => { box(sx + 46, y + h / 2 - 50, 100, 100, 22, C.blue); label('P', sx + 96, y + h / 2 + 30, 80, { w: 800, c: '#fff', align: 'center' }); });
+    label(solid > 0.5 ? 'DigiPass · event ticket' : 'New ticket product', x + 44, y + 78, 36, { w: 800, c: solid > 0.5 ? C.navy : C.muted });
+    ROWS.forEach((r, i) => { if (t >= L('rows', i) + 0.55) chip(i, ...CHIP(i)); });
+  });
+  // the settings panel
+  const pIn = outExpo(prog(t, -0.9, -0.2));
+  ctx.save(); ctx.translate((1 - pIn) * 300, 0); ctx.globalAlpha = pIn;
+  box(1000, 360, 760, 480, 26, C.card, C.line);
+  ICON.gear(1052, 414, 40, C.navy); label('Ticket product settings', 1088, 426, 32, { w: 800, c: C.navy });
+  ROWS.forEach(([ic, name, val], i) => {
+    const y = 470 + i * 88, at = L('rows', i), on = outCubic(prog(t, at, at + 0.3)), hi = pop(at) * (1 - prog(t, at + 1.0, at + 1.6));
+    if (hi > 0) box(1020, y, 720, 76, 16, `rgba(29,95,209,${0.08 * hi})`);
+    ICON[ic](1066, y + 38, 36, on > 0.5 ? C.blue : C.muted);
+    label(name, 1104, y + 48, 30, { w: 700, c: C.ink });
+    alpha(on, () => label(val, 1360, y + 48, 28, { w: 600, c: C.blue }));
+    const sx = 1660, sy = y + 22;                         // a toggle that switches on
+    box(sx, sy, 64, 34, 17, on > 0.5 ? C.blue : C.grey); dot(sx + 17 + 30 * on, sy + 17, 13, '#fff');
+  });
+  ctx.restore();
+  ROWS.forEach((r, i) => {                                // the setting leaves its row and lands on the ticket
+    const at = L('rows', i), u = inOutCubic(prog(t, at + 0.05, at + 0.55)); if (u <= 0 || u >= 1) return;
+    const [ex, ey] = CHIP(i), sx = 1440, sy = 508 + i * 88;
+    chip(i, lerp(sx, ex, u), lerp(sy, ey, u) - Math.sin(u * Math.PI) * 90, lerp(0.8, 1, u));
+  });
+}
+
+// 2 · the organiser applies. The form is drawn in its own coordinates; step 3 shows it shrunk.
+const FORM = { x: 520, y: 320, w: 880, h: 590 };
+const SHRINK = { cx: 390, cy: 600, s: 480 / 880 };
+function appForm() {
+  const { x, y, w, h } = FORM;
+  box(x, y, w, h, 28, C.card, C.line);
+  label('DigiPass application', x + 48, y + 72, 38, { w: 800, c: C.navy });
+  label('Event organiser', x + w - 48, y + 70, 26, { w: 600, c: C.muted, align: 'right' });
+  ['Event name', 'Event dates', 'Tickets needed'].forEach((name, i) => {
+    const fy = y + 120 + i * 118, at = L('fields', i), on = pop(at);
+    label(name, x + 48, fy + 30, 26, { w: 700, c: C.muted });
+    box(x + 48, fy + 46, w - 96, 60, 14, C.card, on > 0 ? C.blue : C.line, on > 0 ? 3 : 2);
+    if (i === 0) { const s = 'Annual Conference', n = Math.floor(s.length * prog(t, at, at + 0.8));
+      if (n > 0) label(s.slice(0, n), x + 72, fy + 87, 30, { w: 600, c: C.ink });
+      if (n < s.length && n > 0 && Math.floor(t * 2.4) % 2 === 0) box(x + 74 + width(s.slice(0, n), 30), fy + 60, 3, 34, 1, C.blue);
+      alpha(fade(at + 0.8, at + 1.1), () => label('example', x + w - 72, fy + 86, 26, { w: 600, c: C.muted, align: 'right' })); }
+    if (i === 1) alpha(fade(at, at + 0.3), () => { ICON.calendar(x + 92, fy + 76, 30, C.blue);
+      box(x + 124, fy + 58, 150, 38, 19, C.blueBg); label('Start', x + 199, fy + 86, 26, { w: 700, c: C.blue, align: 'center' });
+      label('→', x + 304, fy + 88, 30, { w: 700, c: C.blue, align: 'center' });
+      box(x + 334, fy + 58, 150, 38, 19, C.blueBg); label('End', x + 409, fy + 86, 26, { w: 700, c: C.blue, align: 'center' }); });
+    if (i === 2 && on > 0) { const n = Math.round(POOL * outCubic(prog(t, at + 0.1, at + 1.0)));
+      label(String(n), x + 72, fy + 91, 40, { w: 800, c: C.navy, f: MONO });
+      label('example', x + 150, fy + 88, 26, { w: 600, c: C.muted });
+      for (let k = 0; k < 10; k++) ticket(x + 400 + k * 40, fy + 76, 50, 28, { s: pop(at + 0.1 + k * 0.06) }); }
+  });
+  alpha(fade(L('fields', 2) + 0.6, L('fields', 2) + 1.0), () => {          // the smaller fields the form also asks for
+    let px = x + 48; ['Registration deadline', 'Notes & attachments'].forEach(s => { const pw = width(s, 26, 700) + 26 * 1.4;
+      pill(s, px + pw / 2, y + 500, C.muted, '#EEF2F7', 1, 26); px += pw + 16; });
+  });
+  const bw = 180, press = t > L('submit') ? 1 - 0.08 * Math.exp(-(t - L('submit')) * 10) : 1;
+  scaled(x + w - 48 - bw / 2, y + 500, press, () => {
+    box(x + w - 48 - bw, y + 470, bw, 60, 30, t > L('submit') ? C.blue : C.blueLine);
+    label('Submit', x + w - 48 - bw / 2, y + 510, 28, { w: 800, c: '#fff', align: 'center' });
+  });
+}
+function formAt(m, s0 = 1) {                              // m = 0: full size; m = 1: the approval card in step 3
+  const s = lerp(1, SHRINK.s, m) * s0, cx = lerp(FORM.x + FORM.w / 2, SHRINK.cx, m), cy = lerp(FORM.y + FORM.h / 2, SHRINK.cy, m);
+  if (s <= 0) return;
+  const a = prog(m, 0.6, 1);
+  if (a < 1) { ctx.save(); ctx.globalAlpha *= 1 - a; ctx.translate(cx, cy); ctx.scale(s, s); ctx.translate(-(FORM.x + FORM.w / 2), -(FORM.y + FORM.h / 2)); appForm(); ctx.restore(); }
+  if (a > 0) alpha(a, () => {                             // the same application as a small card, its text kept legible
+    box(150, 439, 480, 322, 16, C.card, C.line);
+    label('DigiPass application', 180, 493, 28, { w: 800, c: C.navy });
+    [190, 150, 60].forEach((w, i) => { box(180, 525 + i * 62, 420, 44, 10, C.card, C.blueLine, 2); box(198, 541 + i * 62, w, 12, 6, C.grey); });
+  });
+}
+function sApply() {
+  header('STEP 2 · EVENT ORGANISER', 'Apply for event tickets');
+  formAt(inOutCubic(prog(t, L('submit') + 0.4, L('submit') + 1.3)), pop(-0.9));
+}
+
+// 3 · approve, pay, open the pool
+const COUNTERS = [['Bought', C.navy], ['Allocated', C.blue], ['Used', C.green], ['Left', C.navy]];
+function stamp(str, cx, cy, c, at, rot) {
+  const p = prog(t, at, at + 0.22); if (p <= 0) return;
+  const s = lerp(2.2, 1, outCubic(p)) * (1 + 0.06 * Math.exp(-Math.max(0, t - at - 0.22) * 8) * Math.sin((t - at) * 40));
+  ctx.save(); ctx.translate(cx, cy); ctx.rotate(rot); ctx.scale(s, s); ctx.globalAlpha = clamp(p * 1.5);
+  font(44, 900); const w = ctx.measureText(str).width + 50;
+  rr(-w / 2, -40, w, 80, 12); ctx.fillStyle = 'rgba(255,255,255,.85)'; ctx.fill(); ctx.strokeStyle = c; ctx.lineWidth = 6; ctx.stroke();
+  label(str, 0, 16, 44, { w: 900, c, align: 'center', ls: '4px' });
+  ctx.restore();
+}
+function sBuy() {
+  header('STEP 3 · APPROVAL & PAYMENT', 'Approved, paid — the pool opens');
+  formAt(1);                                              // the application, carried over from step 2
+  stamp('APPROVED', 390, 575, C.blue, L('approved'), -0.12);
+  stamp('PAID', 480, 680, C.green, L('paid'), 0.08);
+  // the pool: empty slots first, filled on "its own ticket pool"
+  scaled(1230, 600, pop(-0.8), () => {
+    box(720, 340, 1050, 520, 26, C.card, C.line);
+    label('Event ticket pool', 760, 400, 32, { w: 800, c: C.navy });
+    label(POOL + ' tickets · example', 1730, 398, 26, { w: 600, c: C.muted, align: 'right' });
+    for (let i = 0; i < POOL; i++) {
+      const c = i % 10, r = Math.floor(i / 10), at = L('poolFill') + (c + r) * 0.07, s = pop(at);
+      const [x, y] = [800 + c * 98, 450 + r * 50];
+      if (s < 0.5) ticket(x, y, 84, 38, { state: 'ghost' });
+      if (s > 0) ticket(x, y, 84, 38, { s });
+    }
+    COUNTERS.forEach(([name, col], i) => {
+      const x = 760 + i * 248, y = 720, at = L('counters', i), hi = pop(at);
+      box(x, y, 224, 116, 18, hi > 0 ? (i === 2 ? C.greenBg : C.blueBg) : '#F1F5FA', hi > 0 ? (i === 2 ? C.green : C.blueLine) : C.line);
+      label(name, x + 22, y + 42, 26, { w: 700, c: C.muted });
+      const v = i === 0 || i === 3 ? Math.round(POOL * outCubic(prog(t, at, at + 0.8))) : 0;
+      if (hi > 0) label(String(v), x + 22, y + 98, 48, { w: 800, c: col, f: MONO }); else label('–', x + 22, y + 98, 48, { w: 800, c: C.grey });
+    });
+  });
+}
+
+// 4 · the registration link
+const GATES = ['Token is valid', 'Before the registration deadline', 'The event is still on', 'Tickets left in the pool'];
+const URLX = 246, URL_PATH = '…resustainability.com.sg/digipass-register-vehicle/public/';
+function sLink() {
+  header('STEP 4 · EVENT ORGANISER', 'Share a registration link');
+  // the address bar types itself; the token is its own chip
+  const tx = URLX + width(URL_PATH, 34, 600, MONO) + 8;
+  alpha(outExpo(prog(t, -0.9, -0.3)), () => {
+    box(150, 300, 1620, 96, 48, C.card, C.blueLine, 3);
+    ICON.lock(206, 344, 34, C.green);
+    label(URL_PATH.slice(0, Math.floor(URL_PATH.length * prog(t, L('url'), L('url') + 1.2))), URLX, 362, 34, { w: 600, c: C.ink, f: MONO });
+    const tk = pop(L('url') + 1.2), glow = pop(L('token')) * (1 - prog(t, L('token') + 1.2, L('token') + 2));
+    if (tk > 0) scaled(tx + 90, 348, tk * (1 + 0.12 * glow), () => { box(tx, 322, 180, 54, 27, C.blue); label('{token}', tx + 90, 360, 30, { w: 700, c: '#fff', f: MONO, align: 'center' }); });
+  });
+  // three guests' phones; the link arrives in each, then the token; the last one shows a closed link
+  [0, 1, 2].forEach(i => {
+    const x = 190 + i * 250, y = 470, s = pop(-0.8 + i * 0.1); if (s <= 0) return;
+    const got = L('fan') + i * 0.25, closed = i === 2 && t > L('closed');
+    const u = inOutCubic(prog(t, got - 0.5, got));
+    if (u > 0 && u < 1) dot(lerp(960, x + 100, u), lerp(400, y + 120, u) - Math.sin(u * Math.PI) * 80, 12, C.blue);
+    const v = inOutCubic(prog(t, L('token') + i * 0.15, L('token') + 0.6 + i * 0.15));
+    scaled(x + 100, y + 190, s, () => {
+      const [px, py, pw] = phone(x, y, 200, 380), cx = px + pw / 2;
+      label('DigiPass', cx, py + 82, 26, { w: 800, c: C.navy, align: 'center' });
+      if (t < got) { box(px + 30, py + 140, pw - 60, 14, 7, C.grey); box(px + 30, py + 170, pw - 90, 14, 7, C.grey); box(px + 30, py + 200, pw - 70, 14, 7, C.grey); return; }
+      const k = pop(got);
+      scaled(cx, py + 150, k, () => ICON.link(cx, py + 150, 52, closed ? C.muted : C.blue));
+      if (v >= 1) { box(cx - 72, py + 194, 144, 42, 21, closed ? C.grey : C.blueBg); label('{token}', cx, py + 223, 26, { w: 700, c: closed ? C.muted : C.blue, f: MONO, align: 'center' }); }
+      box(px + 16, py + 262, pw - 32, 52, 26, closed ? '#E2E8F0' : C.blue);
+      label(closed ? 'Closed' : 'Register', cx, py + 297, 26, { w: 800, c: closed ? '#4B5563' : '#fff', align: 'center' });
+    });
+    if (v > 0 && v < 1) { const ex = x + 100, ey = y + 12 + 194 + 21;     // the token chip copies into the phone
+      scaled(lerp(tx + 90, ex, v), lerp(348, ey, v) - Math.sin(v * Math.PI) * 60, lerp(1, 0.8, v), () => {
+        const cx = lerp(tx + 90, ex, v), cy = lerp(348, ey, v) - Math.sin(v * Math.PI) * 60;
+        box(cx - 72, cy - 21, 144, 42, 21, C.blue); label('{token}', cx, cy + 9, 26, { w: 700, c: '#fff', f: MONO, align: 'center' }); }); }
+  });
+  alpha(fade(L('closed'), L('closed') + 0.3), () => label('e.g. once the pool runs out', 790, 905, 26, { w: 600, c: C.muted, align: 'center' }));
+  // the link works only while all four hold
+  scaled(1365, 665, pop(-0.7), () => {
+    box(960, 460, 810, 410, 26, C.card, C.line);
+    label('The link works only while:', 1000, 520, 32, { w: 800, c: C.navy });
+    GATES.forEach((g, i) => {
+      const at = i === 0 ? L('token') : L('gates', i), y = 586 + i * 66, on = t > at && !(i === 3 && t > L('closed'));
+      const hi = pop(at) * (1 - prog(t, at + 0.9, at + 1.5));
+      if (hi > 0) box(980, y - 36, 770, 60, 14, `rgba(29,95,209,${0.08 * hi})`);
+      if (on) checkBadge(1024, y - 4, 20, at); else { ctx.beginPath(); ctx.arc(1024, y - 4, 20, 0, 7); ctx.strokeStyle = C.grey; ctx.lineWidth = 3; ctx.stroke(); }
+      label(g, 1064, y + 7, 30, { w: on ? 700 : 600, c: on ? C.ink : C.muted });
+    });
+    alpha(fade(L('gates', 0), L('gates', 0) + 0.4), () => label('If any fails, the link stops working.', 1000, 845, 26, { w: 600, c: C.muted }));
+  });
+}
+
+// 5 · the guest registers the car
+function field(x, y, w, name, value, at, o = {}) {
+  const on = pop(at);
+  label(name, x, y, 26, { w: 700, c: C.muted });
+  box(x, y + 12, w, 58, 12, C.card, on > 0 ? C.blue : C.line, on > 0 ? 3 : 2);
+  const n = Math.floor(value.length * prog(t, at, at + 0.7));
+  if (n > 0) label(value.slice(0, n), x + 18, y + 52, 28, { w: 600, c: C.ink, f: o.mono ? MONO : FONT });
+}
+function sRegister() {
+  header('STEP 5 · GUEST', 'Guests register their car');
+  const na = pop(L('noApp'));
+  if (na > 0) { const str = 'No app to install', pw = width(str, 26, 700) + 26 * 1.4;
+    pill(str, W - MX - pw / 2, 120, C.blue, C.blueBg, na, 26, { border: C.blueLine }); }
+  // the phone
+  const done = t > L('allocate') + 0.3;
+  let iuY = 0;
+  scaled(530, 570, pop(-0.9), () => {
+    const [px, py, pw] = phone(310, 290, 440, 560);
+    label('Register your vehicle', px + 30, py + 84, 30, { w: 800, c: C.navy });
+    if (!done) {
+      field(px + 30, py + 140, pw - 60, 'Car plate number', PLATE, L('plate'), { mono: true });
+      field(px + 30, py + 240, pw - 60, 'IU / OBU (10 digits)', IU, L('iu'), { mono: true });
+      field(px + 30, py + 340, pw - 60, 'Email', 'guest@example.com', L('mail'));
+      box(px + 30, py + 450, pw - 60, 58, 29, t > L('allocate') - 0.4 ? C.navy : C.blue);
+      label('Register', px + pw / 2, py + 489, 28, { w: 800, c: '#fff', align: 'center' });
+    } else {
+      checkBadge(px + pw / 2, py + 230, 56, L('allocate') + 0.3, C.green);
+      label('Registered', px + pw / 2, py + 340, 36, { w: 800, c: C.navy, align: 'center' });
+      label('Check your email', px + pw / 2, py + 384, 28, { w: 600, c: C.muted, align: 'center' });
+    }
+    iuY = py + 281;
+  });
+  // foreign cars: the Autopass card instead of an IU
+  const ap = pop(L('iu') + 0.6) * (1 - prog(t, L('allocate') - 0.5, L('allocate') - 0.1));
+  if (ap > 0) alpha(ap, () => { line(756, 583, 772, 590, C.blueLine, 3);
+    box(772, 536, 270, 104, 16, C.card, C.line);
+    label('Foreign car?', 792, 576, 26, { w: 800, c: C.ink }); label('16-digit Autopass', 792, 614, 26, { w: 600, c: C.muted }); });
+  // the pool, compact
+  const moved = t > L('allocate') + 0.9;
+  alpha(outExpo(prog(t, -0.9, -0.3)), () => {
+    box(880, 300, 890, 170, 22, C.card, C.line);
+    label('Event ticket pool', 914, 350, 28, { w: 800, c: C.navy });
+    for (let i = 0; i < 12; i++) ticket(940 + i * 40, 412, 52, 30, { state: i === 11 && t > L('allocate') ? 'ghost' : 'blue' });
+    [['Allocated', moved ? 1 : 0, C.blue], ['Left', moved ? POOL - 1 : POOL, C.navy]].forEach(([n, v, c], k) => {
+      const x = 1540 + k * 150, bump = moved ? spring(t - L('allocate') - 0.9, 4, 0.4) : 1;
+      label(n, x, 362, 26, { w: 700, c: C.muted, align: 'center' });
+      scaled(x, 412, moved ? 1 + 0.25 * (1 - bump) : 1, () => label(String(v), x, 430, 48, { w: 800, c, f: MONO, align: 'center' }));
+    });
+  });
+  // the car, and the ticket it receives
+  const cIn = outExpo(prog(t, L('plate') - 0.2, L('plate') + 0.5));
+  alpha(cIn, () => { line(900, 700, 1760, 700, C.line, 4); car(1060 + (1 - cIn) * 200, 700, 300); });
+  const u = inOutCubic(prog(t, L('allocate'), L('allocate') + 0.9));
+  if (u > 0) { const [sx, sy] = [940 + 11 * 40, 412], [ex, ey] = [1490, 618];
+    ticket(lerp(sx, ex, u), lerp(sy, ey, u) - Math.sin(u * Math.PI) * 90, lerp(52, 130, u), lerp(30, 66, u), { rot: Math.sin(u * Math.PI) * 0.25 }); }
+  if (u >= 1) label('1 ticket', 1490, 684, 26, { w: 700, c: C.blue, align: 'center' });
+  // the confirmation email, with its edit link
+  const e = pop(L('envelope'));
+  if (e > 0) scaled(1325, 815, e, () => {
+    box(880, 738, 890, 160, 22, C.card, C.blueLine, 3);
+    box(910, 768, 100, 100, 20, C.blueBg); ICON.mail(960, 818, 56, C.blue);
+    label('DigiPass confirmed · ' + PLATE, 1036, 804, 28, { w: 800, c: C.navy });
+    const ed = pop(L('editLink'));
+    label('Edit vehicle details →', 1036, 856, 28, { w: 700, c: ed > 0 ? C.blue : C.muted });
+    if (ed > 0) line(1036, 866, 1036 + width('Edit vehicle details →', 28, 700) * outCubic(prog(t, L('editLink'), L('editLink') + 0.4)), 866, C.blue, 3);
+  });
+}
+
+// 6 · sync to the car park system
+function sSync() {
+  header('STEP 6 · SYSTEM', 'About 30 minutes to reach the car park');
+  scaled(430, 600, pop(-0.9), () => {                     // the portal
+    box(150, 380, 560, 440, 26, C.card, C.line);
+    rr(150, 380, 560, 64, [26, 26, 0, 0]); ctx.fillStyle = '#EEF2F7'; ctx.fill();
+    [0, 1, 2].forEach(i => dot(190 + i * 28, 412, 9, C.grey));
+    ICON.globe(430, 540, 90, C.blue);
+    label('DigiPass portal', 430, 660, 40, { w: 800, c: C.navy, align: 'center' });
+    label(PLATE + ' · IU · 1 ticket', 430, 712, 28, { w: 600, c: C.muted, align: 'center' });
+  });
+  scaled(1490, 600, pop(-0.8), () => {                    // the car park system
+    box(1210, 380, 560, 440, 26, C.card, C.line);
+    box(1270, 450, 140, 300, 18, C.navy); dot(1340, 510, 18, t > L('syncDone') ? C.green : '#93C5FD');
+    for (let i = 0; i < 4; i++) box(1295, 570 + i * 40, 90, 16, 8, '#2C4A80');
+    label('Car park', 1450, 590, 40, { w: 800, c: C.navy });
+    label('system (EPS)', 1450, 640, 32, { w: 700, c: C.muted });
+    if (t > L('syncDone')) checkBadge(1740, 400, 34, L('syncDone'), C.green);
+  });
+  // the record travels and is absorbed; the clock counts the half hour
+  const u = prog(t, L('syncGo'), L('syncDone'));
+  ctx.setLineDash([14, 12]); ctx.lineDashOffset = -t * 30; line(730, 690, 1190, 690, C.blueLine, 6); ctx.setLineDash([]);
+  if (u > 0 && u < 1) { const x = lerp(820, 1310, inOutCubic(u));
+    ctx.save(); ctx.beginPath(); ctx.rect(0, 0, 1210, H); ctx.clip();
+    box(x - 90, 662, 180, 56, 28, C.blue); label(PLATE, x, 699, 26, { w: 700, c: '#fff', align: 'center', f: MONO }); ctx.restore(); }
+  scaled(960, 500, pop(L('syncGo') - 0.6), () => {
+    ctx.beginPath(); ctx.arc(960, 500, 110, 0, 7); ctx.fillStyle = C.card; ctx.fill(); ctx.strokeStyle = C.line; ctx.lineWidth = 14; ctx.stroke();
+    if (u > 0) { ctx.beginPath(); ctx.arc(960, 500, 110, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * u); ctx.strokeStyle = C.blue; ctx.lineCap = 'round'; ctx.stroke(); }
+    label('~' + Math.round(30 * u), 960, 512, 64, { w: 800, c: C.navy, align: 'center', f: MONO }); label('min', 960, 556, 28, { w: 700, c: C.muted, align: 'center' });
+  });
+  alpha(fade(L('syncGo') + 1.0, L('syncGo') + 1.5), () => label('After every new or changed registration', 960, 890, 30, { w: 600, c: C.muted, align: 'center' }));
+}
+
+// 7 · on the day: read at the entry, one ticket used at the exit. The camera pans from one barrier to the other.
+const G = 800, ARM = 420, CARW = 320, PAN = 1500, ENTRY = 1150, EXITX = ENTRY + PAN;
+const CHECKS = ['Event dates', 'Car park covered', 'Ticket left', 'Use Ticket is on'];
+function gantry(px, lift, name) {
+  box(px - 11, G - 300, 22, 300, 6, '#94A3B8');
+  ctx.save(); ctx.translate(px, G - 120); ctx.rotate(lift * Math.PI / 2);
+  box(-ARM, -10, ARM, 20, 10, C.card, C.muted, 2);
+  for (let k = 0; k < 5; k++) { ctx.fillStyle = C.navy; ctx.fillRect(-ARM + 30 + k * 80, -8, 36, 16); }
+  ctx.restore(); dot(px, G - 120, 14, C.navy);
+  box(px - 11, G - 330, 104, 70, 14, C.navy); dot(px + 12, G - 295, 8, '#93C5FD');      // the reader, drawn over the arm
+  label('EPS', px + 54, G - 285, 26, { w: 800, c: '#fff', align: 'center' });
+  label(name, px + 51, G - 352, 30, { w: 800, c: C.navy, align: 'center' });
+}
+function crossBadge(x, y, r, at, c) {                   // a filled disc with a white cross
+  const s = pop(at); if (s <= 0) return;
+  dot(x, y, r * s, c); const k = outCubic(prog(t, at + 0.08, at + 0.3)) * r * 0.42;
+  line(x - k, y - k, x + k, y + k, '#fff', r * 0.22); line(x - k, y + k, x + k, y - k, '#fff', r * 0.22);
+}
+function exitPanel(s, rows) {                             // rows: [state, at] per check; state 'ok' | 'fail' | 'none'
+  scaled(1560, 350, s, () => {
+    box(1350, 150, 420, 400, 24, C.card, C.blueLine, 3);
+    label('Exit check', 1382, 204, 32, { w: 800, c: C.navy });
+    label('Automatic, at the exit', 1382, 252, 26, { w: 600, c: C.muted });
+    CHECKS.forEach((c, i) => { const [st, at] = rows[i], y = 330 + i * 58;
+      if (st === 'ok') checkBadge(1402, y - 10, 20, at, C.blue);
+      else if (st === 'fail') crossBadge(1402, y - 10, 20, at, C.muted);
+      else { ctx.beginPath(); ctx.arc(1402, y - 10, 20, 0, 7); ctx.strokeStyle = C.grey; ctx.lineWidth = 3; ctx.stroke(); }
+      label(c, 1440, y, 30, { w: st === 'none' ? 600 : 700, c: st === 'none' ? C.muted : C.ink }); });
+  });
+}
+function beam(px, cx, a) {
+  if (a <= 0) return;
+  alpha(a, () => { ctx.beginPath(); ctx.moveTo(px - 11, G - 300); ctx.lineTo(cx + CARW * 0.6, G - CARW * 0.36); ctx.lineTo(cx + CARW, G - CARW * 0.15); ctx.closePath();
+    ctx.fillStyle = 'rgba(29,95,209,.18)'; ctx.fill(); });
+}
+function sExit() {
+  header('STEP 7 · EXIT', 'One ticket per exit');
+  line(0, G + 2, W, G + 2, C.line, 6);
+  const pan = inOutCubic(prog(t, L('toExit') - 0.3, L('toExit') + 1.7)), used = L('used');
+  ctx.setLineDash([40, 30]); ctx.lineDashOffset = PAN * pan; line(0, G + 60, W, G + 60, C.line, 4); ctx.setLineDash([]);
+  const pulse = k => 0.55 + 0.25 * Math.cos((((t - k) % 1) + 1) % 1 * Math.PI * 2);
+  ctx.save(); ctx.translate(-PAN * pan, 0);
+  // the car: arrives at the entry, rides with the camera to the exit, then leaves
+  const cx = lerp(-420, ENTRY - ARM - 10 - CARW, outCubic(prog(t, L('arrive'), L('arrive') + 1.8)))
+           + PAN * pan + 1800 * Math.pow(prog(t, used + 1.1, used + 3.3), 3);
+  // entry: no QR code, the reader reads the IU and the plate, the barrier lifts
+  const rd = outCubic(prog(t, L('read') - 0.3, L('read') + 0.2)) * (1 - prog(t, L('toExit') - 0.2, L('toExit') + 0.2));
+  beam(ENTRY, cx, rd * pulse(L('read')));
+  gantry(ENTRY, inOutCubic(prog(t, L('read') + 1.4, L('read') + 2.2)) * (1 - inOutCubic(prog(t, L('toExit') + 1.6, L('toExit') + 2.4))), 'Entry');
+  // between the barriers: the car park
+  box(ENTRY + 543, G - 220, 14, 220, 6, '#94A3B8'); box(ENTRY + 500, G - 320, 100, 100, 20, C.blue);
+  label('P', ENTRY + 550, G - 240, 72, { w: 800, c: '#fff', align: 'center' });
+  // exit: the reader again, the check, then the barrier lifts
+  const ex = outCubic(prog(t, L('toExit') + 1.6, L('toExit') + 2.0)) * (1 - prog(t, used - 0.2, used + 0.3));
+  beam(EXITX, cx, ex * pulse(L('toExit')));
+  gantry(EXITX, inOutCubic(prog(t, used + 0.4, used + 1.2)) * (1 - inOutCubic(prog(t, used + 3.3, used + 4.1))), 'Exit');
+  car(cx, G, CARW);
+  const tk = outExpo(prog(t, L('arrive') + 1.0, L('arrive') + 1.5));
+  if (tk > 0) { ticket(cx + CARW / 2, G - CARW * 0.42 - 70, 150, 76, { state: t > used ? 'green' : 'blue', s: tk });
+    if (t > used) alpha(fade(used, used + 0.3), () => label('Used', cx + CARW / 2 + 100, G - CARW * 0.42 - 60, 30, { w: 800, c: C.green })); }
+  const q = pop(L('noQr')) * (1 - prog(t, L('read') - 0.6, L('read') - 0.2));
+  if (q > 0) scaled(560, 420, q, () => { box(470, 330, 180, 180, 20, C.card, C.line); ICON.qr(560, 420, 120, C.muted);
+    line(460, 520, 660, 320, C.ink, 10); label('No QR code', 690, 434, 36, { w: 800, c: C.navy }); });
+  const card = pop(L('read'));
+  if (card > 0) scaled(580, 445, card, () => {
+    box(300, 360, 560, 170, 22, C.card, C.blueLine, 3);
+    label('IU', 334, 424, 26, { w: 800, c: C.muted }); label(IU, 400, 426, 36, { w: 700, c: C.navy, f: MONO });
+    label('Plate', 334, 490, 26, { w: 800, c: C.muted }); label(PLATE, 420, 492, 36, { w: 700, c: C.navy, f: MONO });
+    checkBadge(816, 400, 22, L('read') + 0.6, C.blue);
+  });
+  ctx.restore();
+  // the exit check
+  exitPanel(pop(L('toExit') + 1.6), CHECKS.map((c, i) => [t > L('checks', i) ? 'ok' : 'none', L('checks', i)]));
+  // the log row
+  const lg = outExpo(prog(t, L('logged') - 0.2, L('logged') + 0.5));
+  if (lg > 0) alpha(lg, () => { const y = 880 + (1 - lg) * 30;
+    box(150, y - 38, 1620, 76, 18, C.card, C.line);
+    checkBadge(192, y, 18, L('logged'), C.green);
+    label('Exit logged', 226, y + 10, 28, { w: 800, c: C.navy });
+    ['Car park', 'Exit', 'Time', '1 ticket used'].forEach((s, i) => pill(s, 640 + i * 250, y, i === 3 ? C.green : C.navy, i === 3 ? C.greenBg : C.blueBg, 1, 26));
+  });
+}
+
+// 7b · the same exit: a car whose check fails pays normally; a driver who switched Use Ticket off keeps the ticket
+function chargeTag(a, second, c2) {
+  if (a <= 0) return;
+  alpha(a, () => { box(716, 290, 380, 126, 20, C.card, C.blueLine, 3);
+    ICON.coin(754, 353, 48, C.navy);
+    label('Normal parking charge', 786, 344, 26, { w: 800, c: C.navy }); label(second, 786, 386, 26, { w: 700, c: c2 }); });
+}
+function sChoice() {
+  header('STEP 7 · EXIT', 'Normal charge, or save the ticket');
+  line(0, G + 2, W, G + 2, C.line, 6);
+  ctx.setLineDash([40, 30]); ctx.lineDashOffset = PAN; line(0, G + 60, W, G + 60, C.line, 4); ctx.setLineDash([]);
+  const ch = L('charge'), stop = EXITX - ARM - 10 - CARW, arrive3 = ch + 4.4, sv = L('saved');
+  // car 2 is at the barrier; its dates don't match, it pays, the barrier lifts, it leaves
+  const lift = inOutCubic(prog(t, ch + 1.4, ch + 2.0)) * (1 - inOutCubic(prog(t, ch + 3.6, ch + 4.2)))
+             + inOutCubic(prog(t, sv + 0.3, sv + 0.9));
+  const k = pop(ch + 2.0);
+  ctx.save(); ctx.translate(-PAN, 0);
+  ctx.save(); ctx.translate(-500 * inOutCubic(prog(t, ch + 1.4, ch + 2.0)), 0);
+  box(ENTRY + 543, G - 220, 14, 220, 6, '#94A3B8'); box(ENTRY + 500, G - 320, 100, 100, 20, C.blue);
+  label('P', ENTRY + 550, G - 240, 72, { w: 800, c: '#fff', align: 'center' }); ctx.restore();
+  gantry(EXITX, lift, 'Exit');
+  const x2 = stop + 1800 * Math.pow(prog(t, ch + 1.8, ch + 3.8), 3);
+  car(x2, G, CARW, { body: '#475569' }); ticket(x2 + CARW / 2, G - CARW * 0.42 - 70, 150, 76);
+  // car 3 arrives with Use Ticket switched off: the ticket hops off into "saved", the exit is charged normally
+  const x3 = lerp(stop - 1500, stop, outCubic(prog(t, ch + 2.6, arrive3))) + 1800 * Math.pow(prog(t, sv + 0.6, sv + 2.4), 3);
+  car(x3, G, CARW);
+  ctx.restore();
+  const hop = inOutCubic(prog(t, sv - 0.4, sv + 0.4));
+  // the panel: car 2's check, then car 3's
+  const rows = t < ch + 3.2
+    ? CHECKS.map((c, i) => [i === 0 && t > ch ? 'fail' : 'none', ch])
+    : CHECKS.map((c, i) => { const at = L('off') + 0.1 + i * 0.3; return [t > at ? (i === 3 ? 'fail' : 'ok') : 'none', at]; });
+  exitPanel(1, rows);
+  chargeTag(pop(ch + 0.2) * (1 - prog(t, ch + 3.2, ch + 3.6)), 'Dates don\u2019t match', C.muted);
+  chargeTag(pop(sv + 0.4), 'Ticket kept', C.blue);
+  // the driver's switch, worded as on the edit page
+  if (k > 0) scaled(425, 410, k, () => {
+    box(150, 280, 550, 260, 22, C.card, C.line);
+    label('Driver\u2019s edit page', 180, 322, 26, { w: 700, c: C.muted });
+    label('Use a ticket on your next exit', 180, 384, 28, { w: 800, c: C.navy });
+    const off = outCubic(prog(t, L('off'), L('off') + 0.3));
+    box(592, 350, 88, 48, 24, off > 0.5 ? C.grey : C.blue); dot(616 + 40 * (1 - off), 374, 19, '#fff');
+    box(180, 424, 490, 92, 16, hop > 0 ? C.blueBg : '#F1F5FA', hop > 0 ? C.blueLine : C.line);
+    label('Saved for later', 396, 480, 30, { w: 700, c: hop > 0.5 ? C.blue : C.muted });
+  });
+  const [tx, ty] = [x3 - PAN + CARW / 2, G - CARW * 0.42 - 70];
+  if (hop > 0 || x3 - PAN > -CARW) ticket(lerp(tx, 300, hop), lerp(ty, 470, hop) - Math.sin(hop * Math.PI) * 30, lerp(150, 160, hop), lerp(76, 80, hop), { rot: Math.sin(hop * Math.PI) * 0.2 });
+}
+
+// 8 · at any time: track, top up, refund, report (an example event)
+const LOG = [['SXX 1234 X', 'Car park A', 'Exit 1', '18:42', 'Used'], ['SXX 2045 B', 'Car park A', 'Exit 2', '18:47', 'Used'],
+             ['SXX 3318 C', '', '', '', 'Allocated'], ['SXX 4721 D', 'Car park B', 'Exit 1', '19:05', 'Used']];
+const LOGX = [790, 1010, 1205, 1335, 1560];
+function sAfter() {
+  header('STEP 8 · ORGANISER & ADMIN', 'Track, top up, refund, report');
+  scaled(960, 600, pop(-0.9), () => {
+    box(150, 300, 1620, 612, 26, C.card, C.line);
+    rr(150, 300, 1620, 60, [26, 26, 0, 0]); ctx.fillStyle = '#EEF2F7'; ctx.fill();
+    [0, 1, 2].forEach(i => dot(186 + i * 26, 330, 8, C.grey));
+    label('Event dashboard · example', 960, 341, 26, { w: 800, c: C.navy, align: 'center' });
+    // counters: the story so far, then the rest of the event, then a top-up of 10
+    const grow = outCubic(prog(t, L('dash'), L('dash') + 1.0)), top = outCubic(prog(t, L('actions', 0) + 0.2, L('actions', 0) + 0.8));
+    const bought = POOL + 10 * top, alloc = lerp(1, 32, grow), used = lerp(1, 27, grow), left = bought - alloc;
+    [['Bought', bought, C.navy], ['Allocated', alloc, C.blue], ['Used', used, C.green], ['Left', left, C.navy]].forEach(([name, v, col], i) => {
+      const x = 190 + (i % 2) * 280, y = 390 + Math.floor(i / 2) * 150;
+      box(x, y, 256, 128, 18, '#F4F7FC', C.line);
+      label(name, x + 22, y + 40, 26, { w: 700, c: C.muted });
+      label(String(Math.round(v)), x + 22, y + 90, 42, { w: 800, c: col, f: MONO });
+      box(x + 22, y + 104, 212, 10, 5, '#E2E8F0'); box(x + 22, y + 104, 212 * clamp(v / bought), 10, 5, col);
+      if (i === 0 && top > 0) pill('+10', x + 200, y + 40, '#fff', C.blue, pop(L('actions', 0) + 0.2), 26);
+    });
+    // the log
+    label('Every allocation, every exit', LOGX[0], 420, 30, { w: 800, c: C.navy });
+    ['Vehicle', 'Car park', 'Exit', 'Time', 'Status'].forEach((h, i) => label(h, LOGX[i] + (i === 4 ? 0 : 0), 470, 26, { w: 700, c: C.muted }));
+    LOG.forEach((row, r) => {
+      const at = L('log') + r * 0.15, s = outExpo(prog(t, at, at + 0.5)); if (s <= 0) return;
+      const y = 522 + r * 60;
+      alpha(s, () => { ctx.save(); ctx.translate((1 - s) * 60, 0);
+        line(LOGX[0], y + 24, 1730, y + 24, C.line, 2);
+        row.slice(0, 4).forEach((v, k) => label(v || '—', LOGX[k], y + 8, 26, { w: k ? 600 : 700, c: v ? C.ink : C.grey, f: k === 0 ? MONO : FONT }));
+        const used = row[4] === 'Used', pw = width(row[4], 26, 700) + 26 * 1.4;
+        pill(row[4], LOGX[4] + pw / 2, y - 1, used ? C.green : C.blue, used ? C.greenBg : C.blueBg, 1, 26);
+        ctx.restore(); });
+    });
+    // three actions; each lights up while it's being said
+    [['plus', 'Top-up'], ['back', 'Refund'], ['down', 'Export report']].forEach(([ic, name], i) => {
+      const at = L('actions', i), x = 190 + i * 330, y = 760, on = t > at && t < at + 0.9;
+      const p = t > at ? 1 + 0.06 * Math.exp(-(t - at) * 6) * Math.sin((t - at) * 30) : 1;
+      scaled(x + 150, y + 40, p, () => {
+        box(x, y, 300, 80, 40, on ? C.blue : C.card, on ? null : C.blueLine, 3);
+        ICON[ic](x + 50, y + 40, 40, on ? '#fff' : C.blue);
+        label(name, x + 84, y + 50, 28, { w: 800, c: on ? '#fff' : C.blue });
+      });
+    });
+    const ex = prog(t, L('actions', 2), L('actions', 2) + 0.6);
+    if (ex > 0) { const x = lerp(1000, 1270, outCubic(ex)), y = 800;
+      box(x - 55, y - 64, 110, 128, 14, C.card, C.blue, 3); ICON.file(x, y - 10, 60, C.blue); label('Report', x, y + 48, 26, { w: 800, c: C.blue, align: 'center' }); }
+  });
+}
+
+// 9 · what the client's team gets
+const GAINS = [['link', 'No app to install', [3, 4]], ['qr', 'No QR code at the gate', [6]], ['person', 'Guests register themselves', [4]],
+               ['coin', 'Prepaid, in one pool', [2]], ['ticket', 'One ticket per exit', [6]], ['file', 'Every use on record', [7]]];
+const NODE_X = n => lerp(260, 1660, n / 7), NODE_Y = 380;            // the risen rail's nodes
+function sWhy() {
+  header('WHY DIGIPASS', 'Simpler for guests, clearer for your team');
+  const landed = i => t >= L('cards', i) + 0.55;
+  GAINS.map((g, i) => [g, i]).sort(([, a], [, b]) => landed(a) - landed(b)).forEach(([[ic, s, steps], i]) => {
+    const x = 150 + (i % 3) * 547, y = 600 + Math.floor(i / 3) * 170, at = L('cards', i);
+    const g = outCubic(prog(t, -0.2 + i * 0.05, 0.3 + i * 0.05)), p = outCubic(prog(t, at, at + 0.55));
+    if (g > 0 && p < 1) alpha(g * (1 - p), () => { ctx.setLineDash([10, 8]); box(x, y, 510, 140, 22, null, C.blueLine, 2); ctx.setLineDash([]); });
+    steps.forEach(n => { const r = prog(t, at, at + 0.7);              // the step that delivers it pulses
+      if (r > 0 && r < 1) { ctx.beginPath(); ctx.arc(NODE_X(n), NODE_Y, 26 + 36 * r, 0, 7); ctx.strokeStyle = `rgba(29,95,209,${1 - r})`; ctx.lineWidth = 4; ctx.stroke(); } });
+    if (p <= 0) return;
+    const sx = steps.reduce((a, n) => a + NODE_X(n), 0) / steps.length;
+    ctx.save(); ctx.translate(lerp(sx, x + 255, p), lerp(NODE_Y, y + 70, p)); ctx.scale(lerp(0.15, 1, p), lerp(0.15, 1, p)); ctx.translate(-(x + 255), -(y + 70));
+    ctx.globalAlpha *= clamp(p * 2);
+    box(x, y, 510, 140, 22, C.blueBg, C.blueLine, 2);
+    dot(x + 60, y + 70, 36, C.card);
+    if (ic === 'ticket') ticket(x + 60, y + 70, 56, 30); else ICON[ic](x + 60, y + 70, 38, C.blue);
+    const tag = steps.length > 1 ? `STEPS ${steps[0] + 1}\u2013${steps[steps.length - 1] + 1}` : `STEP ${steps[0] + 1}`;
+    label(tag, x + 112, y + 54, 26, { w: 800, c: C.blue, ls: '2px' });
+    label(s, x + 112, y + 98, 28, { w: 800, c: C.navy });
+    ctx.restore();
+  });
+}
+
+// 10 · end
+function sEnd() {
+  const tk = pop(-0.6);
+  if (tk > 0) ticket(W / 2, 330, 220, 112, { s: tk, state: t > L('final') ? 'green' : 'blue' });
+  rise('Re Sustainability DigiPass', W / 2, 540, 104, { w: 800, align: 'center', at: -0.2 });
+  const tags = ['Buy once', 'Share a link', 'One ticket per exit'], pw = tags.map(s => width(s, 36, 700) + 36 * 1.4), gap = 40;
+  let x = W / 2 - (pw.reduce((a, b) => a + b, 0) + gap * 2) / 2;
+  tags.forEach((s, i) => { pill(s, x + pw[i] / 2, 650, i === 2 ? C.green : C.blue, i === 2 ? C.greenBg : C.blueBg, pop(L('tag', i)), 36); x += pw[i] + gap; });
+  alpha(fade(1.0, 1.6), () => {
+    logo(W / 2, 810, 70);
+    label('Prepared for Mount Alvernia Hospital \u00b7 October 2026', W / 2, 920, 28, { w: 700, c: C.navy, align: 'center' });
+    label('Example values are illustrative \u00b7 Narration voice is AI-generated', W / 2, 990, 22, { w: 500, c: C.muted, align: 'center' });
+  });
+}
+
+// ---- compositor -----------------------------------------------------------------------------
+const SCENES = [['open', sOpen], ['admin', sAdmin], ['apply', sApply], ['buy', sBuy], ['link', sLink], ['register', sRegister],
+                ['sync', sSync], ['exit', sExit], ['choice', sChoice], ['after', sAfter], ['why', sWhy], ['end', sEnd]]
+  .map(([k, draw]) => ({ t0: SC[k], draw }));
+const SEAMS = SCENES.slice(1).map((s, k) => (k === SCENES.length - 2 ? { type: 'iris', at: [W / 2, 330] } : { type: 'wipe' }));
+const far = (x, y) => Math.hypot(Math.max(x, W - x), Math.max(y, H - y)) * 1.04;
+
+function drawScene(i, T) {
+  T0 = SCENES[i].t0; t = T - T0;
+  ctx.save(); bg(); SCENES[i].draw(); ctx.restore();
+}
+function transition(k, T) {
+  const s = SEAMS[k], cut = SCENES[k + 1].t0;
+  const u = prog(T, cut - SEAM, cut + SEAM), e = inOutExpo(u);
+  const A = () => drawScene(k, T), B = () => drawScene(k + 1, T);
+  if (s.type === 'wipe') {
+    A();
+    // a slanted blue band sweeps left to right; the next scene is already behind it
+    const slant = 420, band = 110, xc = lerp(-slant - band, W + slant + band, e);
+    const xt = xc + slant / 2 - band / 2, xb = xc - slant / 2 - band / 2;
+    ctx.save(); ctx.beginPath(); ctx.moveTo(-10, -10); ctx.lineTo(xt, -10); ctx.lineTo(xb, H + 10); ctx.lineTo(-10, H + 10); ctx.closePath();
+    ctx.clip(); B(); ctx.restore();
+    if (u > 0 && u < 1) { ctx.beginPath(); ctx.moveTo(xt, -10); ctx.lineTo(xt + band, -10); ctx.lineTo(xb + band, H + 10); ctx.lineTo(xb, H + 10); ctx.closePath();
+      ctx.fillStyle = C.blue; ctx.fill(); }
+  } else {
+    A();
+    const [x, y] = s.at, r = e * far(x, y);
+    if (r > 0) {
+      ctx.save(); ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.clip(); B(); ctx.restore();
+      if (u < 1) { ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.strokeStyle = C.blue; ctx.lineWidth = 8; ctx.stroke(); }
+    }
+  }
+}
+function render(T) {
+  T = clamp(T, 0, DURATION);
+  ctx.reset();                                          // nothing carries over from the previous frame
+  bg();
+  let done = false;
+  for (let k = 0; k < SEAMS.length && !done; k++) {
+    const cut = SCENES[k + 1].t0;
+    if (T >= cut - SEAM && T < cut + SEAM) { transition(k, T); done = true; }
+  }
+  if (!done) { let i = SCENES.length - 1; while (i > 0 && T < SCENES[i].t0) i--; drawScene(i, T); }
+  rail(T);                                              // the spine stays put across every cut
+}
+
+// ---- events: the cuts, for render.mjs --check (the score is composed from timeline.json by music.py)
+const EVENTS = { bpm: TL.bpm, duration: DURATION, cuts: SCENES.slice(1).map((s, k) => [s.t0, SEAMS[k].type]) };
+
+// ---- boot -------------------------------------------------------------------------------
+window.DURATION = DURATION;
+window.EVENTS = EVENTS;
+window.seek = async T => render(T);
+(async () => {
+  IMG.logo = new Image(); IMG.logo.src = 'data:image/png;base64,__ASSET:assets/re-logo.png__'; await IMG.logo.decode();
+  await Promise.all([500, 600, 700, 800, 900].map(w => document.fonts.load(`${w} 40px ${FONT}`)));
+  const q = new URLSearchParams(location.search).get('t');
+  render(q ? +q : 0);
+  window.READY = true;
+  if (location.hash === '#play') {                       // preview only
+    const t0 = performance.now();
+    const loop = () => { render(((performance.now() - t0) / 1000) % DURATION); requestAnimationFrame(loop); };
+    loop();
+  }
+})();
+</script>
+</body>
+</html>
