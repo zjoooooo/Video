@@ -1,0 +1,71 @@
+{
+  "model": "gpt-4o-mini-tts",
+  "voice": "coral",
+  "instructions": "Clear, friendly explainer narrator walking a project team through a business workflow. Calm, warm, mid-paced, with a short pause at each comma so the listener can follow each step. Confident but never salesy.",
+  "lines": [
+    {
+      "id": "what",
+      "text": "NUS DigiPass is not a season pass. It's a pool of prepaid parking tickets for one event."
+    },
+    {
+      "id": "idea",
+      "text": "The organiser buys the tickets once, shares them with guests' cars, and each eligible exit uses one ticket."
+    },
+    {
+      "id": "admin",
+      "text": "It starts with the admin, who sets up the ticket product: the price, who may apply, the valid dates, and which car parks it covers."
+    },
+    {
+      "id": "apply",
+      "text": "An event organiser then applies, with details such as the event name, the dates, and how many tickets they need."
+    },
+    {
+      "id": "buy",
+      "text": "Once the request is approved and paid, the event gets its own ticket pool. The pool keeps count of every ticket: bought, allocated, used, and left."
+    },
+    {
+      "id": "link",
+      "text": "Next, the organiser shares a registration link. The link carries a token, and it stops working after the deadline, when the event ends, or when the pool runs out."
+    },
+    {
+      "id": "register",
+      "text": "Guests open the link and register their car: the plate number, the ten-digit IU or OBU number, and an email. No app to install."
+    },
+    {
+      "id": "email",
+      "text": "The car gets its tickets from the pool, and a confirmation email arrives, with a link to edit the details."
+    },
+    {
+      "id": "sync",
+      "text": "New or changed details take about thirty minutes to reach the car park system."
+    },
+    {
+      "id": "noqr",
+      "text": "On the day, there's no QR code to scan. The car park reads the car's IU and its plate."
+    },
+    {
+      "id": "exit",
+      "text": "At the exit, the system checks the event dates, the car park, the tickets left, and the driver's Use Ticket switch. If everything matches, one ticket is used, and the exit is logged."
+    },
+    {
+      "id": "choice",
+      "text": "If not, normal parking charges apply. And a driver can switch Use Ticket off, to save a ticket for later."
+    },
+    {
+      "id": "after",
+      "text": "At any time, the organiser can see every allocation and every exit, top up, ask for a refund, or export a report."
+    },
+    {
+      "id": "inferred",
+      "text": "The exit check is our reading of the public portal, so NUS still needs to confirm it, along with a few other rules:"
+    },
+    {
+      "id": "rules",
+      "text": "what one ticket covers, which car parks, the longest stay, stays across event dates, refunds, and cars without an IU."
+    },
+    {
+      "id": "end",
+      "text": "NUS DigiPass. Buy once. Share a link. One ticket per exit."
+    }
+  ]
+}

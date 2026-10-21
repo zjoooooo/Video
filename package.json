@@ -17,7 +17,11 @@
     "look-up": "python3 scripts/voice.py films/2026-10-galaxy-look-up/narration.json && python3 films/2026-10-galaxy-look-up/plan.py && node scripts/render.mjs films/2026-10-galaxy-look-up/film.src.html --out out/galaxy-look-up.video.mp4 --sub 8 && uv run --with numpy films/2026-10-galaxy-look-up/music.py out/galaxy-look-up.wav && ffmpeg -y -loglevel error -i out/galaxy-look-up.video.mp4 -i out/galaxy-look-up.wav -map 0:v -map 1:a -c:v copy -c:a aac -b:a 192k -shortest -movflags +faststart out/galaxy-look-up.mp4",
     "look-up:capture": "node films/2026-10-galaxy-look-up/capture.mjs",
     "look-up:sheet": "node scripts/render.mjs films/2026-10-galaxy-look-up/film.src.html --sheet --step 2",
-    "look-up:check": "node scripts/render.mjs films/2026-10-galaxy-look-up/film.src.html --check"
+    "look-up:check": "node scripts/render.mjs films/2026-10-galaxy-look-up/film.src.html --check",
+    "digipass": "python3 scripts/voice.py films/2026-10-nus-digipass/narration.json && python3 films/2026-10-nus-digipass/plan.py && node scripts/render.mjs films/2026-10-nus-digipass/film.src.html --out out/nus-digipass.video.mp4 --sub 8 && uv run --with numpy films/2026-10-nus-digipass/music.py out/nus-digipass.wav && ffmpeg -y -loglevel error -i out/nus-digipass.video.mp4 -i out/nus-digipass.wav -map 0:v -map 1:a -c:v copy -c:a aac -b:a 192k -shortest -movflags +faststart out/nus-digipass.mp4",
+    "digipass:sheet": "node scripts/render.mjs films/2026-10-nus-digipass/film.src.html --sheet --step 2",
+    "digipass:check": "node scripts/render.mjs films/2026-10-nus-digipass/film.src.html --check",
+    "digipass:deck": "cd films/2026-10-nus-digipass/deck && npm install --silent && node build.js"
   },
   "repository": {
     "type": "git",
