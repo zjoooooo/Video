@@ -5,22 +5,24 @@
 // arrive). foilMesh() is shared with gl-solar.js.
 function foilMesh(w, h) {
   const mat = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending,
-    uniforms: { uTime: { value: 0 }, uA: { value: 1 }, uLight: { value: new THREE.Vector3() } },
+    uniforms: { uTime: { value: 0 }, uA: { value: 1 }, uRun: { value: CL0 + 0.7 }, uLight: { value: new THREE.Vector3() } },
     vertexShader: 'varying vec2 vUv; varying vec3 vN, vW; void main(){ vUv = uv; vN = normalize(mat3(modelMatrix) * normal); vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }',
-    fragmentShader: `uniform float uTime, uA; uniform vec3 uLight; varying vec2 vUv; varying vec3 vN, vW;
+    fragmentShader: `uniform float uTime, uA, uRun; uniform vec3 uLight; varying vec2 vUv; varying vec3 vN, vW;
       void main(){
         vec3 V = normalize(cameraPosition - vW), N = normalize(vN); if (dot(N, V) < 0.0) N = -N;
         float c = dot(N, V);                                               // 1 face-on, 0 edge-on
         vec2 q = vUv;                                                      // its thickness, in nm: a slow swell across it, flowing
-        float d = 300.0 + 720.0 * (0.62 * q.x + 0.38 * q.y) + 90.0 * sin(2.5 * q.y + 1.2 * q.x + 0.5 * uTime) + 35.0 * sin(5.0 * q.x - 0.3 * uTime);
-        float ct = sqrt(1.0 - (1.0 - c * c) / 2.1);                         // refracted angle inside (n = 1.45): the bands shift with the view
-        vec3 film = 0.5 - 0.5 * cos(6.2831853 * 2.0 * 1.45 * d * ct / vec3(680.0, 550.0, 440.0));   // interference: magenta, gold, cyan, green
-        film = mix(vec3(dot(film, vec3(0.333))), film, 0.62);                // a film's colours, not a test card's
+        float d = 400.0 + 2600.0 * (0.6 * q.x + 0.4 * q.y) + 120.0 * sin(2.5 * q.y + 1.2 * q.x + 0.5 * uTime) + 40.0 * sin(5.0 * q.x - 0.3 * uTime);   // ~15 fringes across it
+        float ct = sqrt(1.0 - (1.0 - c * c) / 2.1);                         // refracted angle inside (n = 1.45): the fringes shift with the view
+        vec3 film = 0.5 - 0.5 * cos(6.2831853 * 2.0 * 1.45 * d * ct / vec3(680.0, 550.0, 440.0));
+        film = pow(film, vec3(4.0));                                       // thin, sharp fringes in a film's order: magenta, gold, cyan, green
+        film = mix(vec3(dot(film, vec3(0.333))), film, 0.75);
         vec3 L = normalize(uLight - vW), Rf = reflect(-L, N);
-        float lobe = pow(max(dot(Rf, V), 0.0), 3.0), fres = 0.12 + 0.88 * pow(1.0 - c, 4.0);
-        float spec = pow(max(dot(Rf, V), 0.0), 90.0);
-        float edge = 1.0 - smoothstep(0.0, 0.015, min(min(q.x, 1.0 - q.x), min(q.y, 1.0 - q.y)));
-        vec3 col = vec3(0.012, 0.014, 0.02) + film * (0.08 + 1.5 * lobe + 0.9 * fres) + vec3(1.0, 0.97, 0.92) * spec * 1.2 + vec3(0.8, 0.9, 1.0) * edge * 0.12;   // dark glass; the colour lives in its reflection
+        float hot = pow(max(dot(Rf, V), 0.0), 24.0);                       // a highlight close by: it sweeps across as the foil turns
+        float run = exp(-pow((dot(q, vec2(0.86, 0.5)) - fract((uTime - uRun) / 3.0) * 2.4 + 0.3) / 0.14, 2.0));   // and a gleam running over it every 3 s, across the close-up's middle
+        float fres = pow(1.0 - c, 4.0), spec = pow(max(dot(Rf, V), 0.0), 220.0);
+        float edge = 1.0 - smoothstep(0.0, 0.012, min(min(q.x, 1.0 - q.x), min(q.y, 1.0 - q.y)));
+        vec3 col = vec3(0.004, 0.005, 0.008) + film * (0.08 + 2.6 * hot + 1.6 * run + 1.4 * fres) + vec3(1.0, 0.97, 0.92) * spec * 1.4 + vec3(0.85, 0.92, 1.0) * edge * (0.08 + 0.9 * hot);   // near-black glass, lit only where light crosses it
         gl_FragColor = vec4(col * uA, 1.0);
       }` });
   const plane = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
@@ -32,10 +34,11 @@ function foilMesh(w, h) {
   function update(camera, t, a = 1, glintPx = 9) {       // per frame, after the group is placed
     group.updateMatrixWorld(true);
     mat.uniforms.uTime.value = t; mat.uniforms.uA.value = a;
-    mat.uniforms.uLight.value.copy(camera.position).add(new THREE.Vector3(-40, 60, 0).applyQuaternion(camera.quaternion));
+    const here = group.getWorldPosition(new THREE.Vector3()), toCam = camera.position.clone().sub(here), k = toCam.length();
+    mat.uniforms.uLight.value.copy(here).addScaledVector(toCam, 0.45).add(new THREE.Vector3(-0.25 * k, 0.35 * k, 0).applyQuaternion(camera.quaternion));   // a light near the lens: its highlight is a spot
     n.set(0, 0, 1).transformDirection(plane.matrixWorld); v.copy(camera.position).sub(group.getWorldPosition(new THREE.Vector3()));
     const dist = v.length(), c = Math.abs(n.dot(v.normalize()));
-    edgeLine.material.opacity = a * (0.08 + 0.85 * Math.pow(1 - c, 6));   // edge-on, the hairline is all there is
+    edgeLine.material.opacity = a * (0.22 + 0.75 * Math.pow(1 - c, 4));   // a fine glint along its edge; edge-on, the hairline is all there is
     const px = H / (2 * Math.tan(camera.fov * Math.PI / 360)) / dist * Math.max(w, h) * group.scale.x;   // its size on screen
     const far = 1 - ramp(px, 8, 40);
     glint.material.color.setRGB(...[0, 0.33, 0.67].map(o => 0.6 + 0.4 * Math.cos(TAU * (o + t * 0.25))));

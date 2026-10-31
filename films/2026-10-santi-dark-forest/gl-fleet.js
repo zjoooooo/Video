@@ -3,7 +3,7 @@
 // coordinates (z away from the camera) map to three.js with z negated.
 const FLEET = (() => {
   const scene = new THREE.Scene(), cam = new THREE.PerspectiveCamera(2 * Math.atan(H / 2 / F) * 180 / Math.PI, W / H, 2, 90000);
-  scene.add(GL.stars(31, 10000, 45000), MILKY.sky(1.1, [0, 0.57, -0.82], 0.6, 0.15));
+  const sky = MILKY.sky(1.1, [0, 0.57, -0.82], 0.6, 0.15); scene.add(GL.stars(31, 10000, 45000), sky);
   const key = new THREE.DirectionalLight(0xfff0d8, 2.4); key.position.set(-1, 0.9, 0.5); scene.add(key);
   const rim = new THREE.DirectionalLight(0x8fb4ff, 1.4); rim.position.set(1, 0.25, -1); scene.add(rim);
   scene.add(new THREE.HemisphereLight(0x6a7ea6, 0x14100c, 0.75));
@@ -11,8 +11,9 @@ const FLEET = (() => {
   const N = SHIPS.length, BIG = 1.6;                    // ships drawn 1.6x: a packed, imposing formation
   const hulls = new THREE.InstancedMesh(SHIP.hull, SHIP.material(), N);
   const lamps = new THREE.InstancedMesh(SHIP.lights, new THREE.MeshBasicMaterial({ vertexColors: true }), N);
-  const burnt = SHIP.material(0x6a5e52, 0.62), shards = SHIP.pieces.map(pc => new THREE.InstancedMesh(pc.geo, burnt, N));   // the hull in three, scorched
-  const engines = spriteCloud(N * 3, 70), fire = spriteCloud(N * 3, 64), sparks = spriteCloud(N * 3, 30), dropFx = spriteCloud(48, 700);
+  const burnt = SHIP.material(0x1d1b19, 0.85); burnt.envMapIntensity = 0.25;   // the hull in three, burnt near-black
+  const shards = SHIP.pieces.map(pc => new THREE.InstancedMesh(pc.geo, burnt, N));
+  const engines = spriteCloud(N * 3, 70), fire = spriteCloud(N * 3, 40), sparks = spriteCloud(N * 3, 24), dropFx = spriteCloud(96, 300);
   for (const m of [hulls, lamps, ...shards]) { m.frustumCulled = false; scene.add(m); }
   scene.add(engines.pts, fire.pts, sparks.pts, dropFx.pts);
   const R = 3, L = 9, prof = [];                       // the droplet: a round head, a long fine tail, perfectly smooth
@@ -41,13 +42,15 @@ const FLEET = (() => {
       } else {                                           // dead: a white core, a fireball, three burnt chunks tumbling apart, sparks
         hulls.setMatrixAt(i, ZERO); lamps.setMatrixAt(i, ZERO);
         const cap = s.flag ? 3 : 1;
-        fire.add(p.x, p.y, p.z, Math.min(30 * cap, 26) * sz, 1, 1, 1, 1.3 * Math.exp(-dt / 0.035));
-        fire.add(p.x, p.y, p.z, (40 + 40 * s.fr) * sz * (0.5 + 0.5 * ease(clamp(dt / 0.12))), 1, 0.66, 0.3, 0.95 * Math.exp(-dt / 0.5));
-        fire.add(p.x, p.y, p.z, 26 * sz, 1, 0.42, 0.15, (0.22 * Math.exp(-dt / 1.2) + 0.04 * Math.exp(-dt / 10)) * (0.5 + s.jit * 3.3));
+        fire.add(p.x, p.y, p.z, 12 * cap * sz, 1, 1, 1, 1.2 * Math.exp(-dt / 0.035));   // each death its own small point: a front, not a cloud
+        fire.add(p.x, p.y, p.z, (14 + 10 * s.fr) * cap * sz * (0.5 + 0.5 * ease(clamp(dt / 0.12))), 1, 0.62, 0.28, 0.8 * Math.exp(-dt / 0.45));
+        fire.add(p.x, p.y, p.z, 10 * sz, 1, 0.42, 0.15, (0.2 * Math.exp(-dt / 1.2) + 0.03 * Math.exp(-dt / 10)) * (0.5 + s.jit * 3.3));
         const open = 1 - Math.exp(-dt / 1.4);
-        SHIP.pieces.forEach((pc, k) => {                 // fore, middle and aft of the hull, flung apart and turning
-          const fling = (k - 1) * 9 * sz * (open * 1.6 + 0.05 * dt) * (s.flag ? 1.6 : 1), up = (s.fr - 0.5 + 0.3 * (k - 1)) * 6 * sz * open;
-          q.setFromEuler(e.set((k - 1) * 0.35 * dt * (0.5 + s.fr), -s.hd * 0.5 + (k - 1) * 0.25 * dt, (s.deb[k][0] - 3) * 0.08 * dt));
+        const gone = s.fr < 0.42 && !s.flag;              // some are simply gone: the field has gaps
+        SHIP.pieces.forEach((pc, k) => {                 // fore, middle and aft of the hull, flung apart and tumbling
+          if (gone) { shards[k].setMatrixAt(i, ZERO); return; }
+          const fling = (k - 1) * 14 * sz * (open * 1.6 + 0.08 * dt) * (s.flag ? 1.6 : 1), up = (s.deb[k][2] / 30 + 0.3 * (k - 1)) * 12 * sz * (open + 0.05 * dt);
+          q.setFromEuler(e.set((k - 1 + s.deb[k][0] - 3) * 0.3 * dt * (0.5 + s.fr), -s.hd * 0.5 + (k - 1) * 0.35 * dt, (s.deb[k][0] - 3) * 0.12 * dt));
           const c = pc.centre.clone().multiplyScalar(sz).applyQuaternion(q).add(p).add(new THREE.Vector3(s.deb[k][2] * 0.05 * dt, up, fling));
           one.setScalar(sz); m4.compose(c, q, one); shards[k].setMatrixAt(i, m4);
           for (const z of pc.ends) {                    // its torn edge: glowing, cooling
@@ -78,12 +81,11 @@ const FLEET = (() => {
       if (w > 0) { const g = P.clone().addScaledVector(dir, lerp(-L, R, w)).add(new THREE.Vector3(0, R * 0.7, 0)); dropFx.add(g.x, g.y, g.z, 18, 1, 1, 1, w); }
       return;
     }
-    for (let j = 40; j >= 1; j--) {                      // the cyan wake: its straight path through them
-      const a = dropletAt(t - j * 0.012); if (!a) continue; const w = v3(a[0], a[1], a[2]);
-      dropFx.add(w.x, w.y, w.z, 50 * (1 - j / 41) + 10, 0.75, 0.9, 1, 0.6 * (1 - j / 41));
+    for (let j = 80; j >= 1; j--) {                      // a fine bright needle: its straight path through them
+      const a = dropletAt(t - j * 0.008); if (!a) continue; const w = v3(a[0], a[1], a[2]);
+      dropFx.add(w.x, w.y, w.z, 9 * (1 - j / 81) + 4, 0.8, 0.92, 1, 0.75 * (1 - j / 81));
     }
-    dropFx.add(P.x, P.y, P.z, 90, 1, 1, 1, 1); dropFx.add(P.x, P.y, P.z, 220, 0.67, 0.84, 1, 0.7);
-    for (const K of CUE.kills) if (t >= K && t < K + 1.5) dropFx.add(P.x, P.y, P.z, 650, 1, 1, 1, 0.35 * Math.exp(-(t - K) / 0.2));   // the hit: a hard point, not a white-out
+    dropFx.add(P.x, P.y, P.z, 26, 1, 1, 1, 1); dropFx.add(P.x, P.y, P.z, 70, 0.67, 0.84, 1, 0.5);   // and the droplet a white pin at its head
   }
   function setCam(t) {
     if (t >= SC.drop && t < CUE.kills[0]) {              // the close-up: in beside the droplet, the fleet's lights behind it
@@ -107,7 +109,11 @@ const FLEET = (() => {
     return GL.draw(scene, cam, { strength: 0.9, radius: 0.45, threshold: 0.62 });
   }
   function bake() {                                       // the droplet's reflections: the fleet as seen from where it waits, once
-    setShips(SC.drop + 2); droplet.visible = false; cubeCam.position.copy(DC); cubeCam.update(GL.renderer, scene); droplet.visible = true;
+    const dome = new THREE.Mesh(new THREE.SphereGeometry(30000, 32, 16), new THREE.ShaderMaterial({ side: THREE.BackSide, depthWrite: false,   // a faint studio of space: its shape reads
+      vertexShader: 'varying vec3 vD; void main(){ vD = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+      fragmentShader: 'varying vec3 vD; void main(){ float u = vD.y * 0.5 + 0.5; gl_FragColor = vec4(mix(vec3(0.0), vec3(0.16, 0.19, 0.26), smoothstep(0.45, 1.0, u)) + vec3(0.05, 0.06, 0.08) * exp(-pow((vD.y - 0.05) / 0.12, 2.0)), 1.0); }' }));
+    setShips(SC.drop + 2); droplet.visible = sky.visible = false; scene.add(dome);   // from a little above the slab: the fleet's lights a broad band round it
+    cubeCam.position.set(DC.x, 22, DC.z); cubeCam.update(GL.renderer, scene); scene.remove(dome); droplet.visible = sky.visible = true;
   }
   return { draw, bake, scene, cam };
 })();

@@ -118,7 +118,7 @@ function drawOpen(t) {
 // bursts into one region of the slab and zigzags through it, irregularly, until the next. Every ship dies when
 // the first blast from the droplet's track reaches it, so the dead spread from the track like fire, with no lanes.
 // The flagship in front dies first. About 1% never die: they run.
-const COLS = 48, ROWS = 42, SP = 60, F = 1200, BLAST = 420, REACH = 240;
+const COLS = 48, ROWS = 42, SP = 60, F = 1200, BLAST = 300, REACH = 240;   // the blast outruns the eye less: deaths travel as a front
 const ORDER = [1, 2, 0, 3];                            // the region each strike tears through: centre-left, centre-right, left, right
 const BANDX = ORDER.map(b => ((b + 0.5) * COLS / 4 - 0.5 - (COLS - 1) / 2) * SP);
 const TRACK = (() => {                                 // per strike: seven waypoints swinging side to side as it crosses the depth
@@ -221,7 +221,8 @@ const arcPoint = t => onIris(t, arcAngle(t), 0.6 + 0.4 * ease(ramp(t, OPEN, OPEN
 const foilAnchor = t => { const [x, y] = arcPoint(t); return [x + 30, y - 46 + 6 * Math.sin(t * 1.7)]; };   // where the foil waits, just off the arc, bobbing
 function drawIris(t, sun) {                           // the Singer's eye
   const A = irisAlpha(t); if (A <= 0.001) return;
-  const open = 0.6 + 0.4 * ease(ramp(t, OPEN, OPEN + 2.5)), sweep = ramp(t, OPEN, OPEN + 2), breathe = 1 + 0.006 * Math.sin(t * 1.3);
+  const open = 0.6 + 0.4 * ease(ramp(t, OPEN, OPEN + 2.5)), sweep = ramp(t, OPEN, OPEN + 2);
+  const breathe = (1 + 0.006 * Math.sin(t * 1.3)) * (1 - 0.07 * window01(t, glanceHits - 0.6, glanceHits + 1.4, 0.35, 0.9));   // on the glance it narrows, like an iris
   const phi = arcAngle(t);
   ctx.save(); ctx.globalCompositeOperation = 'lighter';
   for (const [n, rr, spin, size] of [[420, 1, 0.012, 12], [300, 0.74, -0.02, 10], [190, 0.5, 0.03, 8]]) {   // three counter-turning rings
@@ -234,8 +235,10 @@ function drawIris(t, sun) {                           // the Singer's eye
       const a = i / n * TAU + spin * t, [x, y] = onIris(t, a, R);
       if (x < -60 || x > W + 60 || y < -60 || y > H + 60) continue;
       const near = 0.55 + 0.9 * (0.5 + 0.5 * Math.sin(a));   // the near side of the ring, larger
+      const h1 = (Math.sin(i * 12.9898 + rr * 78.233) * 43758.5453) % 1, h2 = (Math.sin(i * 39.346 + rr * 11.135) * 24634.6345) % 1;   // each point its own size and strength
       const d = Math.abs(Math.atan2(Math.sin(a - phi), Math.cos(a - phi))), bright = rr === 1 ? Math.exp(-((d / 0.16) ** 2)) : 0;   // the arc
-      glow(GLOW.ice, x, y, (size + 14 * bright) * near, A * (0.3 + 0.12 * Math.sin(i * 2.3 + t) + 0.6 * bright));
+      glow(GLOW.ice, x, y, (size * (0.5 + Math.abs(h1)) + 14 * bright) * near, A * ((0.18 + 0.3 * Math.abs(h2)) * (0.8 + 0.2 * Math.sin(i * 2.3 + t)) + 0.6 * bright));
+      if (bright > 0.2) glow(GLOW.ice, x, y, 110 * near, 0.12 * A * bright);   // a cold glow along the arc
     }
   }
   const [ax, ay] = arcPoint(t), g = window01(t, glanceHits - 0.25, glanceHits + 1.8, 0.2, 1.2);   // the glance: a thin cold line to the Sun
@@ -299,7 +302,7 @@ function cards(t) {
       ctx.fillStyle = g; ctx.fillRect(0, H * 0.52, W, H * 0.48);
       text(c.text, W / 2, H * 0.72, { size: 56, weight: 400, track: 0.1, alpha: a, blur: 18 });
     } else if (c.kind === 'credit') {
-      text(c.text, W / 2, H * 0.72 + 64, { size: 28, weight: 400, track: 0.2, alpha: 0.6 * a });
+      text(c.text, W / 2, H * 0.72 + 64, { size: 28, weight: 400, track: 0.2, alpha: 0.8 * a });
     } else if (c.kind === 'textures') {
       c.text.split('|').forEach((line, i) => text(line, W / 2, H * 0.72 + i * 44, { size: 26, weight: 400, track: 0.05, alpha: 0.7 * a }));
     }

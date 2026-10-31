@@ -14,15 +14,28 @@ function carve(g, s, font, x, y, size, align = 'center') {   // letters cut into
 }
 const PLU = (() => {
   const scene = new THREE.Scene(), cam = new THREE.PerspectiveCamera(34, W / H, 0.05, 30000);
-  scene.add(GL.stars(23, 9000, 12000), MILKY.sky(1.2, [0.05, 0.42, -0.9], -0.35, -0.5));
+  const stars = GL.stars(23, 9000, 12000); stars.material.fog = false;
+  scene.add(stars, MILKY.sky(1.2, [0.05, 0.42, -0.9], -0.35, -0.5));
+  scene.fog = new THREE.Fog(0x040508, 22, 75);          // the ground goes dark toward the horizon
   const noise = (w, h, seed, base, spread, blots) => GL.canvasTex(w, h, (g) => {   // mottled ice: speckle, then soft blotches light and dark
     const r = rng(seed), d = g.createImageData(w, h);
     for (let i = 0; i < w * h; i++) { const v = base + spread * r() * r(); d.data.set([v * 0.94, v * 0.97, v, 255], i * 4); }
     g.putImageData(d, 0, 0);
     for (let i = 0; i < blots; i++) { g.fillStyle = `rgba(${r() < 0.5 ? '20,22,28' : '200,206,216'},${0.04 + 0.07 * r()})`; g.beginPath(); g.arc(r() * w, r() * h, 6 + w * 0.06 * r(), 0, TAU); g.fill(); }
   });
-  const ice = noise(1024, 1024, 61, 95, 70, 300);
-  ice.wrapS = ice.wrapT = THREE.RepeatWrapping; ice.repeat.set(90, 45);
+  const ice = GL.canvasTex(1024, 1024, (g, w) => {      // regolith: soft patches of frost and grit at three scales, tiling seamlessly
+    const r = rng(61); g.fillStyle = '#6c7179'; g.fillRect(0, 0, w, w);
+    for (const [n, s0, s1, a] of [[40, 120, 300, 0.12], [320, 20, 80, 0.12], [2600, 3, 12, 0.14]]) for (let i = 0; i < n; i++) {
+      const x = r() * w, y = r() * w, sz = s0 + (s1 - s0) * r(), light = r() < 0.5;
+      for (const ox of [-w, 0, w]) for (const oy of [-w, 0, w]) {
+        if (x + ox + sz < 0 || x + ox - sz > w || y + oy + sz < 0 || y + oy - sz > w) continue;
+        const gr = g.createRadialGradient(x + ox, y + oy, 0, x + ox, y + oy, sz);
+        gr.addColorStop(0, light ? `rgba(214,220,232,${a})` : `rgba(12,13,17,${a})`); gr.addColorStop(1, 'rgba(0,0,0,0)');
+        g.fillStyle = gr; g.fillRect(x + ox - sz, y + oy - sz, 2 * sz, 2 * sz);
+      }
+    }
+  });
+  ice.wrapS = ice.wrapT = THREE.RepeatWrapping; ice.repeat.set(90, 45); ice.anisotropy = 8;
   const GR = 900;                                        // Pluto's surface: a big sphere, its horizon curving away
   const ground = new THREE.Mesh(new THREE.SphereGeometry(GR, 360, 180), new THREE.MeshStandardMaterial({ color: 0x9aa0aa, roughness: 0.92, map: ice, bumpMap: ice, bumpScale: 0.9 }));
   ground.position.set(0, -GR, 0); ground.rotation.x = Math.PI / 2; scene.add(ground);   // its uv pole off on the horizon, not underfoot
@@ -37,7 +50,7 @@ const PLU = (() => {
       g.putImageData(d, 0, 0);
       for (let i = 0; i < 90; i++) { g.fillStyle = `rgba(${r() < 0.6 ? '10,10,14' : '120,126,138'},${0.05 + 0.08 * r()})`; g.beginPath(); g.arc(r() * cw, r() * ch, 4 + 40 * r(), 0, TAU); g.fill(); }
       words.forEach(([s, font], i) => {
-        const y = 190 + i * (ch - 340) / Math.max(1, words.length - 1);
+        const y = 240 + i * (ch - 480) / Math.max(1, words.length - 1);   // inset from the bevels
         g.font = `100px ${font}`; const size = Math.min(150, 100 * cw * 0.78 / g.measureText(s).width);
         g.font = `${size}px ${font}`; g.textAlign = 'center'; g.textBaseline = 'middle';
         g.fillStyle = frost ? 'rgba(18,18,22,1)' : 'rgba(214,222,234,0.92)'; g.fillText(s, cw / 2, y);   // frost in the cuts; in the bump map, the cuts are low

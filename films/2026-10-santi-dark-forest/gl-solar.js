@@ -33,8 +33,8 @@ const SOL = (() => {
     dwarf: [C('#8f7c6a'), C('#bccbd8'), C('#d8b89a'), C('#c9a88a'), [0.4, 0.8, 0.96]],
   };
   const DEF = [                                          // d: distance from the touchdown; side: which way round its orbit; atmo: its rim of air
-    { id: 'neptune', zh: '海王星', au: 30.07, R: 1.25, d: 8, side: 1, kind: 'ice', spin: 0.25, atmo: 0x4f7cff },
-    { id: 'uranus', zh: '天王星', au: 19.19, R: 1.3, d: 30, side: -1, kind: 'ice', spin: 0.22, atmo: 0x8fe0f0 },
+    { id: 'neptune', zh: '海王星', au: 30.07, R: 1.25, d: 8, side: 1, kind: 'ice', spin: 0.25, atmo: 0x4f7cff, contrast: 2.6 },
+    { id: 'uranus', zh: '天王星', au: 19.19, R: 1.3, d: 30, side: -1, kind: 'ice', spin: 0.22, atmo: 0x8fe0f0, contrast: 1.7 },
     { id: 'saturn', zh: '土星', au: 9.54, R: 1.9, d: 48, side: 1, kind: 'gas', spin: 0.3, ring: true, atmo: 0x6a5a3a },
     { id: 'jupiter', zh: '木星', au: 5.2, R: 2.2, d: 62, side: -1, kind: 'gas', spin: 0.32, atmo: 0x6a5038 },
     { id: 'mars', au: 1.52, R: 0.5, d: 74, side: 1, kind: 'rock', spin: 0.15, atmo: 0x5a2a1a },
@@ -42,7 +42,7 @@ const SOL = (() => {
     { id: 'sun', zh: '太阳', au: 0, R: 4, d: RI, kind: 'sun', spin: 0.02, sun: true, atmo: 0x000000 },
     { id: 'mercury', au: 0.39, R: 0.38, d: 88, side: 1, kind: 'rock', spin: 0.03, atmo: 0x000000 },
     { id: 'earth', zh: '地球', au: 1, R: 0.75, d: 95, side: -1, kind: 'rock', spin: 0.12, atmo: 0x5f9cff },
-    { id: 'pluto', zh: '冥王星', au: 39.48, R: 0.5, d: RI + ORB(39.48), kind: 'dwarf', spin: 0.05, far: true, atmo: 0x9fb4d8 },
+    { id: 'pluto', zh: '冥王星', au: 39.48, R: 0.5, d: RI + ORB(39.48), kind: 'dwarf', spin: 0.05, far: true, atmo: 0x3a4250, fill: 0.85 },
   ];
   const sinkOf = f => 1 - 2.2 * f;                       // the centre's height above the plane, in radii, as it falls
   const VERT = `uniform float uF, uSpread, uR, uSpin;
@@ -59,17 +59,18 @@ const SOL = (() => {
       vec4 w = modelMatrix * vec4(p, 1.0); vW = w.xyz;
       gl_Position = projectionMatrix * viewMatrix * w;
     }`;
-  const FINE = `float fine(float v){ float w = fwidth(v); float d = abs(fract(v - 0.5) - 0.5) / max(w, 1e-5); return (1.0 - min(d, 1.0)) * (1.0 - smoothstep(0.12, 0.45, w)); }`;   // a 1 px line, gone before it can shimmer
-  const FRAG = `uniform sampler2D uMap, uText; uniform float uGain, uSun, uTime, uAlpha, uHasText; uniform vec3 uAtmo;
+  const FINE = `float fine(float v){ float w = fwidth(v); float d = abs(fract(v - 0.5) - 0.5) / max(w, 1e-5); return (1.0 - min(d, 1.0)) * (1.0 - smoothstep(0.08, 0.3, w)); }`;   // a 1 px line, gone before lines come closer than ~3 px
+  const FRAG = `uniform sampler2D uMap, uText; uniform float uGain, uSun, uTime, uAlpha, uHasText, uContrast, uFill; uniform vec3 uAtmo;
     varying vec2 vUv; varying vec3 vN, vW; varying float vK, vTh, vLon, vRn;
     ${FINE}
     void main(){
       if (vK > 0.01 && vK < 0.99) discard;                                     // the waterline: the sphere above, its image below, nothing between
-      vec3 tex = texture2D(uMap, vUv).rgb, V = normalize(cameraPosition - vW);
+      vec3 tex = texture2D(uMap, vUv).rgb, V = normalize(cameraPosition - vW), mid = textureLod(uMap, vec2(0.5), 12.0).rgb;
+      tex = clamp(mid + (tex - mid) * uContrast, 0.0, 1.0);                 // Neptune's faint bands, brought out
       vec3 c; float a = uAlpha;
       if (vK < 0.5) {                                                          // still round: lit by the Sun, a rim of air
         float nv = max(0.0, dot(vN, V));
-        float lit = uSun > 0.5 ? 0.78 + 0.22 * nv : 0.06 + 0.94 * max(0.0, dot(vN, normalize(-vW)));
+        float lit = uSun > 0.5 ? 0.78 + 0.22 * nv : 0.06 + 0.94 * max(0.0, dot(vN, normalize(-vW))) + uFill * (0.25 + 0.75 * nv);   // fill: Pluto lit by the painting's glow
         c = tex * uGain * lit + uAtmo * pow(1.0 - nv, 2.2) * 1.6;
         if (uSun > 0.5) c = 1.0 - exp(-c * 1.3);
       } else {                                                                 // in the painting
@@ -79,13 +80,13 @@ const SOL = (() => {
         c = tex * uGain * (0.3 + 1.0 * L) + film * L * 0.1;
         float aa = fwidth(r);
         a *= smoothstep(0.9955, 0.9955 - 1.5 * aa, r);                         // an anti-aliased rim
-        c += vec3(1.0, 0.95, 0.86) * 0.7 * (1.0 - min(abs(r - 0.9955 + 2.0 * aa) / aa, 1.0));   // lit by a 1 px line
+        c += vec3(1.0, 0.95, 0.86) * 0.35 * (1.0 - min(abs(r - 0.9955 + 2.0 * aa) / aa, 1.0));   // a 1 px line at the rim, faint
         a *= smoothstep(0.4245, 0.4245 + 1.5 * aa, r);                         // and a clean inner edge
         c = 1.0 - exp(-c * 1.2);                                               // highlights roll off: the painting never burns white
       }
       if (uHasText > 0.5) {                                                    // Pluto: the tablets' words, kept in its image, in light
         vec2 q = vec2((vLon + 2.2) / 4.4, (vRn - 0.6) / 0.27);
-        if (q.x > 0.0 && q.x < 1.0 && q.y > 0.0 && q.y < 1.0) { float w = texture2D(uText, vec2(1.0 - q.x, 1.0 - q.y)).a; c = mix(c, vec3(1.0, 0.9, 0.72), w * (0.15 + 0.85 * vK)); }
+        if (q.x > 0.0 && q.x < 1.0 && q.y > 0.0 && q.y < 1.0) { float w = texture2D(uText, vec2(1.0 - q.x, 1.0 - q.y)).a; c = mix(c, vec3(1.0, 0.9, 0.72), w * vK); }   // only once it lies in the plane
       }
       gl_FragColor = vec4(c, a);
     }`;
@@ -95,7 +96,7 @@ const SOL = (() => {
     void main(){
       float r = length(vP);
       vec3 c = r < uE.x ? mix(uC0 * 1.15, uC0, r / uE.x) : r < uE.y ? mix(uC1 * 1.1, uC1, (r - uE.x) / (uE.y - uE.x)) : r < uE.z ? mix(uC2, uC3, (r - uE.y) / (uE.z - uE.y)) : uC3;
-      float L = fine(r * 90.0 + 0.4 * sin(atan(vP.y, vP.x) * 12.0 + r * 20.0)) * 0.55 + fine(r * 360.0) * 0.3;
+      float L = (fine(r * 90.0 + 0.4 * sin(atan(vP.y, vP.x) * 12.0 + r * 20.0)) * 0.55 + fine(r * 360.0) * 0.3) * smoothstep(0.06, 0.2, r);   // no starburst at the centre
       float bound = (1.0 - min(abs(r - uE.x) / fwidth(r), 1.0)) + (1.0 - min(abs(r - uE.y) / fwidth(r), 1.0)) + (1.0 - min(abs(r - uE.z) / fwidth(r), 1.0));
       vec3 o = 1.0 - exp(-(c * (0.22 + 1.1 * L) + bound * 0.5) * 1.2);
       gl_FragColor = vec4(o, uA * smoothstep(1.0, 1.0 - 2.0 * fwidth(r), r));
@@ -113,7 +114,7 @@ const SOL = (() => {
     const pos = new THREE.Vector3(r * Math.cos(th), 0, r * Math.sin(th)), hit = hitOf(d.d);
     const spread = d.sun ? 14 : d.id === 'earth' ? 14 : d.far ? 18 : 10;
     const uni = { uMap: { value: GL.tex(GE + `images/solar-system/${d.id}.jpg`) }, uF: { value: 0 }, uSpread: { value: spread }, uR: { value: d.R },
-      uSpin: { value: 0 }, uGain: { value: d.sun ? 1.6 : 1.05 }, uSun: { value: d.sun ? 1 : 0 }, uTime: { value: 0 }, uAlpha: { value: 1 }, uAtmo: { value: new THREE.Color(d.atmo) },
+      uSpin: { value: 0 }, uGain: { value: d.sun ? 1.6 : 1.05 }, uSun: { value: d.sun ? 1 : 0 }, uTime: { value: 0 }, uAlpha: { value: 1 }, uAtmo: { value: new THREE.Color(d.atmo) }, uContrast: { value: d.contrast ?? 1 }, uFill: { value: d.fill ?? 0 },
       uText: { value: d.far ? WORDS : null }, uHasText: { value: d.far ? 1 : 0 } };
     const mesh = new THREE.Mesh(new THREE.SphereGeometry(d.R, 256, 128), new THREE.ShaderMaterial({ uniforms: uni, vertexShader: VERT, fragmentShader: FRAG, transparent: true, side: THREE.DoubleSide, extensions: { derivatives: true } }));   // double-sided: unrolled south pole in, the triangles face down
     mesh.position.copy(pos).setY(0.004 * i); mesh.renderOrder = 10 + i;      // later falls lie on top of earlier ones
@@ -175,13 +176,13 @@ const SOL = (() => {
       fragmentShader: `${PLANE} uniform float uA; varying vec3 vW; void main(){ float inside = smoothstep(0.5, -0.5, distance(vW.xz, uImp.xz) - uRho); gl_FragColor = vec4(mix(vec3(0.33, 0.42, 0.6) * 0.5, vec3(1.0, 0.82, 0.55) * 0.75, inside) * uA, 1.0); }` }));
     scene.add(line); return line;
   });
-  const region = toPlane(new THREE.Mesh(new THREE.CircleGeometry(1, 360), new THREE.ShaderMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending,
+  const region = toPlane(new THREE.Mesh(new THREE.CircleGeometry(1, 360), new THREE.ShaderMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, extensions: { derivatives: true },
     uniforms: { uRho: { value: 1 }, uTime: { value: 0 }, uA: { value: 1 } },
     vertexShader: flatVert,
     fragmentShader: `uniform float uRho, uTime, uA; varying vec2 vP; varying vec3 vW;
       void main(){
         float r = length(vP), d = (1.0 - r) * uRho;                       // distance in from the edge, in scene units
-        float rim = exp(-d * d / 0.18);
+        float rw = max(0.1, 1.5 * fwidth(d)), rim = exp(-d * d / (rw * rw));   // the edge: a fine line, close or far
         vec3 film = 0.5 + 0.5 * cos(6.2832 * (vec3(0.0, 0.33, 0.67) + r * 2.5 - uTime * 0.11));
         float ripple = 0.5 + 0.5 * cos(d * 2.4 - uTime * 5.0);
         float graze = 1.0 - abs(normalize(cameraPosition - vW).y);         // edge-on, the sheet reads as a bright line
@@ -200,12 +201,12 @@ const SOL = (() => {
   const N = BY.neptune.pos, E = BY.earth.pos, Pl = BY.pluto.pos, ctr = IMP.clone().multiplyScalar(0.45), azP = Math.atan2(Pl.z, Pl.x);
   const azEnd = azP + 0.2;
   const frame = new THREE.Group();                       // the end: a gold frame round the painting, square to the view
-  for (const [s, w] of [[150, 2.2], [143, 0.5]]) {
+  for (const [s, w] of [[112, 1.6], [106, 0.4]]) {
     const sh = new THREE.Shape([[-s, -s], [s, -s], [s, s], [-s, s]].map(([x, y]) => new THREE.Vector2(x, y)));
     sh.holes.push(new THREE.Path([[-s + w, -s + w], [-s + w, s - w], [s - w, s - w], [s - w, -s + w]].map(([x, y]) => new THREE.Vector2(x, y))));
     frame.add(toPlane(new THREE.Mesh(new THREE.ShapeGeometry(sh), additive(0xffd696))));
   }
-  frame.position.set(Math.cos(azP) * 40, 0.1, Math.sin(azP) * 40); frame.rotation.y = -(azEnd + Math.PI / 2); scene.add(frame);
+  frame.position.set(0, 0.1, 0); frame.rotation.y = -(azEnd + Math.PI / 2); scene.add(frame);
   const azIN = Math.atan2(N.z - IMP.z, N.x - IMP.x) + Math.PI / 2;
   const CAM = [                                          // target xyz, distance, azimuth, elevation, fov; tiny gaps are cuts
     [SING.CUT, [ctr.x, 0, ctr.z, 236, PHI + 0.95, 0.34, 32]],                 // the foil comes in
@@ -222,15 +223,15 @@ const SOL = (() => {
     [CUE.earth - 0.6, [0, 0, 0, 120, PHI + 1.9, 0.66, 32]],
     [CUE.earth + 2.5, [E.x, 0, E.z, 58, PHI + 2.05, 0.78, 32]],
     [CUE.earth + 7.5, [E.x, 0, E.z, 34, PHI + 2.15, 0.9, 32]],
-    [CUE.earth + 7.51, [Pl.x * 0.2, 0, Pl.z * 0.2, 300, azP + 0.9, 0.95, 32]],   // the whole painting, the edge running on toward Pluto
-    [SC.escape, [Pl.x * 0.3, 0, Pl.z * 0.3, 270, azP + 0.75, 0.85, 32]],
+    [CUE.earth + 7.51, [Pl.x * 0.2, 0, Pl.z * 0.2, 210, azP + 1.35, 1.1, 32]],   // the whole painting, the edge running on toward Pluto: turning, pulling back
+    [SC.escape, [Pl.x * 0.3, 0, Pl.z * 0.3, 330, azP + 0.45, 0.78, 32]],
     [BACK0 - 0.01, [Pl.x * 0.25, 0, Pl.z * 0.25, 330, azP, 0.4, 32]],      // the look-back (the escape itself is on Pluto: gl-pluto.js)
     [BACK0, [Pl.x * 0.25, 0, Pl.z * 0.25, 330, azP, 0.4, 32]],
     [PLUTO_HIT - 0.3, [Pl.x, 0.5, Pl.z, 9, azP + 0.25, 0.42, 30]],         // Pluto against the painting, lit at the rim
     [PLUTO_HIT + 4.5, [Pl.x + 6.6, 0, Pl.z, 15, 0, 1.15, 34]],            // over the arc of Pluto's image where the words lie, upright
     [SC.end - 2.5, [Pl.x + 6.6, 0, Pl.z, 14, 0.02, 1.18, 34]],
-    [SC.end + 1.8, [Math.cos(azP) * 40, 0, Math.sin(azP) * 40, 470, azEnd, 1.18, 32]],   // the whole painting, high in the frame, in its gold frame
-    [DURATION, [Math.cos(azP) * 40, 0, Math.sin(azP) * 40, 500, azEnd + 0.02, 1.2, 32]],
+    [SC.end + 1.8, [0, 0, 0, 698, azEnd, 1.52, 32]],                      // the whole painting, face-on in its gold frame, above the end card
+    [DURATION, [0, 0, 0, 720, azEnd, 1.52, 32]],
   ];
   function setTime(t) {                                  // the whole system at time t
     const rho = rhoAt(t);
@@ -252,7 +253,7 @@ const SOL = (() => {
     for (const o of orbits) { o.material.uniforms.uRho.value = rho; o.material.uniforms.uA.value = lines; }
     for (const p of belts) p.material.uniforms.uRho.value = rho;
     region.scale.setScalar(Math.max(0.001, rho)); region.material.uniforms.uRho.value = Math.max(0.001, rho);
-    region.material.uniforms.uTime.value = t; region.visible = t >= SC.fall;
+    region.material.uniforms.uTime.value = t; region.visible = t >= SC.fall; region.material.uniforms.uA.value = 1 - ease(ramp(t, SC.end - 1, SC.end + 1.5));
     for (const m of frame.children) m.material.opacity = 0.8 * ease(ramp(t, SC.end - 1, SC.end + 2));
     const q = t - SC.fall; flashTouch.material.opacity = q >= 0 ? 0.9 * Math.exp(-q / 0.25) : 0; flashTouch.scale.setScalar(22);   // a hard white point, not a haze
     const k = ramp(t, SING.CUT, SC.fall);                // the foil: slowing as it comes down, tumbling, lying flat as it lands
@@ -265,6 +266,8 @@ const SOL = (() => {
     setTime(t);
     const v = keyed(t, CAM, easeIO);
     cam.fov = v[6] ?? 32; orbitCam(cam, [v[0], v[1], v[2]], v[3], v[4], v[5]);
+    const lift = 151 * ease(ramp(t, SC.end - 1, SC.end + 1.8));   // for the end card the painting sits in the upper part of the picture
+    if (lift > 0) { cam.setViewOffset(W, H, 0, lift, W, H); cam.updateProjectionMatrix(); } else cam.clearViewOffset();
     for (const b of bodies) if (b.corona) b.corona.quaternion.copy(cam.quaternion);
     if (foil.group.visible) foil.update(cam, t, 1, 13);
     const peak = window01(t, CUE.sun - 0.2, CUE.sun + 4, 0.2, 1.5);
