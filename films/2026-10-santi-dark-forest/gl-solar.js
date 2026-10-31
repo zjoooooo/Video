@@ -41,7 +41,7 @@ const SOL = (() => {
     { id: 'sun', zh: '太阳', au: 0, R: 4, d: RI, kind: 'sun', spin: 0.02, sun: true },
     { id: 'mercury', au: 0.39, R: 0.38, d: 88, side: 1, kind: 'rock', spin: 0.03 },
     { id: 'earth', zh: '地球', au: 1, R: 0.75, d: 95, side: -1, kind: 'rock', spin: 0.12 },
-    { id: 'pluto', zh: '冥王星', au: 39.48, R: 0.32, d: RI + ORB(39.48), kind: 'dwarf', spin: 0.05, far: true },
+    { id: 'pluto', zh: '冥王星', au: 39.48, R: 0.5, d: RI + ORB(39.48), kind: 'dwarf', spin: 0.05, far: true },
   ];
   const VERT = `uniform float uF, uSpread, uR, uSpin; uniform vec3 uImp;
     varying vec2 vUv; varying vec3 vN, vW; varying float vK, vTh, vLon;
@@ -58,7 +58,7 @@ const SOL = (() => {
       vec4 w = modelMatrix * vec4(mix(pressed, unrolled, b), 1.0); vW = w.xyz;
       gl_Position = projectionMatrix * viewMatrix * w;
     }`;
-  const FRAG = `uniform sampler2D uMap; uniform float uGain, uSun, uTime, uAlpha;
+  const FRAG = `uniform sampler2D uMap, uText; uniform float uGain, uSun, uTime, uAlpha, uHasText;
     varying vec2 vUv; varying vec3 vN, vW; varying float vK, vTh, vLon;
     void main(){
       vec3 tex = texture2D(uMap, vUv).rgb;
@@ -67,6 +67,10 @@ const SOL = (() => {
       vec3 c = tex * uGain * mix(lit, 0.78, vK);
       vec3 film = 0.5 + 0.5 * cos(6.2832 * (vec3(0.0, 0.33, 0.67) + abs(V.y) * 1.7 + length(vW.xz) * 0.015 - uTime * 0.04));
       c = mix(c, c * 0.9 + film * 0.22, 0.3 * vK);                      // flat, it takes a thin-film sheen that turns with the view
+      if (uHasText > 0.5) {                                              // Pluto: where the tablets stand, their words, kept in the image
+        vec2 q = vec2((vLon + 1.25) / 2.5, (vTh - 0.34) / 0.2);
+        if (q.x > 0.0 && q.x < 1.0 && q.y > 0.0 && q.y < 1.0) { vec4 w = texture2D(uText, vec2(1.0 - q.x, 1.0 - q.y)); c = mix(c, w.rgb, w.a * (0.25 + 0.75 * vK)); }
+      }
       gl_FragColor = vec4(c, uAlpha);
     }`;
   const INNER = `uniform vec3 uC0, uC1, uC2, uC3, uE; uniform float uA;
@@ -80,13 +84,15 @@ const SOL = (() => {
     }`;
   const flatVert = 'varying vec2 vP; varying vec3 vW; void main(){ vP = position.xy; vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }';
   const toPlane = m => { m.rotation.x = -Math.PI / 2; return m; };
+  const WORDS = GL.canvasTex(4096, 320, (g, w, h) => HUMANITY.forEach(([s, font], i) => carve(g, s, font, (i + 0.5) * w / HUMANITY.length, h / 2, s.length > 6 ? 82 : 150)));
   const alpha = Math.atan2(IMP.z, IMP.x);
   const bodies = DEF.map((d, i) => {
     const r = ORB(d.au), th = d.far ? PHI + Math.PI : d.sun ? 0 : alpha + d.side * Math.acos(clamp((r * r + RI * RI - d.d * d.d) / (2 * r * RI), -1, 1));
     const pos = new THREE.Vector3(r * Math.cos(th), 0, r * Math.sin(th)), hit = hitOf(d.d);
-    const spread = d.sun ? 14 : d.id === 'earth' ? 14 : d.far ? 22 : 10;
+    const spread = d.sun ? 14 : d.id === 'earth' ? 14 : d.far ? 18 : 10;
     const uni = { uMap: { value: GL.tex(GE + `images/solar-system/${d.id}.jpg`) }, uF: { value: 0 }, uSpread: { value: spread }, uR: { value: d.R },
-      uSpin: { value: 0 }, uImp: { value: IMP.clone().sub(pos).normalize() }, uGain: { value: d.sun ? 1.45 : 1.05 }, uSun: { value: d.sun ? 1 : 0 }, uTime: { value: 0 }, uAlpha: { value: 1 } };
+      uSpin: { value: 0 }, uImp: { value: IMP.clone().sub(pos).normalize() }, uGain: { value: d.sun ? 1.45 : 1.05 }, uSun: { value: d.sun ? 1 : 0 }, uTime: { value: 0 }, uAlpha: { value: 1 },
+      uText: { value: d.far ? WORDS : null }, uHasText: { value: d.far ? 1 : 0 } };
     const mesh = new THREE.Mesh(new THREE.SphereGeometry(d.R, 256, 128), new THREE.ShaderMaterial({ uniforms: uni, vertexShader: VERT, fragmentShader: FRAG, transparent: true }));
     mesh.position.copy(pos).setY(0.004 * i); mesh.renderOrder = 10 + i;      // later falls lie on top of earlier ones
     const L = LAYERS[d.kind];
@@ -134,7 +140,8 @@ const SOL = (() => {
       }` })));
   region.position.copy(IMP).setY(-0.01); region.renderOrder = 5; scene.add(region);
   const flashTouch = GL.glowSprite(0xffffff, 1, 0); flashTouch.position.copy(IMP); scene.add(flashTouch);
-  const N = BY.neptune.pos, E = BY.earth.pos, ctr = IMP.clone().multiplyScalar(0.45);
+  const N = BY.neptune.pos, E = BY.earth.pos, Pl = BY.pluto.pos, ctr = IMP.clone().multiplyScalar(0.45), azP = Math.atan2(Pl.z, Pl.x);
+  const frame = [160, 165].map(r => { const m = toPlane(new THREE.Mesh(new THREE.RingGeometry(r, r + 0.6, 512), new THREE.MeshBasicMaterial({ color: 0xffd696, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending }))); m.position.y = 0.1; scene.add(m); return m; });
   const azIN = Math.atan2(N.z - IMP.z, N.x - IMP.x) + Math.PI / 2;
   const CAM = [                                          // target xyz, distance, azimuth, elevation; tiny gaps are cuts
     [SC.fall, [ctr.x, 0, ctr.z, 205, PHI + 1.05, 0.38, 32]],
@@ -150,6 +157,13 @@ const SOL = (() => {
     [CUE.earth - 0.6, [0, 0, 0, 120, PHI + 1.9, 0.66, 32]],
     [CUE.earth + 2.5, [E.x, 0, E.z, 58, PHI + 2.05, 0.78, 32]],
     [SC.escape, [E.x, 0, E.z, 26, PHI + 2.2, 1.0, 32]],
+    [BACK0 - 0.01, [Pl.x * 0.25, 0, Pl.z * 0.25, 330, azP, 0.4, 32]],      // the look-back (the escape itself is on Pluto: gl-pluto.js)
+    [BACK0, [Pl.x * 0.25, 0, Pl.z * 0.25, 330, azP, 0.4, 32]],
+    [PLUTO_HIT - 0.3, [Pl.x, 0, Pl.z, 9, azP + 0.25, 0.42, 30]],
+    [PLUTO_HIT + 4.5, [Pl.x, 0, Pl.z, 24, azP + 0.4, 1.25, 34]],          // over Pluto's image, close enough to read
+    [SC.end - 2.5, [Pl.x, 0, Pl.z, 22, azP + 0.45, 1.28, 34]],
+    [SC.end + 1.8, [Math.cos(azP) * 70, 0, Math.sin(azP) * 70, 470, azP + 0.2, 1.18, 32]],   // the whole painting, high in the frame, in its gold frame
+    [DURATION, [Math.cos(azP) * 70, 0, Math.sin(azP) * 70, 500, azP + 0.22, 1.2, 32]],
   ];
   function setTime(t) {                                  // the whole system at time t
     const rho = rhoAt(t);
@@ -167,6 +181,7 @@ const SOL = (() => {
     for (const o of orbits) o.material.uniforms.uRho.value = rho;
     region.scale.setScalar(Math.max(0.001, rho)); region.material.uniforms.uRho.value = Math.max(0.001, rho);
     region.material.uniforms.uTime.value = t; region.visible = t >= SC.fall;
+    for (const f of frame) f.material.opacity = 0.75 * ease(ramp(t, SC.end - 3.5, SC.end + 0.5));
     const q = t - SC.fall; flashTouch.material.opacity = q >= 0 ? Math.exp(-q / 0.4) : 0; flashTouch.scale.setScalar(70);
   }
   function draw(t, view) {                               // view: [tx, ty, tz, d, az, el], or the scripted camera

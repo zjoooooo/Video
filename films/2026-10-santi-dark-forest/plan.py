@@ -89,17 +89,19 @@ cue["kills"] = [at(t) for t in (29.0, 34.0, 38.0, 43.0)]
 cue["flick"] = scenes["foil"]
 cue["planets"] = [at(t) for t in (88.0, 95.0, 102.0, 109.0)]      # Neptune, Uranus, Saturn, Jupiter
 cue["sun"], cue["earth"] = scenes["paint"], at(123.0)
+BACK0 = scenes["escape"] + 11.2                                 # the look-back: five seconds after the jump (film.src.html: LS + 5)
 
 # line id, earliest start, must end by (the next scene or the next line's window)
 PLACE = [("forest", 2.0, scenes["fleet"]), ("fleet", scenes["fleet"] + 2.0, scenes["drop"]),
          ("drop", scenes["drop"] + 0.5, cue["kills"][0] + 1.0), ("ember", scenes["ember"] + 1.0, scenes["ember"] + 7.0),
          ("singer", scenes["ember"] + 8.0, scenes["foil"]), ("quote", scenes["foil"] + 1.5, scenes["fall"]),
          ("fall", scenes["fall"] + 3.0, cue["planets"][3] + 4.0), ("earth", cue["earth"] + 2.0, scenes["escape"]),
-         ("escape", scenes["escape"] + 2.0, scenes["back"]), ("back", scenes["back"] + 1.0, scenes["end"]),
-         ("end", scenes["end"] + 1.0, DURATION - 2.0)]
+         ("escape", scenes["escape"] + 2.0, BACK0), ("back", BACK0 + 0.8, BACK0 + 4.4),
+         ("pluto", BACK0 + 4.6, scenes["end"]), ("end", scenes["end"] + 1.0, DURATION - 2.0)]
 subs = []
 for lid, t0, by in PLACE:
     s, e, ph = P.say(lid, t0)
+    if lid == "pluto": cue["pluto"] = s + 0.5                     # Pluto starts to fall as its line begins
     assert e <= by, f"{lid} runs to {e:.1f} s, past {by:.1f} s; shorten the line or raise its rate"
     subs += [{"t0": a, "t1": b + 0.3, "zh": show(z)} for a, b, z in merge_short(split_sub(P.V[lid]["text"], ph))]
 

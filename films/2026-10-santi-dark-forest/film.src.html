@@ -740,6 +740,11 @@ function escapeView(t) {                              // close beside the ship a
 }
 function drawEscape(t) {                              // the light-speed ship, the painting, the end
   if (t < SC.escape) return;
+  if (t < BACK0) { ctx.drawImage(PLU.draw(t), 0, 0); return; }   // the escape, on Pluto (gl-pluto.js)
+  ctx.drawImage(SOL.draw(t), 0, 0);                    // the look-back: Pluto falls last, its tablets' words kept in its image
+  const endDim = 0.55 * ease(ramp(t, SC.end, SC.end + 2.5));
+  if (endDim > 0) { ctx.fillStyle = `rgba(0,0,0,${endDim})`; ctx.fillRect(0, 0, W, H); }
+  return;
   if (t < BACK0) {
     const v = escapeView(t), sl = shipLocal(t), B = toScreen(v, ...sl), B1 = toScreen(v, sl[0] + DIR[0], sl[1] + DIR[1]);
     const dl = Math.hypot(B1[0] - B[0], B1[1] - B[1]) || 1, d = [(B1[0] - B[0]) / dl, (B1[1] - B[1]) / dl];   // its heading on screen
@@ -837,6 +842,7 @@ async function render(t) {
 <script src="../../../galaxy-explorer/vendor/ShaderPass.js"></script>
 <script src="../../../galaxy-explorer/vendor/UnrealBloomPass.js"></script>
 <script src="gl-core.js"></script>
+<script src="gl-pluto.js"></script>
 <script src="gl-solar.js"></script>
 <script>
 window.DURATION = DURATION;
