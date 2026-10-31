@@ -271,7 +271,7 @@ function wreck(s, x, y, k, dt, haze) {               // the hull in three solid 
     g.addColorStop(0, '#5a4532'); g.addColorStop(0.5, '#33261a'); g.addColorStop(1, '#0e0a06');
     ctx.fillStyle = g; ctx.fill();
     ctx.globalCompositeOperation = 'lighter';         // the torn edges: white-orange, cooling out within a second
-    const hot = Math.exp(-dt / 0.35) * haze; if (hot > 0.01) {
+    const hot = Math.max(Math.exp(-dt / 0.35), s.flag ? 0.45 * Math.exp(-dt / 5) : 0) * haze; if (hot > 0.01) {   // the flagship's embers linger so its pieces read
       ctx.strokeStyle = `rgba(255,${150 + 80 * hot | 0},70,${hot})`; ctx.lineWidth = Math.max(1, 0.06 * L);
       for (const xc of [CUTS[i][0], CUTS[i][1]]) {
         if (Math.abs(xc) > 1) continue;
@@ -436,7 +436,7 @@ function drawFoilClose(t) {
   if (ac < 0.04) {                                    // edge-on: nothing left but a hairline
     ctx.fillStyle = `rgba(235,242,255,${0.45 * (1 - ac / 0.04) + 0.15})`; ctx.fillRect(-0.5, -h / 2, 1, h);
   } else {                                            // a thin film: colours slide across it as it turns, no outline
-    const x0 = -w / 2 * c, x1 = w / 2 * c, s = th * 0.55, g = ctx.createLinearGradient(x0, -h / 2, x1, h / 2);
+    const x0 = -w / 2 * c, x1 = w / 2 * c, s = th * 0.55, g = ctx.createRadialGradient(x0 - 2.2 * w * Math.sign(c), -h, 0, x0 - 2.2 * w * Math.sign(c), -h, 3.2 * w);   // bands bent like a soap film's
     [[0, 300], [0.25, 180], [0.5, 120], [0.75, 45], [1, 300]].forEach(([p, hue]) => g.addColorStop(p, `hsla(${(hue + s * 120) % 360},80%,72%,${0.42 * Math.min(1, ac * 3)})`));
     ctx.fillStyle = g; ctx.fillRect(Math.min(x0, x1), -h / 2, Math.abs(x1 - x0), h);
     const spec = ctx.createLinearGradient(x0, -h / 2, x1, h / 2);   // and a highlight sweeping over it
