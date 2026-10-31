@@ -1,10 +1,12 @@
-"""Narration with OpenAI text-to-speech, one clip per line, cached so a line is only paid for once.
+"""Narration with OpenAI or DashScope CosyVoice text-to-speech, one clip per line, cached so a line is only paid for once.
 
     python3 scripts/voice.py films/<film>/narration.json            # all lines -> films/<film>/voice.json
     python3 scripts/voice.py films/<film>/narration.json --sample "Text" --voices onyx,ash,sage
+    uv run --with dashscope python3 scripts/voice.py films/<film>/narration.json   # when narration.json has "engine": "cosyvoice"
 
-narration.json: {"model", "voice", "instructions", "lines": [{"id", "text"}]}
-The key comes from $OPENAI_API_KEY or ~/.config/openai/key and is never printed.
+narration.json: {"model", "voice", "instructions", "lines": [{"id", "text"}]}; CosyVoice (natural Mandarin) adds
+"engine": "cosyvoice" and an optional "rate" (speech_rate, 0.5-2) in place of "instructions".
+The key comes from $OPENAI_API_KEY or ~/.config/openai/key ($DASHSCOPE_API_KEY for CosyVoice) and is never printed.
 Clips land in out/<film>.voice/<id>.wav, trimmed of leading and trailing silence, and voice.json
 beside narration.json records each line's spoken length and its phrases (speech between pauses of
 150 ms or more, in seconds from the clip's start), which the film uses for its timing.
@@ -33,20 +35,40 @@ def api_key():
 
 def speak(text, voice, dest):
     """Fetches one clip as 48 kHz mono WAV unless the same request is already cached."""
+    cosy = spec.get("engine") == "cosyvoice"
     req = {"model": spec["model"], "voice": voice, "input": text, "instructions": spec.get("instructions", ""), "response_format": "wav"}
+    if cosy: req = {"engine": "cosyvoice", "model": spec["model"], "voice": voice, "input": text, "rate": spec.get("rate", 1.0)}
     tag = hashlib.sha1(json.dumps(req, sort_keys=True).encode()).hexdigest()[:12]
     raw = cache / f"{dest}.{tag}.raw.wav"
     if not raw.exists():
-        r = urllib.request.Request("https://api.openai.com/v1/audio/speech", data=json.dumps(req).encode(),
-                                   headers={"Authorization": f"Bearer {api_key()}", "Content-Type": "application/json"})
-        try:
-            with urllib.request.urlopen(r, timeout=120) as resp:
-                raw.write_bytes(resp.read())
-        except urllib.error.HTTPError as e:
-            sys.exit(f"OpenAI TTS failed for {dest}: HTTP {e.code} {e.read()[:300].decode(errors='replace')}")
+        raw.write_bytes(cosyvoice(req) if cosy else openai(req, dest))
     out = cache / f"{dest}.wav"
     subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(raw), "-ac", "1", "-ar", str(SR), "-c:a", "pcm_s16le", str(out)], check=True)
     return trim(out), phrases(out)
+
+
+def openai(req, dest):
+    r = urllib.request.Request("https://api.openai.com/v1/audio/speech", data=json.dumps(req).encode(),
+                               headers={"Authorization": f"Bearer {api_key()}", "Content-Type": "application/json"})
+    try:
+        with urllib.request.urlopen(r, timeout=120) as resp:
+            return resp.read()
+    except urllib.error.HTTPError as e:
+        sys.exit(f"OpenAI TTS failed for {dest}: HTTP {e.code} {e.read()[:300].decode(errors='replace')}")
+
+
+def cosyvoice(req):
+    """DashScope CosyVoice over the international websocket; run under `uv run --with dashscope`."""
+    import dashscope
+    from dashscope.audio.tts_v2 import SpeechSynthesizer, AudioFormat
+    dashscope.api_key = os.environ.get("DASHSCOPE_API_KEY") or sys.exit("no DashScope key: set DASHSCOPE_API_KEY")
+    dashscope.base_websocket_api_url = "wss://dashscope-intl.aliyuncs.com/api-ws/v1/inference"
+    try:
+        audio = SpeechSynthesizer(model=req["model"], voice=req["voice"], format=AudioFormat.WAV_48000HZ_MONO_16BIT,
+                                  speech_rate=req["rate"]).call(req["input"])
+    except Exception as e:
+        sys.exit(f"CosyVoice failed for {req['input'][:20]}…: {e!r}")
+    return audio or sys.exit(f"CosyVoice returned no audio for {req['input'][:20]}…")
 
 
 def trim(path, floor=0.004, pad=0.03):
