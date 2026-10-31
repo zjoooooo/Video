@@ -207,39 +207,41 @@ const subAt = word => TL.subs.find(s => s.zh.includes(word));
 const glanceHits = (subAt('瞥')?.t1 ?? SC.ember + 12.3) - 0.4;     // the glance lands on "瞥了一眼"
 const FOIL_IN = subAt('二向箔')?.t0 ?? SC.ember + 12.2;              // and the foil is taken out on "二向箔"
 const CL0 = SC.ember + 18.6, CL1 = CL0 + 4.0;          // the foil, close
-// The eye is vast and near: three rings of sensing points seen in perspective, a tilted ellipse whose centre lies off the
-// frame at lower left, so only its arcs cross the picture; near points are larger; it drifts against the far galaxy.
-const IR = 1150, SQ = 0.4, TILT = -0.22;
-const irisC = t => { const k = easeIO(ramp(t, OPEN, CUE.flick)); return [-170 + 60 * k, 950 - 25 * k]; };
-const onIris = (t, a, rr = 1) => { const [cx, cy] = irisC(t), x = IR * rr * Math.cos(a), y = IR * rr * SQ * Math.sin(a);
+// The eye is vast and near: an iris of sensing points in perspective, its fibres running out from a dark pupil to a bright
+// rim, low at the left of the frame and cropped by it; it drifts against the far galaxy. On "瞥了一眼" the pupil narrows.
+const SQ = 0.62, TILT = -0.18, RO = 520, RP = 150;
+const irisC = t => { const k = easeIO(ramp(t, OPEN, CUE.flick)); return [380 + 40 * k, 760 - 15 * k]; };
+const irisOpen = t => 0.6 + 0.4 * ease(ramp(t, OPEN, OPEN + 2.5));
+const pupil = t => RP * (1 - 0.3 * window01(t, glanceHits - 0.5, glanceHits + 1.6, 0.5, 0.9));   // narrows by a third on the glance
+const onIris = (t, a, r) => { const [cx, cy] = irisC(t), x = r * Math.cos(a), y = r * SQ * Math.sin(a);
   return [cx + x * Math.cos(TILT) - y * Math.sin(TILT), cy + x * Math.sin(TILT) + y * Math.cos(TILT)]; };
-const face = t => { const [x, y] = SING.sunPx(t), [cx, cy] = irisC(t), dx = x - cx, dy = y - cy;   // the angle on the ellipse that points at the Sun
+const face = t => { const [x, y] = SING.sunPx(t), [cx, cy] = irisC(t), dx = x - cx, dy = y - cy;   // the angle on the iris that points at the Sun
   const u = dx * Math.cos(TILT) + dy * Math.sin(TILT), v = -dx * Math.sin(TILT) + dy * Math.cos(TILT); return Math.atan2(v / SQ, u); };
 const irisAlpha = t => ease(ramp(t, OPEN, OPEN + 1.5)) * lerp(1, 0.6, ease(ramp(t, CUE.flick, CUE.flick + 0.6))) * (1 - ease(ramp(t, CUE.flick + 0.6, CUE.flick + 2.4)));
-const arcAngle = t => face(t) - 0.9 * (1 - easeIO(ramp(t, OPEN + 0.8, glanceHits)));   // the bright arc slides round to face the Sun
-const arcPoint = t => onIris(t, arcAngle(t), 0.6 + 0.4 * ease(ramp(t, OPEN, OPEN + 2.5)));
-const foilAnchor = t => { const [x, y] = arcPoint(t); return [x + 30, y - 46 + 6 * Math.sin(t * 1.7)]; };   // where the foil waits, just off the arc, bobbing
+const arcAngle = t => face(t) - 0.9 * (1 - easeIO(ramp(t, OPEN + 0.8, glanceHits)));   // the bright sector turns to face the Sun
+const arcPoint = t => onIris(t, arcAngle(t), RO * irisOpen(t));
+const foilAnchor = t => { const [x, y] = arcPoint(t); return [x + 36, y - 40 + 6 * Math.sin(t * 1.7)]; };   // where the foil waits, just off the rim, bobbing
+const FIBRES = (() => { const r = rng(404), out = [];   // [angle, radial position 0..1 (pupil to rim), size, strength]
+  for (let k = 0; k < 230; k++) { const a = (k + 0.4 * r()) / 230 * TAU; for (let j = 0; j < 7; j++) out.push([a + (r() - 0.5) * 0.02, (j + r()) / 7, 2 + 5 * r() * r(), 0.25 + 0.75 * r()]); }
+  for (let k = 0; k < 320; k++) out.push([(k + r()) / 320 * TAU, 1 + 0.03 * (r() - 0.5), 3 + 4 * r(), 0.6 + 0.4 * r()]);   // the limbus: a denser, brighter rim
+  return out; })();
 function drawIris(t, sun) {                           // the Singer's eye
   const A = irisAlpha(t); if (A <= 0.001) return;
-  const open = 0.6 + 0.4 * ease(ramp(t, OPEN, OPEN + 2.5)), sweep = ramp(t, OPEN, OPEN + 2);
-  const breathe = (1 + 0.006 * Math.sin(t * 1.3)) * (1 - 0.07 * window01(t, glanceHits - 0.6, glanceHits + 1.4, 0.35, 0.9));   // on the glance it narrows, like an iris
-  const phi = arcAngle(t);
-  ctx.save(); ctx.globalCompositeOperation = 'lighter';
-  for (const [n, rr, spin, size] of [[420, 1, 0.012, 12], [300, 0.74, -0.02, 10], [190, 0.5, 0.03, 8]]) {   // three counter-turning rings
-    const R = rr * open * breathe;
-    ctx.lineWidth = 1; ctx.strokeStyle = `rgba(150,195,255,${0.07 * A})`; ctx.beginPath();
-    for (let i = 0; i <= 256 * sweep; i++) { const [x, y] = onIris(t, i / 256 * TAU, R); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
-    ctx.stroke();
-    for (let i = 0; i < n; i++) {
-      if (i / n > sweep) break;
-      const a = i / n * TAU + spin * t, [x, y] = onIris(t, a, R);
-      if (x < -60 || x > W + 60 || y < -60 || y > H + 60) continue;
-      const near = 0.55 + 0.9 * (0.5 + 0.5 * Math.sin(a));   // the near side of the ring, larger
-      const h1 = (Math.sin(i * 12.9898 + rr * 78.233) * 43758.5453) % 1, h2 = (Math.sin(i * 39.346 + rr * 11.135) * 24634.6345) % 1;   // each point its own size and strength
-      const d = Math.abs(Math.atan2(Math.sin(a - phi), Math.cos(a - phi))), bright = rr === 1 ? Math.exp(-((d / 0.16) ** 2)) : 0;   // the arc
-      glow(GLOW.ice, x, y, (size * (0.5 + Math.abs(h1)) + 14 * bright) * near, A * ((0.18 + 0.3 * Math.abs(h2)) * (0.8 + 0.2 * Math.sin(i * 2.3 + t)) + 0.6 * bright));
-      if (bright > 0.2) glow(GLOW.ice, x, y, 110 * near, 0.12 * A * bright);   // a cold glow along the arc
-    }
+  const open = irisOpen(t), sweep = ramp(t, OPEN, OPEN + 2), rp = pupil(t) * open, ro = RO * open, phi = arcAngle(t), spin = 0.015 * t;
+  ctx.save();
+  const [cx, cy] = irisC(t);                           // the pupil: dark, its edge faintly lit
+  ctx.translate(cx, cy); ctx.rotate(TILT); ctx.scale(1, SQ);
+  const pg = ctx.createRadialGradient(0, 0, rp * 0.6, 0, 0, rp * 1.15); pg.addColorStop(0, `rgba(0,0,0,${0.9 * A})`); pg.addColorStop(0.8, `rgba(0,0,0,${0.7 * A})`); pg.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = pg; ctx.beginPath(); ctx.arc(0, 0, rp * 1.15, 0, TAU); ctx.fill();
+  ctx.restore(); ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  for (const [a0, u, size, str] of FIBRES) {
+    if ((a0 / TAU) > sweep) continue;
+    const a = a0 + spin * (u > 0.99 ? -1 : 1), r = rp + (ro - rp) * Math.min(u, 1.03), [x, y] = onIris(t, a, r);
+    if (x < -40 || x > W + 40 || y < -40 || y > H + 40) continue;
+    const near = 0.7 + 0.6 * (0.5 + 0.5 * Math.sin(a + TILT));   // the near side larger
+    const d = Math.abs(Math.atan2(Math.sin(a - phi), Math.cos(a - phi))), bright = Math.exp(-((d / 0.32) ** 2)) * (0.4 + 0.6 * u);   // the sector that looks
+    glow(GLOW.ice, x, y, (1.3 * size + 10 * bright) * near, A * (str * (0.38 + 0.36 * u) + 0.6 * bright));
+    if (bright > 0.35 && u > 0.98) glow(GLOW.ice, x, y, 90 * near, 0.1 * A * bright);   // a cold glow on the rim where it looks
   }
   const [ax, ay] = arcPoint(t), g = window01(t, glanceHits - 0.25, glanceHits + 1.8, 0.2, 1.2);   // the glance: a thin cold line to the Sun
   if (g > 0.003) {
@@ -269,7 +271,7 @@ function drawSinger(t) {                              // the galaxy from far abo
 
 // ---- the fall, the escape, the look back, the end (gl-solar.js, gl-pluto.js) ----------------------------------
 const LS = SC.escape + 6.2;                           // the escaping ship reaches light speed, on "逃出了"
-const BACK0 = LS + 1.2;                               // and a breath later we look back (plan.py: escape + 7.4)
+const BACK0 = LS + 0.7;                               // and a breath later we look back (plan.py: escape + 6.9)
 function drawFall(t) {                                // the foil arrives; the Solar System falls into two dimensions
   if (t < SING.CUT || t >= SC.escape) return;         // a hard cut to the escape
   ctx.drawImage(SOL.draw(t), 0, 0);

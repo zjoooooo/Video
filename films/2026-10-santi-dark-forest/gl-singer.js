@@ -8,21 +8,29 @@ function foilMesh(w, h) {
     uniforms: { uTime: { value: 0 }, uA: { value: 1 }, uRun: { value: CL0 + 0.7 }, uLight: { value: new THREE.Vector3() } },
     vertexShader: 'varying vec2 vUv; varying vec3 vN, vW; void main(){ vUv = uv; vN = normalize(mat3(modelMatrix) * normal); vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }',
     fragmentShader: `uniform float uTime, uA, uRun; uniform vec3 uLight; varying vec2 vUv; varying vec3 vN, vW;
+      float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+      float noise(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(hash(i), hash(i + vec2(1, 0)), f.x), mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), f.x), f.y); }
+      float fbm(vec2 p){ return noise(p) * 0.6 + noise(p * 2.1 + 4.3) * 0.28 + noise(p * 4.3 + 9.1) * 0.12; }
+      vec3 filmColour(float d){                          // reflectance of a soap film d nm thick, at eight wavelengths, to RGB: magenta, gold, cyan, green, paling with order
+        const float L[8] = float[8](400.0, 440.0, 480.0, 520.0, 560.0, 600.0, 640.0, 680.0);
+        const vec3 C[8] = vec3[8](vec3(0.10, 0.0, 0.35), vec3(0.05, 0.02, 0.85), vec3(0.0, 0.25, 0.75), vec3(0.0, 0.85, 0.2), vec3(0.45, 0.9, 0.0), vec3(0.95, 0.55, 0.0), vec3(0.85, 0.15, 0.0), vec3(0.35, 0.03, 0.0));
+        vec3 c = vec3(0.0);
+        for (int i = 0; i < 8; i++) c += C[i] * (0.5 - 0.5 * cos(6.2831853 * 2.0 * 1.33 * d / L[i]));
+        return c / vec3(2.75, 2.75, 2.15);
+      }
       void main(){
         vec3 V = normalize(cameraPosition - vW), N = normalize(vN); if (dot(N, V) < 0.0) N = -N;
-        float c = dot(N, V);                                               // 1 face-on, 0 edge-on
-        vec2 q = vUv;                                                      // its thickness, in nm: a slow swell across it, flowing
-        float d = 400.0 + 2600.0 * (0.6 * q.x + 0.4 * q.y) + 120.0 * sin(2.5 * q.y + 1.2 * q.x + 0.5 * uTime) + 40.0 * sin(5.0 * q.x - 0.3 * uTime);   // ~15 fringes across it
-        float ct = sqrt(1.0 - (1.0 - c * c) / 2.1);                         // refracted angle inside (n = 1.45): the fringes shift with the view
-        vec3 film = 0.5 - 0.5 * cos(6.2831853 * 2.0 * 1.45 * d * ct / vec3(680.0, 550.0, 440.0));
-        film = pow(film, vec3(4.0));                                       // thin, sharp fringes in a film's order: magenta, gold, cyan, green
-        film = mix(vec3(dot(film, vec3(0.333))), film, 0.75);
+        float c = dot(N, V), ct = sqrt(1.0 - (1.0 - c * c) / 1.77);         // the refracted angle inside: the colours shift as it turns
+        vec2 q = vUv;
+        float d = 180.0 + 900.0 * fbm(q * vec2(2.2, 1.6) + vec2(0.07, 0.04) * uTime) + 140.0 * q.x;   // its thickness: a smooth field drifting, so the fringes curve like oil on water
+        vec3 film = filmColour(d * ct);
         vec3 L = normalize(uLight - vW), Rf = reflect(-L, N);
-        float hot = pow(max(dot(Rf, V), 0.0), 24.0);                       // a highlight close by: it sweeps across as the foil turns
-        float run = exp(-pow((dot(q, vec2(0.86, 0.5)) - fract((uTime - uRun) / 3.0) * 2.4 + 0.3) / 0.14, 2.0));   // and a gleam running over it every 3 s, across the close-up's middle
-        float fres = pow(1.0 - c, 4.0), spec = pow(max(dot(Rf, V), 0.0), 220.0);
+        float hot = pow(max(dot(Rf, V), 0.0), 16.0);                       // a near light's highlight, sweeping as it turns
+        float run = exp(-pow((dot(q, vec2(0.86, 0.5)) - fract((uTime - uRun) / 3.0) * 2.4 + 0.3) / 0.18, 2.0));   // and a gleam running over it
+        float fres = pow(1.0 - c, 5.0), spec = pow(max(dot(Rf, V), 0.0), 240.0);
         float edge = 1.0 - smoothstep(0.0, 0.012, min(min(q.x, 1.0 - q.x), min(q.y, 1.0 - q.y)));
-        vec3 col = vec3(0.004, 0.005, 0.008) + film * (0.08 + 2.6 * hot + 1.6 * run + 1.4 * fres) + vec3(1.0, 0.97, 0.92) * spec * 1.4 + vec3(0.85, 0.92, 1.0) * edge * (0.08 + 0.9 * hot);   // near-black glass, lit only where light crosses it
+        float lightOn = clamp(0.03 + 2.4 * hot + 1.5 * run + 0.9 * fres, 0.0, 2.2);   // dark glass, the colour only where light rakes across it
+        vec3 col = vec3(0.004, 0.005, 0.008) + film * lightOn + vec3(1.0, 0.97, 0.92) * spec * 1.2 + vec3(0.85, 0.92, 1.0) * edge * (0.08 + 0.9 * hot);
         gl_FragColor = vec4(col * uA, 1.0);
       }` });
   const plane = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);

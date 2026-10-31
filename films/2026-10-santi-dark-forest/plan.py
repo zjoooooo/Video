@@ -89,7 +89,7 @@ cue["kills"] = [at(t) for t in (29.0, 34.0, 38.0, 43.0)]
 cue["flick"] = scenes["foil"]
 cue["planets"] = [at(t) for t in (88.0, 95.0, 102.0, 109.0)]      # Neptune, Uranus, Saturn, Jupiter
 cue["sun"], cue["earth"] = scenes["paint"], at(123.0)
-BACK0 = scenes["escape"] + 7.4                                  # the look-back: 1.2 s after the jump (film.src.html: LS + 1.2)
+BACK0 = scenes["escape"] + 6.9                                  # the look-back: 0.7 s after the jump (film.src.html: LS + 0.7)
 
 # line id, earliest start, must end by (the next scene or the next line's window)
 PLACE = [("forest", 2.0, scenes["fleet"]), ("fleet", scenes["fleet"] + 2.0, scenes["drop"]),

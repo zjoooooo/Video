@@ -60,17 +60,18 @@ const SOL = (() => {
       gl_Position = projectionMatrix * viewMatrix * w;
     }`;
   const FINE = `float fine(float v){ float w = fwidth(v); float d = abs(fract(v - 0.5) - 0.5) / max(w, 1e-5); return (1.0 - min(d, 1.0)) * (1.0 - smoothstep(0.08, 0.3, w)); }`;   // a 1 px line, gone before lines come closer than ~3 px
-  const FRAG = `uniform sampler2D uMap, uText; uniform float uGain, uSun, uTime, uAlpha, uHasText, uContrast, uFill; uniform vec3 uAtmo;
+  const FRAG = `uniform sampler2D uMap, uText; uniform float uGain, uSun, uTime, uAlpha, uHasText, uContrast, uFill; uniform vec3 uAtmo, uLdir;
     varying vec2 vUv; varying vec3 vN, vW; varying float vK, vTh, vLon, vRn;
     ${FINE}
     void main(){
       if (vK > 0.01 && vK < 0.99) discard;                                     // the waterline: the sphere above, its image below, nothing between
       vec3 tex = texture2D(uMap, vUv).rgb, V = normalize(cameraPosition - vW), mid = textureLod(uMap, vec2(0.5), 12.0).rgb;
       tex = clamp(mid + (tex - mid) * uContrast, 0.0, 1.0);                 // Neptune's faint bands, brought out
+      tex = mix(tex, mid, smoothstep(0.035, 0.0, min(vTh, 1.0 - vTh)));    // no pinch at the poles
       vec3 c; float a = uAlpha;
       if (vK < 0.5) {                                                          // still round: lit by the Sun, a rim of air
         float nv = max(0.0, dot(vN, V));
-        float lit = uSun > 0.5 ? 0.78 + 0.22 * nv : 0.06 + 0.94 * max(0.0, dot(vN, normalize(-vW))) + uFill * (0.25 + 0.75 * nv);   // fill: Pluto lit by the painting's glow
+        float lit = uSun > 0.5 ? 0.78 + 0.22 * nv : uFill > 0.5 ? 0.03 + 1.1 * max(0.0, dot(vN, uLdir)) : 0.06 + 0.94 * max(0.0, dot(vN, normalize(-vW)));   // Pluto: one distant light, a terminator
         c = tex * uGain * lit + uAtmo * pow(1.0 - nv, 2.2) * 1.6;
         if (uSun > 0.5) c = 1.0 - exp(-c * 1.3);
       } else {                                                                 // in the painting
@@ -114,7 +115,7 @@ const SOL = (() => {
     const pos = new THREE.Vector3(r * Math.cos(th), 0, r * Math.sin(th)), hit = hitOf(d.d);
     const spread = d.sun ? 14 : d.id === 'earth' ? 14 : d.far ? 18 : 10;
     const uni = { uMap: { value: GL.tex(GE + `images/solar-system/${d.id}.jpg`) }, uF: { value: 0 }, uSpread: { value: spread }, uR: { value: d.R },
-      uSpin: { value: 0 }, uGain: { value: d.sun ? 1.6 : 1.05 }, uSun: { value: d.sun ? 1 : 0 }, uTime: { value: 0 }, uAlpha: { value: 1 }, uAtmo: { value: new THREE.Color(d.atmo) }, uContrast: { value: d.contrast ?? 1 }, uFill: { value: d.fill ?? 0 },
+      uSpin: { value: 0 }, uGain: { value: d.sun ? 1.6 : 1.05 }, uSun: { value: d.sun ? 1 : 0 }, uTime: { value: 0 }, uAlpha: { value: 1 }, uAtmo: { value: new THREE.Color(d.atmo) }, uContrast: { value: d.contrast ?? 1 }, uFill: { value: d.fill ? 1 : 0 }, uLdir: { value: new THREE.Vector3(0, 1, 0) },
       uText: { value: d.far ? WORDS : null }, uHasText: { value: d.far ? 1 : 0 } };
     const mesh = new THREE.Mesh(new THREE.SphereGeometry(d.R, 256, 128), new THREE.ShaderMaterial({ uniforms: uni, vertexShader: VERT, fragmentShader: FRAG, transparent: true, side: THREE.DoubleSide, extensions: { derivatives: true } }));   // double-sided: unrolled south pole in, the triangles face down
     mesh.position.copy(pos).setY(0.004 * i); mesh.renderOrder = 10 + i;      // later falls lie on top of earlier ones
@@ -269,6 +270,8 @@ const SOL = (() => {
     const lift = 151 * ease(ramp(t, SC.end - 1, SC.end + 1.8));   // for the end card the painting sits in the upper part of the picture
     if (lift > 0) { cam.setViewOffset(W, H, 0, lift, W, H); cam.updateProjectionMatrix(); } else cam.clearViewOffset();
     for (const b of bodies) if (b.corona) b.corona.quaternion.copy(cam.quaternion);
+    const toCam = cam.position.clone().sub(BY.pluto.pos).normalize(), right = new THREE.Vector3(1, 0, 0).applyQuaternion(cam.quaternion), upv = new THREE.Vector3(0, 1, 0).applyQuaternion(cam.quaternion);
+    BY.pluto.uni.uLdir.value.copy(toCam).multiplyScalar(0.55).addScaledVector(right, -0.8).addScaledVector(upv, 0.35).normalize();   // from upper left: about a third of it in shadow
     if (foil.group.visible) foil.update(cam, t, 1, 13);
     const peak = window01(t, CUE.sun - 0.2, CUE.sun + 4, 0.2, 1.5);
     return GL.draw(scene, cam, { strength: 0.55 + 0.35 * peak, radius: 0.55, threshold: 0.82 });

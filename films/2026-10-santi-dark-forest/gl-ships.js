@@ -24,11 +24,11 @@ const SHIP = (() => {                                  // nose to -z, engines to
     return new THREE.ExtrudeGeometry(sh, { depth: 0.36, bevelEnabled: true, bevelThickness: 0.08, bevelSize: 0.08, bevelSegments: 2, curveSegments: 1 }).rotateX(Math.PI / 2).translate(0, 0.18, 0);
   };
   const parts = [
-    [along(new THREE.CylinderGeometry(2.6, 2.2, 22, 28)), M4(0, 0, 0), HULL],
-    [along(new THREE.CylinderGeometry(2.2, 0.25, 9, 28)), M4(0, 0, -15.5), HULL],
+    [along(new THREE.CylinderGeometry(2.6, 2.2, 22, 28, 22)), M4(0, 0, 0), HULL],   // cut along their length, so a tear can run through them
+    [along(new THREE.CylinderGeometry(2.2, 0.25, 9, 28, 9)), M4(0, 0, -15.5), HULL],
     [new THREE.BoxGeometry(6.6, 5, 6), M4(0, 0, 13.5), PLATE],
-    [new THREE.BoxGeometry(0.8, 2.2, 18), M4(0, 2.5, -1), DARK],
-    [new THREE.BoxGeometry(1.2, 1.4, 14), M4(0, -2.6, -0.5), DARK],
+    [new THREE.BoxGeometry(0.8, 2.2, 18, 1, 1, 18), M4(0, 2.5, -1), DARK],
+    [new THREE.BoxGeometry(1.2, 1.4, 14, 1, 1, 14), M4(0, -2.6, -0.5), DARK],
     [wing(1), M4(2.1, 0, 4, 0, 0, -0.12), PLATE],
     [wing(-1), M4(-2.1, 0, 4, 0, 0, 0.12), PLATE],
     ...[[-1.8, -0.8], [1.8, -0.8], [0, 1.6]].map(([x, y]) => [along(new THREE.CylinderGeometry(1.35, 1.1, 2.6, 20)), M4(x, y, 17.6), DARK]),
@@ -43,11 +43,31 @@ const SHIP = (() => {                                  // nose to -z, engines to
     ...[[-1.8, -0.8], [1.8, -0.8], [0, 1.6]].map(([x, y]) => [new THREE.CircleGeometry(0.95, 20), M4(x, y, 18.95), '#bfe6ff']),
     [new THREE.SphereGeometry(0.35, 8, 6), M4(0, 0, -20.2), '#ff9a7a'],
   ];
-  const pieces = [[-99, -7], [-7, 7], [7, 99]].map(([z0, z1]) => {   // the wreck: fore, middle and aft, each centred on itself
-    const g = mergeParts(parts.filter(([, m]) => { const z = new THREE.Vector3().setFromMatrixPosition(m).z; return z >= z0 && z < z1; }));
-    g.computeBoundingBox(); const c = g.boundingBox.getCenter(new THREE.Vector3()); g.translate(-c.x, -c.y, -c.z);
-    return { geo: g, centre: c, ends: [z0 > -99 ? z0 : null, z1 < 99 ? z1 : null].filter(v => v !== null) };   // where it broke
-  });
+  const pieces = (() => {                              // the wreck: the hull itself torn in three along two jagged lines, each piece centred on itself
+    const tear = [(x, y) => -7 + 1.8 * Math.sin(x * 1.1 + 0.7) * Math.cos(y * 1.3) + 0.9 * Math.sin(x * 2.7 - y * 1.9),
+                  (x, y) => 7 + 1.6 * Math.sin(y * 1.2 - 0.4) * Math.cos(x * 1.5) + 0.8 * Math.sin(x * 2.3 + y * 2.9)];
+    const whole = mergeParts(parts), P = whole.attributes.position.array, out = [[], [], []];
+    for (let t = 0; t < P.length / 9; t++) {             // each triangle to the piece its centre lies in
+      const cx = (P[t * 9] + P[t * 9 + 3] + P[t * 9 + 6]) / 3, cy = (P[t * 9 + 1] + P[t * 9 + 4] + P[t * 9 + 7]) / 3, cz = (P[t * 9 + 2] + P[t * 9 + 5] + P[t * 9 + 8]) / 3;
+      out[cz < tear[0](cx, cy) ? 0 : cz < tear[1](cx, cy) ? 1 : 2].push(t);
+    }
+    return out.map(tris => {
+      const g = new THREE.BufferGeometry(), edge = new Float32Array(tris.length * 3);
+      for (const k of ['position', 'normal', 'uv', 'color']) {
+        const src = whole.attributes[k], n = src.itemSize, a = new Float32Array(tris.length * 3 * n);
+        tris.forEach((t, i) => a.set(src.array.subarray(t * 3 * n, t * 3 * n + 3 * n), i * 3 * n));
+        g.setAttribute(k, new THREE.Float32BufferAttribute(a, n));
+      }
+      const q = g.attributes.position.array;
+      for (let v = 0; v < edge.length; v++) {           // how close each vertex lies to a tear: its torn rim glows
+        const d = Math.min(...tear.map(f => Math.abs(q[v * 3 + 2] - f(q[v * 3], q[v * 3 + 1]))));
+        edge[v] = Math.max(0, 1 - d / 1.4);
+      }
+      g.setAttribute('aEdge', new THREE.Float32BufferAttribute(edge, 1));
+      g.computeBoundingBox(); const c = g.boundingBox.getCenter(new THREE.Vector3()); g.translate(-c.x, -c.y, -c.z);
+      return { geo: g, centre: c };
+    });
+  })();
   const plating = GL.canvasTex(512, 512, (g, w, h) => {   // panels in slightly different greys, dark seams, a few hatches and vents
     const q = rng(909); g.fillStyle = '#c4c4c4'; g.fillRect(0, 0, w, h);
     for (let y = 0; y < h; y += 32) for (let x = 0; x < w;) { const pw = 32 * (1 + Math.floor(q() * 3)), v = 170 + 50 * q(); g.fillStyle = `rgb(${v},${v},${v})`; g.fillRect(x, y, pw, 32); x += pw; }

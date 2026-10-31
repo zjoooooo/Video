@@ -23,22 +23,25 @@ const PLU = (() => {
     g.putImageData(d, 0, 0);
     for (let i = 0; i < blots; i++) { g.fillStyle = `rgba(${r() < 0.5 ? '20,22,28' : '200,206,216'},${0.04 + 0.07 * r()})`; g.beginPath(); g.arc(r() * w, r() * h, 6 + w * 0.06 * r(), 0, TAU); g.fill(); }
   });
-  const ice = GL.canvasTex(1024, 1024, (g, w) => {      // regolith: soft patches of frost and grit at three scales, tiling seamlessly
-    const r = rng(61); g.fillStyle = '#6c7179'; g.fillRect(0, 0, w, w);
-    for (const [n, s0, s1, a] of [[40, 120, 300, 0.12], [320, 20, 80, 0.12], [2600, 3, 12, 0.14]]) for (let i = 0; i < n; i++) {
-      const x = r() * w, y = r() * w, sz = s0 + (s1 - s0) * r(), light = r() < 0.5;
-      for (const ox of [-w, 0, w]) for (const oy of [-w, 0, w]) {
-        if (x + ox + sz < 0 || x + ox - sz > w || y + oy + sz < 0 || y + oy - sz > w) continue;
-        const gr = g.createRadialGradient(x + ox, y + oy, 0, x + ox, y + oy, sz);
-        gr.addColorStop(0, light ? `rgba(214,220,232,${a})` : `rgba(12,13,17,${a})`); gr.addColorStop(1, 'rgba(0,0,0,0)');
-        g.fillStyle = gr; g.fillRect(x + ox - sz, y + oy - sz, 2 * sz, 2 * sz);
-      }
-    }
-  });
-  ice.wrapS = ice.wrapT = THREE.RepeatWrapping; ice.repeat.set(90, 45); ice.anisotropy = 8;
-  const GR = 900;                                        // Pluto's surface: a big sphere, its horizon curving away
-  const ground = new THREE.Mesh(new THREE.SphereGeometry(GR, 360, 180), new THREE.MeshStandardMaterial({ color: 0x9aa0aa, roughness: 0.92, map: ice, bumpMap: ice, bumpScale: 0.9 }));
-  ground.position.set(0, -GR, 0); ground.rotation.x = Math.PI / 2; scene.add(ground);   // its uv pole off on the horizon, not underfoot
+  const GR = 900;                                        // Pluto's surface: a big sphere, its horizon curving away; regolith computed from where it is, never repeating
+  const ground = new THREE.Mesh(new THREE.SphereGeometry(GR, 360, 180), new THREE.ShaderMaterial({
+    uniforms: { uKey: { value: new THREE.Vector3(-9, 1.1, 2.2).normalize() }, uKeyI: { value: 1.6 }, uRim: { value: new THREE.Vector3(-2, 0.35, -6).normalize() } },
+    vertexShader: 'varying vec3 vW, vN; void main(){ vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; vN = normalize(mat3(modelMatrix) * normal); gl_Position = projectionMatrix * viewMatrix * w; }',
+    fragmentShader: `uniform vec3 uKey, uRim; uniform float uKeyI; varying vec3 vW, vN;
+      float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+      float noise(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(hash(i), hash(i + vec2(1, 0)), f.x), mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), f.x), f.y); }
+      float fbm(vec2 p){ float v = 0.0, a = 0.5; for (int k = 0; k < 5; k++){ v += a * noise(p); p = mat2(1.6, 1.2, -1.2, 1.6) * p + 3.1; a *= 0.5; } return v; }
+      float pebbles(vec2 p){ vec2 c = floor(p), f = fract(p); vec2 o = vec2(hash(c), hash(c + 7.7)); float r = 0.08 + 0.18 * hash(c + 3.3); return smoothstep(r, r * 0.4, length(f - o)) * step(0.55, hash(c + 1.9)); }
+      float height(vec2 p){ return fbm(p * 0.22) * 0.7 + fbm(p * 1.4) * 0.22 + pebbles(p * 2.2) * 0.12; }
+      void main(){
+        vec2 p = vW.xz; float h = height(p), e = 0.04;
+        vec3 n = normalize(vN + vec3(height(p - vec2(e, 0.0)) - height(p + vec2(e, 0.0)), 0.0, height(p - vec2(0.0, e)) - height(p + vec2(0.0, e))) * 7.0);
+        vec3 alb = mix(vec3(0.15, 0.155, 0.17), vec3(0.5, 0.52, 0.57), smoothstep(0.35, 0.7, h));   // frost on the rises, grit in the hollows
+        vec3 c = alb * (0.05 + vec3(1.0, 0.91, 0.8) * uKeyI * 0.6 * max(dot(n, uKey), 0.0) + vec3(1.0, 0.88, 0.72) * 0.45 * max(dot(n, uRim), 0.0));
+        c *= exp(-max(length(vW - cameraPosition) - 16.0, 0.0) / 20.0);   // into the dark toward the horizon
+        gl_FragColor = vec4(c, 1.0);
+      }` }));
+  ground.position.set(0, -GR, 0); scene.add(ground);
   const warm = new THREE.DirectionalLight(0xffe2b8, 1.1); warm.position.set(-2, 0.35, -6); scene.add(warm);   // the 2D Sun on the horizon: a rim on every stone
   const rake = new THREE.DirectionalLight(0xffe9cc, 1.6); rake.position.set(-9, 1.1, 2.2); scene.add(rake);    // low and from the side: it grazes the faces, every cut casts a shadow
   scene.add(new THREE.HemisphereLight(0x3a4a66, 0x0c0b0a, 0.35));
@@ -51,7 +54,8 @@ const PLU = (() => {
       for (let i = 0; i < 90; i++) { g.fillStyle = `rgba(${r() < 0.6 ? '10,10,14' : '120,126,138'},${0.05 + 0.08 * r()})`; g.beginPath(); g.arc(r() * cw, r() * ch, 4 + 40 * r(), 0, TAU); g.fill(); }
       words.forEach(([s, font], i) => {
         const y = 240 + i * (ch - 480) / Math.max(1, words.length - 1);   // inset from the bevels
-        g.font = `100px ${font}`; const size = Math.min(150, 100 * cw * 0.78 / g.measureText(s).width);
+        const long = s.length > 8; g.letterSpacing = long ? '0.08em' : '0px';   // long words a size down, opened up
+        g.font = `100px ${font}`; const size = Math.min(150, 100 * cw * (long ? 0.66 : 0.78) / g.measureText(s).width);
         g.font = `${size}px ${font}`; g.textAlign = 'center'; g.textBaseline = 'middle';
         g.fillStyle = frost ? 'rgba(18,18,22,1)' : 'rgba(214,222,234,0.92)'; g.fillText(s, cw / 2, y);   // frost in the cuts; in the bump map, the cuts are low
       });
@@ -63,7 +67,7 @@ const PLU = (() => {
   const sets = [[0, 2, 4], [1, 3, 5], [6, 7, 8], [9, 10, 2], [4, 0, 1]];
   const tablets = sets.map((ix, i) => {
     const w = 2.6, h = 5.2 + 1.4 * Math.sin(i * 2.1), sh = new THREE.Shape([[-w / 2, -h / 2], [w / 2, -h / 2], [w / 2, h / 2], [-w / 2, h / 2]].map(([x, y]) => new THREE.Vector2(x, y)));
-    const geo = new THREE.ExtrudeGeometry(sh, { depth: 0.42, bevelEnabled: true, bevelThickness: 0.07, bevelSize: 0.07, bevelSegments: 4, curveSegments: 1 }).translate(0, 0, -0.21);
+    const geo = new THREE.ExtrudeGeometry(sh, { depth: 0.42, bevelEnabled: true, bevelThickness: 0.05, bevelSize: 0.05, bevelSegments: 4, curveSegments: 1 }).translate(0, 0, -0.21);
     const m = new THREE.Mesh(geo, [tabletFace(ix.map(k => HUMANITY[k]), 100 + i, w, h), side]);
     m.position.set(-7.5 + i * 3.6 + Math.sin(i * 1.7) * 0.6, h / 2 - 0.25, -4 - 1.6 * Math.cos(i * 1.3)); m.rotation.set(0, 0.35 - i * 0.16, 0.02 * Math.sin(i * 3));
     scene.add(m); return m;
@@ -97,27 +101,30 @@ const PLU = (() => {
   const drive = GL.glowSprite(0x9fe6ff, 1.2, 0); drive.position.y = -1.05;
   ship.add(hull, ring, ...parts); halo.add(ship, drive);
   halo.position.set(2.3, 1.42, 1.2); halo.rotation.z = -0.04; scene.add(halo);   // in the foreground, standing on its legs
-  const jump = GL.glowSprite(0xffffff, 1, 0); scene.add(jump);
-  const streak = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 1, 12, 1, true), new THREE.MeshBasicMaterial({ color: 0xcff0ff, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
+  const jump = GL.glowSprite(0xffffff, 1, 0); jump.material.fog = false; scene.add(jump);
+  const streak = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.035, 1, 12, 1, true), new THREE.MeshBasicMaterial({ color: 0xcff0ff, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
   scene.add(streak);
   const LIFT = SC.escape + 1.6;
-  const climb = t => { const l = Math.max(0, Math.min(t, LS) - LIFT); return 0.08 * Math.pow(l, 2.5); };   // it lifts off, still in frame when it jumps
+  const climb = t => { const l = Math.max(0, Math.min(t, LS) - LIFT); return 0.05 * Math.pow(l, 2.5); };   // it lifts off, in the upper third when it jumps
+  const GLOW = new THREE.Vector3(-1960, 260, -6000);  // the Sun's image burning on the horizon: where it goes
   function draw(t) {
     const up = climb(t), j = t - LS;
     halo.position.y = 1.42 + up; halo.position.x = 2.3 + 0.05 * up;
-    const s = j > 0 ? 1 + 140 * ease(clamp(j / 0.16)) : 1;   // the jump: it stretches into a streak and is out of frame
-    ship.scale.set(1 / Math.sqrt(s), s, 1 / Math.sqrt(s)); ship.position.y = j > 0 ? 0.9 * (s - 1) : 0; ship.visible = j < 0.22;
+    ship.visible = j < 0;                                // the jump: in five frames it is a streak to the horizon, and gone
+    const P0 = halo.position.clone(), u = Math.pow(clamp(j / 0.085), 2), head = P0.clone().lerp(GLOW, u);
     ringMat.emissiveIntensity = 1.6 + 3 * ease(ramp(t, LS - 1.2, LS));
     drive.material.opacity = t > LIFT && j < 0 ? 0.6 + 0.4 * ease(ramp(t, LS - 1.2, LS)) : 0; drive.scale.setScalar(1.2 + 2.5 * ramp(t, LS - 1.2, LS));
-    jump.position.copy(halo.position); jump.scale.setScalar(7); jump.material.opacity = j >= 0 ? Math.exp(-j / 0.12) : 0;
-    streak.visible = j >= 0; streak.material.opacity = j >= 0 ? 0.9 * Math.exp(-j / 0.7) : 0;     // the line it left, fading
-    streak.scale.set(1, 400, 1); streak.position.set(halo.position.x, halo.position.y + 200, halo.position.z); streak.rotation.z = -0.04;
+    jump.position.copy(j >= 0 ? head : P0); jump.scale.setScalar(5); jump.material.opacity = j >= 0 ? Math.exp(-j / 0.25) : 0;
+    const len = Math.max(0.01, head.distanceTo(P0));     // the line it left, from where it stood to where it went, glowing a moment
+    streak.visible = j >= 0; streak.material.opacity = j >= 0 ? 0.95 * Math.exp(-Math.max(0, j - 0.1) / 0.3) : 0;
+    streak.scale.set(1, len, 1); streak.position.copy(P0).lerp(head, 0.5); streak.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), head.clone().sub(P0).normalize());
     const near = ease(ramp(t, SC.escape, BACK0));        // the plane coming on: its line swells and brightens
     band.material.uniforms.uT.value = t; band.material.uniforms.uNear.value = near;
     rake.intensity = 1.6 + 1.2 * (j >= 0 ? Math.exp(-j / 0.25) : 0);   // the jump lights the stones, briefly
+    ground.material.uniforms.uKeyI.value = rake.intensity;
     const k = easeIO(ramp(t, SC.escape, BACK0));         // low among the tablets, pushing in; looking up a little after the ship
     cam.position.set(lerp(-1.4, -0.4, k), lerp(1.5, 1.7, k), lerp(11, 9.2, k)); cam.up.set(0, 1, 0);
-    cam.lookAt(lerp(1.0, 0.9, k), lerp(3.0, 3.2, k) + up * 0.3, -12);
+    cam.lookAt(lerp(1.0, 0.9, k), lerp(3.0, 3.2, k) + up * 0.45, -12);
     cam.updateProjectionMatrix();
     return GL.draw(scene, cam, { strength: 0.8, radius: 0.5, threshold: 0.75 });
   }
