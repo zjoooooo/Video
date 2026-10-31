@@ -243,7 +243,7 @@ function drawFleet(t) {                               // fleet, drop, ember: the
 // The Singer is never drawn, only its gaze: rings of cold sensing points rippling out from off-frame left.
 // One bright ring, the glance, crosses the Sun as the narration says "瞥了一眼". On the 1:14 accent the foil
 // flicks out and tumbles to the outer edge of the Solar System, where the fall begins.
-const SUN = [1340, 560], ORBITS = [34, 52, 74, 104, 146, 196], EDGE = [SUN[0] - 214, SUN[1] + 28];
+const SUN = [1340, 560], ORBITS = [22, 30, 40, 52, 86, 120, 158, 196], EDGE = [SUN[0] - 214, SUN[1] + 28];   // Mercury to Neptune
 const GAZE = [-700, 300], GLANCE = SC.ember + 8.9, GLANCE_V = 620;
 const glanceHits = GLANCE + Math.hypot(SUN[0] - GAZE[0], SUN[1] - GAZE[1]) / GLANCE_V;
 const ssZoom = t => lerp(1, 1.6, easeIO(ramp(t, SC.ember + 14, SC.fall + 4)));   // a slow push-in on the Solar System, into the fall
@@ -297,12 +297,151 @@ function drawSinger(t) {                              // the Singer's gaze, the 
     }
   }
   ctx.restore();
-  solarSystem(t, ease(ramp(t, SC.ember + 10, SC.ember + 14)) * (1 - ramp(t, SC.fall + 2, SC.fall + 3)));
+  solarSystem(t, ease(ramp(t, SC.ember + 10, SC.ember + 14)) * (t < SC.fall ? 1 : 0));   // drawFall takes over on the same geometry
   drawFoil(t);
 }
 
+// ---- the fall: the Solar System collapses into two dimensions ---------------------------------------------
+// Local coordinates are the orbital plane, the Sun at the origin, 1 unit = 1 px at zoom 1: the Singer's far view
+// drawn the same way, so the hand-over is invisible. The foil touched down at IMPACT; from SC.fall a disc of
+// two-dimensional space grows from there. A body flattens the moment the disc's edge reaches it, and each body
+// sits on its orbit at the distance from IMPACT that the edge reaches on its cue: Neptune, Uranus, Saturn and
+// Jupiter on CUE.planets, the Sun on CUE.sun, Earth (on the far side of the Sun) on CUE.earth.
+const TILT = 0.34, ROT = -0.12;
+const IMPACT = (() => { const dx = EDGE[0] - SUN[0], dy = EDGE[1] - SUN[1], c = Math.cos(-ROT), s = Math.sin(-ROT); return [dx * c - dy * s, (dx * s + dy * c) / TILT]; })();
+const DSUN = Math.hypot(...IMPACT);
+const RHO = [[SC.fall, 0], [CUE.planets[0], 40], [CUE.planets[1], 90], [CUE.planets[2], 135], [CUE.planets[3], 175],
+             [CUE.sun, DSUN], [CUE.earth, 252], [SC.escape, 470]];
+function keyed(t, keys, shape = x => x) {            // piecewise between [t, value] keys; shape eases each segment
+  if (t <= keys[0][0]) return keys[0][1];
+  for (let i = 1; i < keys.length; i++) if (t < keys[i][0]) {
+    const [t0, a] = keys[i - 1], [t1, b] = keys[i], k = shape((t - t0) / (t1 - t0));
+    return Array.isArray(a) ? a.map((v, j) => lerp(v, b[j], k)) : lerp(a, b, k);
+  }
+  return keys.at(-1)[1];
+}
+const rhoAt = t => keyed(t, RHO);
+const hitOf = d => { for (let i = 1; i < RHO.length; i++) if (d <= RHO[i][1]) return lerp(RHO[i - 1][0], RHO[i][0], (d - RHO[i - 1][1]) / (RHO[i][1] - RHO[i - 1][1])); return Infinity; };
+function guilloche(seed, rings) {                     // a unit-radius engraving: fine lace rings, a spirograph, fine circles
+  const r = rng(seed), p = new Path2D(), N = 2400;     // high ring frequencies keep it fine even at the closest zoom
+  for (let i = 0; i < rings; i++) {
+    const a = 0.24 + 0.7 * (i + 1) / (rings + 1), b = 0.012 + 0.028 * r(), m = 36 + Math.floor(r() * 90), ph = r() * TAU;
+    for (let j = 0; j <= N; j++) { const u = j / N * TAU, q = a + b * Math.cos(m * u + ph); j ? p.lineTo(q * Math.cos(u), q * Math.sin(u)) : p.moveTo(q * Math.cos(u), q * Math.sin(u)); }
+  }
+  const n = [7, 9, 11, 13][Math.floor(r() * 4)], l = 0.55 + 0.3 * r(), k = 1 / n, s = 0.98 / (1 - k + l * k);
+  for (let j = 0; j <= 1400; j++) { const u = j / 1400 * TAU, x = (1 - k) * Math.cos(u) + l * k * Math.cos((1 - k) / k * u), y = (1 - k) * Math.sin(u) - l * k * Math.sin((1 - k) / k * u); j ? p.lineTo(x * s, y * s) : p.moveTo(x * s, y * s); }
+  for (const c of [0.2, 0.62, 1]) { p.moveTo(c, 0); p.arc(0, 0, c, 0, TAU); }
+  return p;
+}
+const BODIES = [                                      // r: orbit, d: distance from IMPACT, side: which way round the orbit, size: radius at zoom 1,
+  { n: 'neptune', zh: '海王星', r: 196, d: 40, side: 1, size: 5.3, hue: 228, col: '#6a86ff' },   // spread: how far its 2D image sprawls
+  { n: 'uranus', zh: '天王星', r: 158, d: 90, side: -1, size: 4.8, hue: 186, col: '#9fe6ea' },
+  { n: 'saturn', zh: '土星', r: 120, d: 135, side: 1, size: 6.3, hue: 42, col: '#e6cd96', ring: true },
+  { n: 'jupiter', zh: '木星', r: 86, d: 175, side: -1, size: 8.3, hue: 26, col: '#dcae80' },
+  { n: 'mars', r: 52, d: 195, side: 1, size: 2.7, hue: 12, col: '#d4673f' },
+  { n: 'venus', r: 30, d: 205, side: -1, size: 3.3, hue: 48, col: '#eadbb0' },
+  { n: 'sun', zh: '太阳', r: 0, d: DSUN, size: 11, hue: 44, col: '#fff2cc', sun: true },
+  { n: 'mercury', r: 22, d: 225, side: 1, size: 2.2, hue: 30, col: '#bdaea0' },
+  { n: 'earth', zh: '地球', r: 40, d: 252, side: -1, size: 3.7, hue: 200, col: '#4f9be8', earth: true },
+].map((b, i) => {
+  const alpha = Math.atan2(IMPACT[1], IMPACT[0]);
+  const th = b.r ? alpha + b.side * Math.acos(clamp((b.r * b.r + DSUN * DSUN - b.d * b.d) / (2 * b.r * DSUN), -1, 1)) : 0;
+  return { ...b, x: b.r * Math.cos(th), y: b.r * Math.sin(th), hit: hitOf(b.d), path: guilloche(31 + i * 7, b.sun ? 10 : b.earth ? 13 : 6), ph: i * 1.3 };
+});
+const EARTH = BODIES.find(b => b.earth);
+const GLYPHS = (() => { const r = rng(5); return Array.from({ length: 150 }, (_, i) => [i / 150 * TAU, 0.8 + 0.1 * r(), 0.015 + 0.06 * r() * r(), r() < 0.3]); })();
+function fallView(t) {                                // where the plane sits: screen anchor P, local focus F, zoom z
+  const z0 = ssZoom(SC.fall), E = [EARTH.x, EARTH.y];
+  return keyed(t, [[SC.fall, [1340, 560, 0, 0, z0]], [100, [1080, 560, 0, 0, 2.3]], [CUE.sun, [1000, 560, 0, 0, 2.7]],
+                   [CUE.earth + 1, [960, 560, 0, 0, 3.0]], [SC.escape - 2, [960, 540, E[0], E[1], 8]]], easeIO);
+}
+const SPREAD = b => (b.sun ? 30 : b.earth ? 24 : 22);  // a 2D image sprawls far wider than the body it was
+const FLAT = 3.5;                                      // seconds a body takes to fall flat
+const toScreen = ([px, py, fx, fy, z], x, y) => { const dx = (x - fx) * z, dy = (y - fy) * z * TILT; return [px + dx * Math.cos(ROT) - dy * Math.sin(ROT), py + dx * Math.sin(ROT) + dy * Math.cos(ROT)]; };
+function inPlane(v) { ctx.translate(v[0], v[1]); ctx.rotate(ROT); ctx.scale(v[4], v[4] * TILT); ctx.translate(-v[2], -v[3]); }
+function iridescent(hue, turn) {
+  const g = ctx.createConicGradient(turn, 0, 0);
+  [[0, -40], [0.25, 20], [0.5, 80], [0.75, 140], [1, -40]].forEach(([s, h]) => g.addColorStop(s, `hsl(${hue + h},85%,72%)`));
+  return g;
+}
+function paintDisc(b, D, a, t, v) {                   // a flattened body: a dark medallion engraved in iridescent line
+  ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(t * 0.02 + b.ph); ctx.scale(D, D);
+  ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = (b.earth ? 0.7 : 0.32) * a; ctx.fillStyle = '#05070d';   // thin backing: the layers show through, Earth stands out
+  ctx.beginPath(); ctx.arc(0, 0, 1, 0, TAU); ctx.fill();
+  ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.9 * a; ctx.strokeStyle = iridescent(b.hue, t * 0.05 + b.ph);
+  ctx.lineWidth = 1.1 / (D * v[4] * 0.6);
+  ctx.stroke(b.path);
+  if (b.earth) {                                     // Earth's whole history, a ring of marks etched into it
+    ctx.fillStyle = `hsl(190,80%,80%)`;
+    for (const [an, rr, len, dot] of GLYPHS) {
+      ctx.save(); ctx.rotate(an); ctx.translate(rr, 0);
+      if (dot) { ctx.beginPath(); ctx.arc(0, 0, 0.008, 0, TAU); ctx.fill(); } else ctx.fillRect(0, -0.003, len, 0.006);
+      ctx.restore();
+    }
+  }
+  ctx.restore();
+}
+function drawFall(t) {                                // the 2D front flattens the Solar System
+  if (t < SC.fall || t > SC.escape + 0.4) return;
+  const v = fallView(t), rho = rhoAt(t), A = 1 - ramp(t, SC.escape, SC.escape + 0.4);
+  ctx.save(); inPlane(v);
+  ctx.globalCompositeOperation = 'lighter'; ctx.lineWidth = 1.2 / (v[4] * 0.6);
+  ctx.strokeStyle = `rgba(150,180,230,${0.24 * A})`;  // the orbits, still three-dimensional
+  for (const r of ORBITS) { ctx.beginPath(); ctx.arc(0, 0, r, 0, TAU); ctx.stroke(); }
+  ctx.save(); ctx.beginPath(); ctx.arc(IMPACT[0], IMPACT[1], rho, 0, TAU); ctx.clip();   // inside the edge: the painting
+  const sheen = ctx.createRadialGradient(IMPACT[0], IMPACT[1], 0, IMPACT[0], IMPACT[1], Math.max(1, rho));
+  sheen.addColorStop(0, `rgba(70,50,130,${0.05 * A})`); sheen.addColorStop(0.9, `rgba(40,90,160,${0.06 * A})`); sheen.addColorStop(1, `rgba(170,210,255,${0.14 * A})`);
+  ctx.fillStyle = sheen; ctx.fillRect(IMPACT[0] - rho, IMPACT[1] - rho, 2 * rho, 2 * rho);
+  ctx.lineWidth = 0.7 / (v[4] * 0.6);
+  for (let j = 0; j < 40; j++) {                      // engraved ripples of the fall, running out with the edge
+    const rr = rho - j * 6 - (t * 6) % 6; if (rr <= 0) continue;
+    ctx.strokeStyle = `hsla(${190 + j * 4},80%,74%,${0.10 * A * (1 - j / 40)})`; ctx.beginPath(); ctx.arc(IMPACT[0], IMPACT[1], rr, 0, TAU); ctx.stroke();
+  }
+  ctx.lineWidth = 1.2 / (v[4] * 0.6);
+  ctx.strokeStyle = `rgba(255,214,150,${0.5 * A})`;   // the orbits, now drawn lines in the painting
+  for (const r of ORBITS) { ctx.beginPath(); ctx.arc(0, 0, r, 0, TAU); ctx.stroke(); }
+  ctx.restore();
+  const hero = ease(ramp(t, CUE.earth + 1, SC.escape - 4));   // closing in on Earth, the rest of the painting steps back
+  for (const b of BODIES) {                           // flattened bodies, in the order they fell (Earth on top)
+    const f = easeIO(ramp(t, b.hit, b.hit + FLAT));
+    if (f > 0) paintDisc(b, b.size * 0.6 * (1 + SPREAD(b) * f), f * A * (b.earth ? 1 : lerp(1, 0.38, hero)), t, v);
+  }
+  ctx.lineWidth = 2.6 / (v[4] * 0.6);                 // the edge itself, iridescent
+  ctx.shadowColor = 'rgba(190,210,255,0.9)'; ctx.shadowBlur = 20; ctx.globalAlpha = 0.95 * A * ramp(t, SC.fall, SC.fall + 0.6);
+  ctx.save(); ctx.translate(IMPACT[0], IMPACT[1]); ctx.strokeStyle = iridescent(210, t * 0.3);
+  ctx.beginPath(); ctx.arc(0, 0, rho, 0, TAU); ctx.stroke(); ctx.restore();
+  ctx.restore();
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  const sunS = toScreen(v, 0, 0);
+  for (const b of BODIES) {                           // bodies still round: lit from the Sun, squashing flat as they fall
+    const f = easeIO(ramp(t, b.hit, b.hit + FLAT)); if (f >= 1) continue;
+    const [x, y] = toScreen(v, b.x, b.y), R = b.size * v[4] * 0.6;
+    if (b.sun) { glow(GLOW.gold, x, y, R * 14, 0.9 * (1 - f) * A); glow(GLOW.white, x, y, R * 2.4, (1 - f) * A); continue; }
+    ctx.save(); ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = (1 - f) * A; ctx.translate(x, y); ctx.scale(1, 1 - 0.97 * f);
+    const L = Math.atan2(sunS[1] - y, sunS[0] - x), g = ctx.createRadialGradient(R * 0.45 * Math.cos(L), R * 0.45 * Math.sin(L), R * 0.1, 0, 0, R);
+    g.addColorStop(0, '#ffffff'); g.addColorStop(0.25, b.col); g.addColorStop(1, '#05070c');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, Math.max(1, R), 0, TAU); ctx.fill();
+    if (b.ring) { ctx.strokeStyle = 'rgba(230,205,150,0.7)'; ctx.lineWidth = Math.max(0.8, R * 0.25); ctx.beginPath(); ctx.ellipse(0, 0, R * 2.3, R * 0.7, -0.3, 0, TAU); ctx.stroke(); }
+    ctx.restore();
+  }
+  const [ix, iy] = toScreen(v, ...IMPACT);            // the foil touching down
+  glow(GLOW.white, ix, iy, 320, 0.95 * Math.exp(-(t - SC.fall) / 0.3)); glow(GLOW.ice, ix, iy, 700, 0.5 * Math.exp(-(t - SC.fall) / 0.8));
+  for (const b of [BODIES.find(b => b.sun), EARTH]) { // the two big falls: the Sun burns white-gold, Earth goes out cold
+    const p = t - b.hit; if (p < 0 || p > 4) continue;
+    const [x, y] = toScreen(v, b.x, b.y), k = Math.exp(-p / (b.sun ? 0.5 : 0.35));
+    glow(b.sun ? GLOW.white : GLOW.ice, x, y, b.sun ? 1400 : 700, 0.9 * k);
+    ctx.fillStyle = b.sun ? `rgba(255,220,160,${0.22 * k})` : `rgba(150,200,255,${0.14 * k})`; ctx.globalAlpha = 1; ctx.fillRect(0, 0, W, H);
+  }
+  ctx.restore();
+  for (const b of BODIES) {                           // each name, quietly, as it goes flat
+    if (!b.zh) continue;
+    const a = window01(t, b.hit + 0.3, b.hit + 3.2, 0.5, 0.8) * A; if (a <= 0) continue;
+    const [x, y] = toScreen(v, b.x, b.y);
+    text(b.zh, x, y - Math.max(26, b.size * v[4] * 0.9) - 18, { size: 26, track: 0.3, alpha: 0.75 * a, blur: 10 });
+  }
+}
+
 // ---- scenes still to come ----------------------------------------------------------------------------------
-function drawFall(t) {}                               // the 2D front flattens the Solar System
 function drawEscape(t) {}                             // the light-speed ship, the painting, the end
 
 // ---- cards and subtitles -------------------------------------------------------------------------------
