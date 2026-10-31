@@ -14,12 +14,13 @@ function foilMesh(w, h) {
         vec2 q = vUv;                                                      // its thickness, in nm: a slow swell across it, flowing
         float d = 300.0 + 720.0 * (0.62 * q.x + 0.38 * q.y) + 90.0 * sin(2.5 * q.y + 1.2 * q.x + 0.5 * uTime) + 35.0 * sin(5.0 * q.x - 0.3 * uTime);
         float ct = sqrt(1.0 - (1.0 - c * c) / 2.1);                         // refracted angle inside (n = 1.45): the bands shift with the view
-        vec3 film = 1.0 - cos(6.2831853 * 2.0 * 1.45 * d * ct / vec3(680.0, 550.0, 440.0));   // interference at red, green, blue
-        float fres = mix(0.2, 0.75, pow(1.0 - c, 3.0));
+        vec3 film = 0.5 - 0.5 * cos(6.2831853 * 2.0 * 1.45 * d * ct / vec3(680.0, 550.0, 440.0));   // interference: magenta, gold, cyan, green
+        film = mix(vec3(dot(film, vec3(0.333))), film, 0.62);                // a film's colours, not a test card's
         vec3 L = normalize(uLight - vW), Rf = reflect(-L, N);
-        float spec = pow(max(dot(Rf, V), 0.0), 80.0) * 1.4 + pow(max(dot(Rf, V), 0.0), 10.0) * 0.18;
-        float edge = 1.0 - smoothstep(0.0, 0.02, min(min(q.x, 1.0 - q.x), min(q.y, 1.0 - q.y)));
-        vec3 col = pow(film * 0.5, vec3(1.5)) * fres * 1.3 + vec3(0.03, 0.035, 0.045) + vec3(1.0, 0.98, 0.95) * spec + vec3(0.8, 0.9, 1.0) * edge * 0.25;
+        float lobe = pow(max(dot(Rf, V), 0.0), 3.0), fres = 0.12 + 0.88 * pow(1.0 - c, 4.0);
+        float spec = pow(max(dot(Rf, V), 0.0), 90.0);
+        float edge = 1.0 - smoothstep(0.0, 0.015, min(min(q.x, 1.0 - q.x), min(q.y, 1.0 - q.y)));
+        vec3 col = vec3(0.012, 0.014, 0.02) + film * (0.08 + 1.5 * lobe + 0.9 * fres) + vec3(1.0, 0.97, 0.92) * spec * 1.2 + vec3(0.8, 0.9, 1.0) * edge * 0.12;   // dark glass; the colour lives in its reflection
         gl_FragColor = vec4(col * uA, 1.0);
       }` });
   const plane = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
@@ -45,7 +46,7 @@ function foilMesh(w, h) {
 
 const SING = (() => {
   const scene = new THREE.Scene(), cam = new THREE.PerspectiveCamera(30, W / H, 0.05, 200000);
-  scene.add(GL.stars(31, 6000, 60000));
+  const stars = GL.stars(31, 6000, 60000); scene.add(stars);
   const foil = foilMesh(1.6, 1.0); scene.add(foil.group);
   const sunStar = GL.glowSprite(0xfff1d6, 1, 1), sunCore = GL.glowSprite(0xffffff, 1, 1); scene.add(sunStar, sunCore);
   const T0 = SC.ember + 7.0, CUT = SC.fall - 1.4;        // from the wreck field craning away, to the Solar System
@@ -83,11 +84,11 @@ const SING = (() => {
     const sun = place(t);
     foil.group.position.copy(p); foil.group.visible = t >= (subAt('二向箔')?.t0 ?? 0) && t < CUT;
     foil.group.scale.setScalar(lerp(1, 0.03, ease(ramp(t, CUE.flick, CUE.flick + 0.8))));   // thrown, it is a speck: its glint leads the way down
-    if (close) {                                         // the close-up: the foil big, turning to edge-on, the galaxy behind it
+    if (close) {                                         // the close-up: the foil small in frame, turning to edge-on, the galaxy far behind it
       const u = t - CL0, th = CLT + u * CLW;
       const view = p.clone().sub(sun).normalize();      // looking past it toward the Sun
       cam.clearViewOffset(); cam.fov = 30;
-      cam.position.copy(p).addScaledVector(view, 5.6).add(new THREE.Vector3(0, 0.9, 0)); cam.up.set(0, 1, 0); cam.lookAt(p);
+      cam.position.copy(p).addScaledVector(view, 9.5).add(new THREE.Vector3(0, 1.2, 0)); cam.up.set(0, 1, 0); cam.lookAt(p.clone().add(new THREE.Vector3(0.9, -0.35, 0)));
       cam.near = 0.05; cam.updateProjectionMatrix(); cam.updateMatrixWorld();
       foil.group.quaternion.copy(cam.quaternion); foil.group.rotateZ(-0.12 + 0.03 * Math.sin(u * 0.5)); foil.group.rotateY(th);
     } else {
@@ -101,9 +102,18 @@ const SING = (() => {
     sunStar.scale.setScalar(ds / pxu * lerp(22, 60, seen) * (1 + 3 * ease(ramp(t, CUT - 2.5, CUT)))); sunStar.material.opacity = 0.35 + 0.4 * seen;
     sunCore.scale.setScalar(ds / pxu * 7 * (1 + 2 * ease(ramp(t, CUT - 2.5, CUT)))); sunCore.material.opacity = 0.7 + 0.3 * seen;
     const fade = ease(ramp(t, T0, T0 + 1.6));
-    const out = GL.draw(scene, cam, { strength: 0.32, radius: 0.5, threshold: 0.75 });
     foilAt = GL.screen(cam, p);
-    return [out, fade];
+    if (close) {                                         // its own picture: the galaxy out of focus, then the foil alone over it
+      const g = ctx; foil.group.visible = false;
+      const bg = GL.draw(scene, cam, { strength: 0.3, radius: 0.6, threshold: 0.7 });
+      g.save(); g.filter = 'blur(18px) brightness(0.8)'; g.drawImage(bg, 0, 0); g.restore();
+      foil.group.visible = true; scene.remove(MILKY.group); for (const o of [stars, sunStar, sunCore]) o.visible = false;
+      const fg = GL.draw(scene, cam, { strength: 0.45, radius: 0.4, threshold: 0.6 });
+      for (const o of [stars, sunStar, sunCore]) o.visible = true;
+      g.save(); g.globalCompositeOperation = 'lighter'; g.drawImage(fg, 0, 0); g.restore();
+      return [null, 1];
+    }
+    return [GL.draw(scene, cam, { strength: 0.32, radius: 0.5, threshold: 0.75 }), fade];
   }
   return { draw, sunPx, foilPx: () => foilAt, scene, cam, T0, CUT };
 })();

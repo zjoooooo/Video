@@ -202,29 +202,40 @@ function drawFleet(t) {                               // fleet, drop, ember: the
 // wreck field cranes away, and turns until its bright arc faces the Sun, which it notices as the narration says
 // "瞥了一眼". The foil appears on that arc as it is "taken out" and waits there (cut in close, it turns edge-on and is
 // gone to a hairline); on the 1:14 accent it snaps away to the Sun, and the camera follows it down.
-const IRIS = [470, 610], IR = 300, OPEN = SC.ember + 7.3;
+const OPEN = SC.ember + 7.3;
 const subAt = word => TL.subs.find(s => s.zh.includes(word));
 const glanceHits = (subAt('瞥')?.t1 ?? SC.ember + 12.3) - 0.4;     // the glance lands on "瞥了一眼"
 const FOIL_IN = subAt('二向箔')?.t0 ?? SC.ember + 12.2;              // and the foil is taken out on "二向箔"
 const CL0 = SC.ember + 18.6, CL1 = CL0 + 4.0;          // the foil, close
-const face = t => { const [x, y] = SING.sunPx(t); return Math.atan2(y - IRIS[1], x - IRIS[0]); };
+// The eye is vast and near: three rings of sensing points seen in perspective, a tilted ellipse whose centre lies off the
+// frame at lower left, so only its arcs cross the picture; near points are larger; it drifts against the far galaxy.
+const IR = 1150, SQ = 0.4, TILT = -0.22;
+const irisC = t => { const k = easeIO(ramp(t, OPEN, CUE.flick)); return [-170 + 60 * k, 950 - 25 * k]; };
+const onIris = (t, a, rr = 1) => { const [cx, cy] = irisC(t), x = IR * rr * Math.cos(a), y = IR * rr * SQ * Math.sin(a);
+  return [cx + x * Math.cos(TILT) - y * Math.sin(TILT), cy + x * Math.sin(TILT) + y * Math.cos(TILT)]; };
+const face = t => { const [x, y] = SING.sunPx(t), [cx, cy] = irisC(t), dx = x - cx, dy = y - cy;   // the angle on the ellipse that points at the Sun
+  const u = dx * Math.cos(TILT) + dy * Math.sin(TILT), v = -dx * Math.sin(TILT) + dy * Math.cos(TILT); return Math.atan2(v / SQ, u); };
 const irisAlpha = t => ease(ramp(t, OPEN, OPEN + 1.5)) * lerp(1, 0.6, ease(ramp(t, CUE.flick, CUE.flick + 0.6))) * (1 - ease(ramp(t, CUE.flick + 0.6, CUE.flick + 2.4)));
-const arcAngle = t => face(t) + 2.4 * (1 - easeIO(ramp(t, OPEN + 0.8, glanceHits)));   // the bright arc turns to face the Sun
-const arcPoint = t => { const r = IR * (0.6 + 0.4 * ease(ramp(t, OPEN, OPEN + 2.5))), a = arcAngle(t); return [IRIS[0] + r * Math.cos(a), IRIS[1] + r * Math.sin(a)]; };
-const foilAnchor = t => { const [x, y] = arcPoint(t); return [x + 18, y - 26 + 6 * Math.sin(t * 1.7)]; };   // where the foil waits, bobbing
+const arcAngle = t => face(t) - 0.9 * (1 - easeIO(ramp(t, OPEN + 0.8, glanceHits)));   // the bright arc slides round to face the Sun
+const arcPoint = t => onIris(t, arcAngle(t), 0.6 + 0.4 * ease(ramp(t, OPEN, OPEN + 2.5)));
+const foilAnchor = t => { const [x, y] = arcPoint(t); return [x + 30, y - 46 + 6 * Math.sin(t * 1.7)]; };   // where the foil waits, just off the arc, bobbing
 function drawIris(t, sun) {                           // the Singer's eye
   const A = irisAlpha(t); if (A <= 0.001) return;
-  const open = 0.6 + 0.4 * ease(ramp(t, OPEN, OPEN + 2.5)), sweep = ramp(t, OPEN, OPEN + 2), breathe = 1 + 0.008 * Math.sin(t * 1.3);
+  const open = 0.6 + 0.4 * ease(ramp(t, OPEN, OPEN + 2.5)), sweep = ramp(t, OPEN, OPEN + 2), breathe = 1 + 0.006 * Math.sin(t * 1.3);
   const phi = arcAngle(t);
   ctx.save(); ctx.globalCompositeOperation = 'lighter';
-  for (const [n, rr, spin, size] of [[240, 1, 0.03, 7], [160, 0.72, -0.05, 6], [90, 0.46, 0.08, 5]]) {   // three counter-turning rings
-    const R = IR * rr * open * breathe;
-    ctx.lineWidth = 1; ctx.strokeStyle = `rgba(150,195,255,${0.08 * A})`; ctx.beginPath(); ctx.arc(IRIS[0], IRIS[1], R, 0, TAU * sweep); ctx.stroke();
+  for (const [n, rr, spin, size] of [[420, 1, 0.012, 12], [300, 0.74, -0.02, 10], [190, 0.5, 0.03, 8]]) {   // three counter-turning rings
+    const R = rr * open * breathe;
+    ctx.lineWidth = 1; ctx.strokeStyle = `rgba(150,195,255,${0.07 * A})`; ctx.beginPath();
+    for (let i = 0; i <= 256 * sweep; i++) { const [x, y] = onIris(t, i / 256 * TAU, R); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
+    ctx.stroke();
     for (let i = 0; i < n; i++) {
       if (i / n > sweep) break;
-      const a = i / n * TAU + spin * t, x = IRIS[0] + R * Math.cos(a), y = IRIS[1] + R * Math.sin(a);
-      const d = Math.abs(Math.atan2(Math.sin(a - phi), Math.cos(a - phi))), bright = rr === 1 ? Math.exp(-((d / 0.42) ** 2)) : 0;   // the arc
-      glow(GLOW.ice, x, y, size + 9 * bright, A * (0.32 + 0.12 * Math.sin(i * 2.3 + t) + 0.6 * bright));
+      const a = i / n * TAU + spin * t, [x, y] = onIris(t, a, R);
+      if (x < -60 || x > W + 60 || y < -60 || y > H + 60) continue;
+      const near = 0.55 + 0.9 * (0.5 + 0.5 * Math.sin(a));   // the near side of the ring, larger
+      const d = Math.abs(Math.atan2(Math.sin(a - phi), Math.cos(a - phi))), bright = rr === 1 ? Math.exp(-((d / 0.16) ** 2)) : 0;   // the arc
+      glow(GLOW.ice, x, y, (size + 14 * bright) * near, A * (0.3 + 0.12 * Math.sin(i * 2.3 + t) + 0.6 * bright));
     }
   }
   const [ax, ay] = arcPoint(t), g = window01(t, glanceHits - 0.25, glanceHits + 1.8, 0.2, 1.2);   // the glance: a thin cold line to the Sun
@@ -240,9 +251,10 @@ function drawIris(t, sun) {                           // the Singer's eye
 }
 function drawSinger(t) {                              // the galaxy from far above, the eye, the foil
   if (t < SING.T0 || t >= SING.CUT) return;
-  const [img, fade] = SING.draw(t, foilAnchor);
-  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = fade; ctx.drawImage(img, 0, 0); ctx.globalAlpha = 1;   // up out of the dark
-  if (t >= CL0 && t < CL1) return;                    // the close-up is the foil alone
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+  const [img, fade] = SING.draw(t, foilAnchor);       // the close-up draws itself: the galaxy defocused, the foil alone
+  if (!img) return;
+  ctx.globalAlpha = fade; ctx.drawImage(img, 0, 0); ctx.globalAlpha = 1;   // up out of the dark
   const [fx, fy] = SING.foilPx(), sun = SING.sunPx(t);
   drawIris(t, sun);
   ctx.save(); ctx.globalCompositeOperation = 'lighter';
