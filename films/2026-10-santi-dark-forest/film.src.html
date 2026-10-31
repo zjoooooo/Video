@@ -290,7 +290,8 @@ function drawFleet(t) {                               // fleet, drop, ember: the
   drawOpen(t);
   const END = SC.ember + 7.0;                          // the wreck field holds ~3 s, then the camera cranes up off it
   if (t < SC.fleet - 0.05 || t > END) return;
-  ctx.drawImage(FLEET.draw(t), 0, 0); return;          // the battle in 3D (gl-fleet.js), the droplet's close-up included          // the battle in 3D (gl-fleet.js)
+  if (t < (subAt('列成方阵')?.t0 ?? SC.fleet + 7.1)) { ctx.drawImage(LEAVE.draw(t), 0, 0); return; }   // leaving Earth (gl-earth.js)
+  ctx.drawImage(FLEET.draw(t), 0, 0); return;          // the battle in 3D (gl-fleet.js), the droplet's close-up included
   const c = camAt(t), crane = easeIO(ramp(t, SC.ember + 3.4, END));
   ctx.save(); ctx.translate(0, H * 1.05 * crane);
   ctx.globalCompositeOperation = 'lighter';
@@ -844,6 +845,7 @@ async function render(t) {
 <script src="gl-core.js"></script>
 <script src="gl-ships.js"></script>
 <script src="gl-fleet.js"></script>
+<script src="gl-earth.js"></script>
 <script src="gl-pluto.js"></script>
 <script src="gl-solar.js"></script>
 <script>
