@@ -47,12 +47,27 @@ def split_sub(text, ph):
     return out
 
 
-# self-checks: one click at 1.2 s snaps there; subtitles split by phrase, by length, and keep "……" whole
+def merge_short(pieces, least=1.0):
+    """Joins a subtitle piece shorter than `least` seconds to the next one of the same line (or, if it is the
+    last, to the one before), so no subtitle flashes by too fast to read."""
+    out = []
+    for a, b, z in pieces:
+        if out and out[-1][1] - out[-1][0] < least:
+            a0, _, z0 = out.pop(); out.append((a0, b, z0 + ("" if z0.endswith("…") else "，") + z))
+        else: out.append((a, b, z))
+    if len(out) > 1 and out[-1][1] - out[-1][0] < least:
+        a0, _, z0 = out[-2]; out[-2:] = [(a0, out[-1][1], z0 + "，" + out[-1][2])]
+    return out
+
+
+# self-checks: one click at 1.2 s snaps there; subtitles split by phrase, by length, keep "……" whole, merge short pieces
 _x = np.zeros(SR * 2, np.float32); _x[int(1.2 * SR):int(1.2 * SR) + 64] = 1.0
 assert abs(snap(1.0, *onsets(_x)) - 1.2) < 0.01, snap(1.0, *onsets(_x))
 assert split_sub("甲，乙。", [[0, 1], [1.2, 2]]) == [(0, 1, "甲"), (1.2, 2, "乙")]
 assert split_sub("甲甲，乙。", [[0, 3]]) == [(0, 2.0, "甲甲"), (2.0, 3.0, "乙")]
 assert [p for *_, p in split_sub("木星……一个。", [[0, 1]])] == ["木星……", "一个"]
+assert merge_short([(0, 0.4, "三维"), (0.5, 2, "正在坍缩")]) == [(0, 2, "三维，正在坍缩")]
+assert merge_short([(0, 2, "回头望去"), (2.1, 2.5, "画")]) == [(0, 2.5, "回头望去，画")]
 
 if not TRACK.exists(): sys.exit(f"missing {TRACK}: https://pixabay.com/music/main-title-interstellar-space-travel-141121/")
 pcm = subprocess.run(["ffmpeg", "-v", "error", "-i", str(TRACK), "-ac", "1", "-ar", str(SR), "-f", "s16le", "-"],
@@ -82,7 +97,7 @@ subs = []
 for lid, t0, by in PLACE:
     s, e, ph = P.say(lid, t0)
     assert e <= by, f"{lid} runs to {e:.1f} s, past {by:.1f} s; shorten the line or raise its rate"
-    subs += [{"t0": a, "t1": b + 0.3, "zh": z} for a, b, z in split_sub(P.V[lid]["text"], ph)]
+    subs += [{"t0": a, "t1": b + 0.3, "zh": z} for a, b, z in merge_short(split_sub(P.V[lid]["text"], ph))]
 
 cards = [{"t0": cue["title"], "t1": cue["title"] + 9.0, "kind": "title", "text": "黑暗森林"},
          {"t0": scenes["foil"] + 1.0, "t1": scenes["fall"] - 0.5, "kind": "quote", "text": "毁灭你，与你有何相干。"},
