@@ -96,7 +96,7 @@ const MILKY = (() => {
   }
   const world = (t, v) => v.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), SPIN * t);   // where a point of the turning disc is at t (the arms trail)
   const setTime = t => { group.rotation.y = SPIN * t; return world(t, SUN); };
-  return { group, R, SUN, SPIN, armXZ, world, setTime, sky, bakeSky };
+  return { group, R, SUN, SPIN, armXZ, world, setTime, sky, bakeSky, skyTex: skyRT.texture };
 })();
 
 const COLD = (() => {                                   // the cold open: out of the Sun's neighbourhood, the whole galaxy, eyes opening
