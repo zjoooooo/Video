@@ -42,6 +42,23 @@ const GL = (() => {
     g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.BufferAttribute(col, 3));
     return new THREE.Points(g, new THREE.PointsMaterial({ size: 2.2, sizeAttenuation: false, vertexColors: true, map: glowTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
   }
+  function milkyDome(seed, tilt, gain = 1) {           // a far sky with the Milky Way's band across it, faint, computed per pixel
+    const r = rng(seed), w = 2048, h = 1024, nx = Math.sin(tilt), ny = Math.cos(tilt);   // the band's plane normal, in (x, y) of the dome
+    const blobs = Array.from({ length: 90 }, () => [r() * TAU, (r() - 0.5) * 0.5, 0.05 + 0.18 * r(), r()]);
+    const tex = canvasTex(w, h, (g) => {
+      const d = g.createImageData(w, h);
+      for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) {
+        const lon = i / w * TAU, lat = (0.5 - j / h) * Math.PI, X = Math.cos(lat) * Math.cos(lon), Y = Math.sin(lat), Z = Math.cos(lat) * Math.sin(lon);
+        const off = X * nx + Y * ny, along = Math.atan2(Z, X * ny - Y * nx);   // distance from the band, and position along it
+        let b = Math.exp(-off * off / 0.018) * (0.55 + 0.45 * Math.sin(along * 3 + 1.3)) + 0.35 * Math.exp(-off * off / 0.12);
+        for (const [a0, o0, s0, k] of blobs) { const da = Math.atan2(Math.sin(along - a0), Math.cos(along - a0)), dd = (da * da + (off - o0) * (off - o0)) / (s0 * s0); if (dd < 9) b *= k < 0.4 ? 1 - 0.55 * Math.exp(-dd) : 1 + 0.5 * Math.exp(-dd); }   // dust lanes and star clouds
+        const n = r() * 0.12, v = Math.max(0, b * gain * 46 + n * 6), p = (j * w + i) * 4;
+        d.data[p] = v * 1.05; d.data[p + 1] = v * 0.98; d.data[p + 2] = v * 1.12 + 4; d.data[p + 3] = 255;
+      }
+      g.putImageData(d, 0, 0);
+    });
+    return new THREE.Mesh(new THREE.SphereGeometry(80000, 96, 48), new THREE.MeshBasicMaterial({ map: tex, side: THREE.BackSide, depthWrite: false }));
+  }
   function draw(scene, camera, { strength = 0.6, radius = 0.5, threshold = 0.7 } = {}) {
     pass.scene = scene; pass.camera = camera; bloom.strength = strength; bloom.radius = radius; bloom.threshold = threshold;
     composer.render();
@@ -51,7 +68,7 @@ const GL = (() => {
     const p = v.clone().project(camera);
     return [(p.x + 1) / 2 * W, (1 - p.y) / 2 * H, p.z < 1];
   }
-  return { renderer, tex, canvasTex, glowTex, glowSprite, stars, draw, screen, ready: () => Promise.all(waits) };
+  return { renderer, tex, canvasTex, glowTex, glowSprite, stars, milkyDome, draw, screen, ready: () => Promise.all(waits) };
 })();
 // a camera placed by orbit around a target: distance, azimuth (around +y), elevation above the plane
 function orbitCam(cam, [tx, ty, tz], d, az, el, roll = 0) {

@@ -290,7 +290,7 @@ function drawFleet(t) {                               // fleet, drop, ember: the
   drawOpen(t);
   const END = SC.ember + 7.0;                          // the wreck field holds ~3 s, then the camera cranes up off it
   if (t < SC.fleet - 0.05 || t > END) return;
-  if (t >= SC.drop && t < CUE.kills[0]) { drawDropletClose(t); return; }
+  ctx.drawImage(FLEET.draw(t), 0, 0); return;          // the battle in 3D (gl-fleet.js), the droplet's close-up included          // the battle in 3D (gl-fleet.js)
   const c = camAt(t), crane = easeIO(ramp(t, SC.ember + 3.4, END));
   ctx.save(); ctx.translate(0, H * 1.05 * crane);
   ctx.globalCompositeOperation = 'lighter';
@@ -842,6 +842,8 @@ async function render(t) {
 <script src="../../../galaxy-explorer/vendor/ShaderPass.js"></script>
 <script src="../../../galaxy-explorer/vendor/UnrealBloomPass.js"></script>
 <script src="gl-core.js"></script>
+<script src="gl-ships.js"></script>
+<script src="gl-fleet.js"></script>
 <script src="gl-pluto.js"></script>
 <script src="gl-solar.js"></script>
 <script>
@@ -851,6 +853,7 @@ window.seek = async t => render(clamp(t, 0, DURATION - 1e-6));
 Promise.all([`400 34px ${ZH}`, `600 132px ${ZH}`].map(f => document.fonts.load(f)).concat(GL.ready())).then(() => {
   // a gradient changes how Chrome rasterises later blended draws on this canvas, so draw one before any frame:
   // then a frame looks the same whether it is a page's first or follows others (render.mjs --check)
+  FLEET.bake();                                       // the droplet's reflections, captured once
   vignette(0.5); grain(0); ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
   window.READY = true;
 });
