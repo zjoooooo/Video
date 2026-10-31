@@ -13,7 +13,7 @@ function carve(g, s, font, x, y, size, align = 'center') {   // letters cut into
 }
 const PLU = (() => {
   const scene = new THREE.Scene(), cam = new THREE.PerspectiveCamera(34, W / H, 0.05, 30000);
-  scene.add(GL.stars(23, 9000, 12000));
+  scene.add(GL.stars(23, 9000, 12000), MILKY.sky(1.2, [0.05, 0.42, -0.9], -0.35, -0.5));
   const ice = GL.canvasTex(1024, 1024, (g, w, h) => {   // frost: speckle and soft blotches, tiled across the ground
     const r = rng(61), d = g.createImageData(w, h);
     for (let i = 0; i < w * h; i++) { const v = 150 + 60 * r() * r(); d.data.set([v, v * 0.95, v * 0.9, 255], i * 4); }

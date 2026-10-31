@@ -100,14 +100,14 @@ function sprite(rgb, size = 64) {
 const GLOW = { gold: sprite('255,200,120'), white: sprite('255,248,235'), ember: sprite('255,110,40'), ice: sprite('170,215,255'), fire: sprite('255,175,80') };
 function glow(img, x, y, d, a) { if (a > 0.003 && d > 0.5) { ctx.globalAlpha = Math.min(1, a); ctx.drawImage(img, x - d / 2, y - d / 2, d, d); } }
 
-// ---- the cold open: the forest, and a few eyes in it ----------------------------------------------------
-const EYES = [[420, 300, 3.2], [1510, 210, 5.4], [1180, 760, 7.6], [260, 820, 9.0]];   // x, y, when it opens
+// ---- the cold open: the galaxy, the forest, and a few eyes in it (gl-galaxy.js) ---------------------------
 function drawOpen(t) {
-  if (t > SC.fleet + 1) return;
+  if (t >= SC.fleet - 0.05) return;                   // cut to the fleet leaving Earth
+  ctx.drawImage(COLD.draw(t), 0, 0);
   ctx.save(); ctx.globalCompositeOperation = 'lighter';
-  for (const [x, y, at] of EYES) {
-    const a = window01(t, at, at + 2.6, 0.5, 1.6) * (1 - ramp(t, SC.fleet - 0.4, SC.fleet));
-    glow(GLOW.ice, x, y, 46, 0.55 * a); glow(GLOW.white, x, y, 8, 0.9 * a);
+  for (const [x, y, front, at] of COLD.eyes(t)) {     // an eye opens on a star: a cold flare, then it watches
+    const a = ease(ramp(t, at, at + 0.5)) * lerp(1, 0.45, ease(ramp(t, at + 0.5, at + 2.5))) * (1 - ramp(t, SC.fleet - 0.6, SC.fleet - 0.05));
+    if (front && a > 0) { glow(GLOW.ice, x, y, 90, 0.75 * a); glow(GLOW.ice, x, y, 26, 0.9 * a); glow(GLOW.white, x, y, 10, a); }
   }
   ctx.restore();
 }
@@ -189,188 +189,30 @@ function project(c, X, Y, Z) {
   const s = F / z1, sx = dx * s, sy = -y1 * s, cr = Math.cos(c.roll), sr = Math.sin(c.roll);
   return [W / 2 + sx * cr - sy * sr, c.cy + sx * sr + sy * cr, s, z1];
 }
-function drawDropletClose(t) {                         // the close-up: a perfect mirror with the fleet's lights in it
-  const a = window01(t, SC.drop, CUE.kills[0], 0.25, 0.05);
-  if (a <= 0) return;
-  const g = easeIO(ramp(t, SC.drop, SC.drop + 3.2)), sc = lerp(0.16, 1, g) * lerp(1, 1.06, ramp(t, SC.drop + 3.2, CUE.kills[0]));
-  const cx = lerp(W * 0.72, W * 0.5, g), cy = lerp(H * 0.36, H * 0.48, g), R = 150 * sc, L = 470 * sc, rot = -0.18 + 0.05 * Math.sin(t * 0.7);
-  ctx.save(); ctx.globalAlpha = a; ctx.translate(cx, cy); ctx.rotate(rot);
-  const shape = () => { ctx.beginPath(); ctx.moveTo(-L, 0);           // pointed tail to the left, round head to the right
-    ctx.bezierCurveTo(-L * 0.45, -R * 0.2, -R * 0.6, -R, R * 0.15, -R);
-    ctx.bezierCurveTo(R * 1.35, -R, R * 1.35, R, R * 0.15, R);
-    ctx.bezierCurveTo(-R * 0.6, R, -L * 0.45, R * 0.2, -L, 0); ctx.closePath(); };
-  shape(); ctx.save(); ctx.clip();
-  const body = ctx.createLinearGradient(0, -R, 0, R);
-  body.addColorStop(0, '#dfe8f2'); body.addColorStop(0.18, '#7d8ea3'); body.addColorStop(0.5, '#0d131c'); body.addColorStop(0.82, '#3a4a5e'); body.addColorStop(1, '#c9d6e4');
-  ctx.fillStyle = body; ctx.fillRect(-L, -R, L + R * 1.4, 2 * R);
-  ctx.globalCompositeOperation = 'lighter';            // the fleet, curved across the mirror and sliding as it turns
-  for (let j = 0; j < 14; j++) for (let i = 0; i < 30; i++) {
-    const u = (i / 29) * 2 - 1 + 0.08 * Math.sin(t * 0.4), v = 0.18 + j * 0.035;
-    const x = R * 0.2 + (L * 0.75) * u * (1 - 0.32 * u * u) - L * 0.18, y = R * v * (1 - 0.25 * u * u);
-    glow(GLOW.gold, x, y, 12 * sc + 2, 0.95 * (1 - Math.abs(u)) * (0.6 + 0.4 * Math.sin(i * 1.7 + j)));
-  }
-  const spec = ctx.createLinearGradient(0, -R * 0.95, 0, -R * 0.55);    // the hard specular band that tells you it is a mirror
-  spec.addColorStop(0, 'rgba(255,255,255,0)'); spec.addColorStop(0.5, 'rgba(255,255,255,0.85)'); spec.addColorStop(1, 'rgba(255,255,255,0)');
-  ctx.globalAlpha = a; ctx.fillStyle = spec; ctx.fillRect(-L * 0.3, -R, L * 0.3 + R * 1.2, R * 0.5);
-  ctx.restore();
-  ctx.globalCompositeOperation = 'lighter';            // a soft rim light, not an outline: the surface is perfectly smooth
-  ctx.shadowColor = 'rgba(200,225,255,0.7)'; ctx.shadowBlur = 14;
-  ctx.lineWidth = 7; ctx.strokeStyle = `rgba(200,225,255,${0.07 * a})`; shape(); ctx.stroke();
-  ctx.lineWidth = 2; ctx.strokeStyle = `rgba(220,235,255,${0.18 * a})`; shape(); ctx.stroke();
-  ctx.shadowBlur = 0;
-  const wake = ramp(t, CUE.kills[0] - 0.45, CUE.kills[0]);         // it wakes: a glint runs along the rim just before it strikes
-  if (wake > 0) glow(GLOW.white, lerp(-L, R * 1.1, wake), -R * 0.62 * Math.sin(Math.PI * wake), 160 * sc, wake);
-  ctx.restore();
-}
-
-function hull(s, x, y, k, color, alpha, lit = false) {   // one ship's silhouette, nose right, at screen scale k
-  const L = 17 * k * s.sz, pts = HULLS[s.hull];
-  ctx.save(); ctx.globalAlpha = alpha; ctx.fillStyle = color; ctx.translate(x, y); ctx.rotate(s.hd);
-  ctx.beginPath(); pts.forEach(([px, py], i) => (i ? ctx.lineTo(px * L, py * L) : ctx.moveTo(px * L, py * L))); ctx.closePath();
-  if (lit) {                                           // up close: two tones, lit top and dark belly, a rim of light, a spine, a row of lights
-    ctx.globalCompositeOperation = 'source-over';
-    const g = ctx.createLinearGradient(0, -0.3 * L, 0, 0.3 * L);
-    g.addColorStop(0, '#f2deb0'); g.addColorStop(0.49, '#d4b27c'); g.addColorStop(0.51, '#7a6244'); g.addColorStop(1, '#4a3a26');   // underside about half as bright
-    ctx.fillStyle = g; ctx.fill();
-    ctx.save(); ctx.clip(); ctx.beginPath(); ctx.rect(-1.2 * L, -L, 2.4 * L, L - 0.02 * L); ctx.clip();   // the rim: the top edge only
-    ctx.beginPath(); pts.forEach(([px, py], i) => (i ? ctx.lineTo(px * L, py * L) : ctx.moveTo(px * L, py * L))); ctx.closePath();
-    ctx.strokeStyle = 'rgba(255,244,214,0.9)'; ctx.lineWidth = 2; ctx.stroke(); ctx.restore();
-    ctx.strokeStyle = 'rgba(30,22,14,0.7)'; ctx.lineWidth = Math.max(1, 0.025 * L);
-    ctx.beginPath(); ctx.moveTo(-0.85 * L, 0.02 * L); ctx.lineTo(0.8 * L, 0.02 * L); ctx.stroke();
-    ctx.fillStyle = '#20180f'; ctx.fillRect(-1.0 * L, -0.12 * L, 0.18 * L, 0.24 * L);   // the drive block
-    ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = '#fff1c8';
-    for (const wx of [-0.3, -0.05, 0.2, 0.45]) { ctx.beginPath(); ctx.arc(wx * L, -0.07 * L, Math.max(0.8, 0.018 * L), 0, TAU); ctx.fill(); }
-  } else ctx.fill();
-  ctx.restore();
-}
-function clipX(pts, lo, hi) {                         // a polygon cut to lo <= x <= hi
-  const cut = (poly, keep, xc) => poly.flatMap((a, i) => {
-    const b = poly[(i + 1) % poly.length], out = keep(a[0]) ? [a] : [];
-    if (keep(a[0]) !== keep(b[0])) out.push([xc, a[1] + (xc - a[0]) / (b[0] - a[0]) * (b[1] - a[1])]);
-    return out;
-  });
-  return cut(cut(pts, x => x >= lo, lo), x => x <= hi, hi);
-}
-const CUTS = [[-1.01, -0.3], [-0.3, 0.35], [0.35, 1.01]];
-const SHARDS = HULLS.map(h => CUTS.map(([lo, hi]) => clipX(h, lo, hi)));
-const yAt = (poly, x) => { const ys = poly.filter(p => Math.abs(p[0] - x) < 1e-6).map(p => p[1]); return ys.length ? [Math.min(...ys), Math.max(...ys)] : [0, 0]; };
-function wreck(s, x, y, k, dt, haze) {               // the hull in three solid shards drifting apart; only the broken edges glow, briefly
-  const L = 17 * k * s.sz, open = 1 - Math.exp(-dt / 1.4);
-  ctx.save(); ctx.lineCap = 'round';
-  SHARDS[s.hull].forEach((poly, i) => {
-    ctx.save(); ctx.translate(x, y); ctx.rotate(s.hd);
-    if (s.flag) {                                      // the flagship's pieces part at ~30 px/s, spinning slowly
-      ctx.translate((i - 1) * (14 + 30 * dt) + (i === 1 ? 0 : 6), (s.fr - 0.5 + 0.4 * (i - 1)) * 12 * dt); ctx.rotate((i - 1 + 0.3) * 0.16 * dt);
-    } else {
-      ctx.translate((i - 1) * L * (0.22 * open + 0.012 * dt), L * (s.fr - 0.5) * (i - 1 + 0.4) * 0.3 * open);
-      ctx.rotate((i - 1 + 0.35 * (s.fr - 0.5)) * (0.5 * open + 0.05 * dt));
-    }
-    ctx.beginPath(); poly.forEach(([px, py], j) => (j ? ctx.lineTo(px * L, py * L) : ctx.moveTo(px * L, py * L))); ctx.closePath();
-    ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 0.85 * haze;
-    const g = ctx.createLinearGradient(0, -0.3 * L, 0, 0.3 * L);   // a burnt hull, still solid: dull top, black underside
-    g.addColorStop(0, '#5a4532'); g.addColorStop(0.5, '#33261a'); g.addColorStop(1, '#0e0a06');
-    ctx.fillStyle = g; ctx.fill();
-    ctx.globalCompositeOperation = 'lighter';         // the torn edges: white-orange, cooling out within a second
-    const hot = Math.max(Math.exp(-dt / 0.35), s.flag ? 0.45 * Math.exp(-dt / 5) : 0) * haze; if (hot > 0.01) {   // the flagship's embers linger so its pieces read
-      ctx.strokeStyle = `rgba(255,${150 + 80 * hot | 0},70,${hot})`; ctx.lineWidth = Math.max(1, 0.06 * L);
-      for (const xc of [CUTS[i][0], CUTS[i][1]]) {
-        if (Math.abs(xc) > 1) continue;
-        const [a, b] = yAt(poly, xc); ctx.beginPath(); ctx.moveTo(xc * L, a * L); ctx.lineTo(xc * L, b * L); ctx.stroke();
-      }
-    }
-    if (s.flag) for (let j = 0; j < 5; j++) {         // venting: sparks streaming off the torn edge, again and again
-      const ph = (dt * 0.9 + j / 5 + i * 0.37) % 1, ex = (i === 0 ? CUTS[0][1] : i === 2 ? CUTS[2][0] : CUTS[1][j % 2]) * L;
-      glow(GLOW.fire, ex + (i - 1 || (j % 2 ? 1 : -1)) * ph * 40, (j - 2) * 3 + ph * 8, 10 * (1 - ph) + 2, 0.7 * (1 - ph) * Math.exp(-dt / 6));
-    }
-    ctx.restore();
-  });
-  ctx.restore();
-}
 function drawFleet(t) {                               // fleet, drop, ember: the Doomsday Battle
   drawOpen(t);
   const END = SC.ember + 7.0;                          // the wreck field holds ~3 s, then the camera cranes up off it
   if (t < SC.fleet - 0.05 || t > END) return;
   if (t < (subAt('列成方阵')?.t0 ?? SC.fleet + 7.1)) { ctx.drawImage(LEAVE.draw(t), 0, 0); return; }   // leaving Earth (gl-earth.js)
-  ctx.drawImage(FLEET.draw(t), 0, 0); return;          // the battle in 3D (gl-fleet.js), the droplet's close-up included
-  const c = camAt(t), crane = easeIO(ramp(t, SC.ember + 3.4, END));
-  ctx.save(); ctx.translate(0, H * 1.05 * crane);
-  ctx.globalCompositeOperation = 'lighter';
-  for (const s of SHIPS) {
-    let X = s.x, Y = s.y, Z = s.z;
-    if (s.run) { const u = Math.max(0, t - CUE.kills[1]); X += Math.sign(s.x || 1) * 70 * u * u; Z += 160 * u * u; Y += 14 * u * u; }   // away from the camera
-    const p = project(c, X, Y, Z); if (!p) continue;
-    const [x, y, kk, z1] = p, k = Math.min(kk, 3), haze = clamp(1.3 - z1 / 4200, 0.25, 1);
-    if (x < -300 || x > W + 300 || y < -300 || y > H + 300) continue;
-    const on = ease(ramp(t, SC.fleet + s.row * 0.022, SC.fleet + s.row * 0.022 + 0.35)) * haze;
-    const dt = t - s.tk, L = 17 * k * s.sz;
-    if (dt < 0) {                                      // alive: a dark hull lit by its own drive
-      const pulse = 0.85 + 0.15 * Math.sin(t * 2 + s.dir * 5), rear = x - L * Math.cos(s.hd), ry = y - L * Math.sin(s.hd);
-      if (k > 0.3) hull(s, x, y, k, '#b8955f', 0.8 * on, k > 0.5); else { ctx.globalAlpha = 0.75 * on; ctx.fillStyle = '#b8955f'; ctx.fillRect(x - L, y - 1, 2 * L, 2); }
-      glow(GLOW.gold, rear, ry, (s.flag ? 30 : 40) * k * s.sz + 3, 0.7 * on * pulse);
-      glow(GLOW.white, rear, ry, 8 * k * s.sz + 1.5, 0.9 * on);
-      if (s.flag) for (const o of [-0.12, 0.12]) glow(GLOW.white, rear, ry + o * L, 6 * k * s.sz, 0.8 * on);
-      if (s.run && t > CUE.kills[1]) glow(GLOW.white, x, y, 22 * k + 4, 0.9);
-    } else {                                           // dead: a two-frame white core, a fireball, a dying wreck, sparks
-      const cap = s.flag ? 4 : 1;                      // the flagship's death is the one the camera is close enough to see
-      glow(GLOW.white, x, y, Math.min(26 * cap, 26 * k * s.sz + 4), 1.3 * Math.exp(-dt / 0.035));
-      glow(GLOW.fire, x, y, Math.min(48 * cap, (40 + 40 * s.fr) * k * s.sz * (0.5 + 0.5 * ease(clamp(dt / 0.12))) + 4), 0.95 * Math.exp(-dt / 0.5) * haze);   // capped, so neighbours never merge
-      if (k > 0.3) wreck(s, x, y, k, dt, haze);
-      glow(GLOW.ember, x, y, 26 * k * s.sz + 2, (0.22 * Math.exp(-dt / 1.2) + 0.04 * Math.exp(-dt / 10)) * (0.5 + s.jit * 3.3) * haze);
-      for (const [d, v, vy] of s.deb) {                // sparks fly out fast, then keep drifting
-        const e = 1 - Math.exp(-dt / 1.5) + dt * 0.02, q = project(c, X + Math.cos(d) * v * 1.5 * e, Y + vy * e, Z + Math.sin(d) * v * 1.5 * e);
-        if (q) glow(GLOW.ember, q[0], q[1], Math.min(40, 6 * q[2] + 1.2), 0.55 * Math.exp(-dt / 2) + 0.14 * Math.exp(-dt / 12));
-      }
-    }
-  }
-  const P = t >= CUE.kills[0] ? dropletAt(t) : null;   // the droplet: a white-hot pin at the head of the chain, a cyan wake
-  if (P) {
-    const trail = [];
-    for (let j = 0; j <= 16; j++) { const Q = dropletAt(t - j * 0.01), q = Q && project(c, ...Q); if (q) trail.push(q); }
-    ctx.globalAlpha = 0.8; ctx.strokeStyle = '#bfe4ff'; ctx.lineCap = 'round';
-    for (let j = 1; j < trail.length; j++) {          // a tapering cyan wake
-      ctx.lineWidth = Math.min(10, 5 * trail[0][2] + 1.5) * (1 - j / trail.length);
-      ctx.beginPath(); ctx.moveTo(trail[j - 1][0], trail[j - 1][1]); ctx.lineTo(trail[j][0], trail[j][1]); ctx.stroke();
-    }
-    const q = project(c, ...P);
-    if (q) {
-      glow(GLOW.white, q[0], q[1], Math.min(56, 90 * q[2] + 14), 1); glow(GLOW.ice, q[0], q[1], Math.min(130, 220 * q[2] + 30), 0.7);   // a star, not a lens blob
-      for (const K of CUE.kills) if (t >= K && t < K + 1.5) glow(GLOW.white, q[0], q[1], 640, 0.4 * Math.exp(-(t - K) / 0.3));   // the hit: bloom where it strikes
-    }
-  }
-  ctx.restore();
+  ctx.drawImage(FLEET.draw(t), 0, 0);                 // the battle in 3D (gl-fleet.js), the droplet's close-up included
 }
 
-// ---- the Singer: a glance, and a slip of paper ---------------------------------------------------------
-// The Singer is never drawn, only its eye: a vast, cold iris of sensing points that opens out of the dark as the
-// fleet leaves the frame, and turns until its bright arc faces the Sun, which it notices as the narration says
-// "瞥了一眼". The foil appears on that arc as it is "taken out", waits there, and on the 1:14 accent snaps away
-// toward the outer edge of the Solar System, where the fall begins.
-const SUN = [1340, 560], ORBITS = [22, 30, 40, 52, 86, 120, 158, 196], EDGE = [SUN[0] - 214, SUN[1] + 28];   // Mercury to Neptune
-const IRIS = [470, 610], IR = 300, OPEN = SC.ember + 6.6;          // the iris opens as the wreck field cranes out of frame
-const SCC = [900, 600];                               // the Singer's camera pushes in on this point, the gap the foil will cross
-const singerCam = t => lerp(1, 1.32, easeIO(ramp(t, SC.ember + 15.4, CUE.flick))) * lerp(1, 1.06, ramp(t, CUE.flick, SC.fall));
-const FACE = Math.atan2(SUN[1] - IRIS[1], SUN[0] - IRIS[0]);
+// ---- the Singer: a glance, and a slip of paper (gl-singer.js) ------------------------------------------------
+// The Singer is never drawn, only its eye: a vast, cold iris of sensing points that opens over the galaxy as the
+// wreck field cranes away, and turns until its bright arc faces the Sun, which it notices as the narration says
+// "瞥了一眼". The foil appears on that arc as it is "taken out" and waits there (cut in close, it turns edge-on and is
+// gone to a hairline); on the 1:14 accent it snaps away to the Sun, and the camera follows it down.
+const IRIS = [470, 610], IR = 300, OPEN = SC.ember + 7.3;
 const subAt = word => TL.subs.find(s => s.zh.includes(word));
 const glanceHits = (subAt('瞥')?.t1 ?? SC.ember + 12.3) - 0.4;     // the glance lands on "瞥了一眼"
 const FOIL_IN = subAt('二向箔')?.t0 ?? SC.ember + 12.2;              // and the foil is taken out on "二向箔"
-const ssZoom = t => lerp(1, 1.6, easeIO(ramp(t, SC.ember + 14, SC.fall + 4)));   // a slow push-in on the Solar System, into the fall
-const edgeAt = t => [SUN[0] + (EDGE[0] - SUN[0]) * ssZoom(t), SUN[1] + (EDGE[1] - SUN[1]) * ssZoom(t)];
-const irisAlpha = t => ease(ramp(t, OPEN, OPEN + 1.5)) * lerp(1, 0.6, window01(t, CUE.flick + 0.6, SC.fall, 0.8, 0.1)) * (1 - ease(ramp(t, SC.fall - 1, SC.fall + 1)));
-const arcAngle = t => FACE + 2.4 * (1 - easeIO(ramp(t, OPEN + 0.8, glanceHits)));   // the bright arc turns to face the Sun
+const CL0 = SC.ember + 18.6, CL1 = CL0 + 4.0;          // the foil, close
+const face = t => { const [x, y] = SING.sunPx(t); return Math.atan2(y - IRIS[1], x - IRIS[0]); };
+const irisAlpha = t => ease(ramp(t, OPEN, OPEN + 1.5)) * lerp(1, 0.6, ease(ramp(t, CUE.flick, CUE.flick + 0.6))) * (1 - ease(ramp(t, CUE.flick + 0.6, CUE.flick + 2.4)));
+const arcAngle = t => face(t) + 2.4 * (1 - easeIO(ramp(t, OPEN + 0.8, glanceHits)));   // the bright arc turns to face the Sun
 const arcPoint = t => { const r = IR * (0.6 + 0.4 * ease(ramp(t, OPEN, OPEN + 2.5))), a = arcAngle(t); return [IRIS[0] + r * Math.cos(a), IRIS[1] + r * Math.sin(a)]; };
-function solarSystem(t, a) {                          // the far view: the Sun and faint orbits (the fall takes over from here)
-  if (a <= 0.001) return;
-  const z = ssZoom(t);
-  ctx.save(); ctx.globalCompositeOperation = 'lighter';
-  ctx.lineWidth = 1.2; ctx.strokeStyle = `rgba(150,180,230,${0.24 * a})`;
-  for (const r of ORBITS) { ctx.beginPath(); ctx.ellipse(SUN[0], SUN[1], r * z, r * z * 0.34, -0.12, 0, TAU); ctx.stroke(); }
-  glow(GLOW.gold, SUN[0], SUN[1], 80 * z, 0.9 * a); glow(GLOW.white, SUN[0], SUN[1], 14 * z, a);
-  const p = t - glanceHits;                            // noticed: a cold ring closes on the Sun
-  if (p > -0.4 && p < 1.6) { ctx.strokeStyle = `rgba(190,225,255,${0.7 * a * window01(p, -0.4, 1.6, 0.3, 1)})`; ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.arc(SUN[0], SUN[1], lerp(70, 10, ease(ramp(p, -0.4, 1.2))), 0, TAU); ctx.stroke(); }
-  ctx.restore();
-}
-function drawIris(t) {                                // the Singer's eye
+const foilAnchor = t => { const [x, y] = arcPoint(t); return [x + 18, y - 26 + 6 * Math.sin(t * 1.7)]; };   // where the foil waits, bobbing
+function drawIris(t, sun) {                           // the Singer's eye
   const A = irisAlpha(t); if (A <= 0.001) return;
   const open = 0.6 + 0.4 * ease(ramp(t, OPEN, OPEN + 2.5)), sweep = ramp(t, OPEN, OPEN + 2), breathe = 1 + 0.008 * Math.sin(t * 1.3);
   const phi = arcAngle(t);
@@ -387,411 +229,45 @@ function drawIris(t) {                                // the Singer's eye
   }
   const [ax, ay] = arcPoint(t), g = window01(t, glanceHits - 0.25, glanceHits + 1.8, 0.2, 1.2);   // the glance: a thin cold line to the Sun
   if (g > 0.003) {
-    const grad = ctx.createLinearGradient(ax, ay, SUN[0], SUN[1]);
+    const grad = ctx.createLinearGradient(ax, ay, sun[0], sun[1]);
     grad.addColorStop(0, `rgba(190,225,255,${0.7 * g * A})`); grad.addColorStop(1, `rgba(190,225,255,${0.15 * g * A})`);
-    ctx.strokeStyle = grad; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(SUN[0], SUN[1]); ctx.stroke();
+    ctx.strokeStyle = grad; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(sun[0], sun[1]); ctx.stroke();
   }
+  const p = t - glanceHits;                            // noticed: a cold ring closes on the Sun
+  if (p > -0.4 && p < 1.6) { ctx.strokeStyle = `rgba(190,225,255,${0.7 * A * window01(p, -0.4, 1.6, 0.3, 1)})`; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(sun[0], sun[1], lerp(70, 10, ease(ramp(p, -0.4, 1.2))), 0, TAU); ctx.stroke(); }
   ctx.restore();
 }
-function foilAt(t) {                                  // waiting on the arc; then a hard snap, and the rest of the way adrift
-  const [ax, ay] = arcPoint(Math.min(t, CUE.flick)), E = edgeAt(t);
-  const u = 0.6 * (1 - Math.pow(2, -10 * ramp(t, CUE.flick, CUE.flick + 0.35))) + 0.4 * easeIO(ramp(t, CUE.flick + 0.35, SC.fall));
-  const bob = t < CUE.flick ? 6 * Math.sin(t * 1.7) : 0;
-  return [lerp(ax + 18, E[0], u), lerp(ay - 26 + bob, E[1], u), lerp(1.25, 0.3, u)];
-}
-function drawFoil(t) {
-  if (t < FOIL_IN || t > SC.fall + 1.5) return;
-  const [x, y, s] = foilAt(t), a = ease(ramp(t, FOIL_IN, FOIL_IN + 0.8)) * (1 - ramp(t, SC.fall, SC.fall + 1.5));
+function drawSinger(t) {                              // the galaxy from far above, the eye, the foil
+  if (t < SING.T0 || t >= SING.CUT) return;
+  const [img, fade] = SING.draw(t, foilAnchor);
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = fade; ctx.drawImage(img, 0, 0); ctx.globalAlpha = 1;   // up out of the dark
+  if (t >= CL0 && t < CL1) return;                    // the close-up is the foil alone
+  const [fx, fy] = SING.foilPx(), sun = SING.sunPx(t);
+  drawIris(t, sun);
   ctx.save(); ctx.globalCompositeOperation = 'lighter';
-  glow(GLOW.white, x, y, 60, 0.8 * Math.exp(-Math.max(0, t - FOIL_IN) / 0.25));          // taken out: a glint
-  const [fx, fy] = foilAt(CUE.flick);
-  glow(GLOW.white, fx, fy, 240, 0.95 * (t >= CUE.flick ? Math.exp(-(t - CUE.flick) / 0.12) : 0));   // the flick
-  ctx.lineCap = 'round';
-  for (let j = 1; j <= 14; j++) {                      // the snap's motion trail, then a faint glimmer behind it
-    const [px, py] = foilAt(t - j * 0.012), [qx, qy] = foilAt(t - (j - 1) * 0.012);
-    ctx.strokeStyle = `rgba(210,235,255,${0.5 * a * (1 - j / 15)})`; ctx.lineWidth = 3 * s * (1 - j / 15) + 0.5;
-    ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(qx, qy); ctx.stroke();
-  }
-  glow(GLOW.ice, x, y, 70 * s + 8, 0.45 * a);
-  const rot = t < CUE.flick ? t * 0.6 : CUE.flick * 0.6 + (t - CUE.flick) * 2.1, fore = Math.abs(Math.cos(rot * 0.7)) * 0.85 + 0.15;   // tumbling
-  ctx.translate(x, y); ctx.rotate(rot); ctx.scale(1, fore);
-  ctx.globalAlpha = a; ctx.fillStyle = 'rgba(235,245,255,0.55)'; ctx.strokeStyle = 'rgba(255,255,255,0.95)'; ctx.lineWidth = 1.2 / fore;
-  const w = 28 * s, h = 18 * s; ctx.beginPath(); ctx.moveTo(-w / 2 + 5 * s, -h / 2); ctx.lineTo(w / 2 + 5 * s, -h / 2); ctx.lineTo(w / 2 - 5 * s, h / 2); ctx.lineTo(-w / 2 - 5 * s, h / 2); ctx.closePath();
-  ctx.fill(); ctx.stroke();
-  ctx.restore();
-}
-// While the foil waits, cut in close: it turns, goes edge-on and is gone to a hairline, a thing with no thickness. The Sun
-// glows out of focus behind it, the Singer's ring arcs out of focus to the left; the shot ends on the hairline.
-const CL0 = SC.ember + 18.6, CL1 = CL0 + 4.0, CLW = 0.95, CLT = 1.5 * Math.PI - 4.0 * CLW;   // so it ends edge-on
-function drawFoilClose(t) {
-  const u = t - CL0;
-  ctx.save(); ctx.globalCompositeOperation = 'lighter';
-  glow(GLOW.gold, 1390, 430, 620, 0.32); glow(GLOW.white, 1390, 430, 120, 0.25);   // the Sun, far out of focus
-  for (let i = 0; i < 46; i++) {                      // the Singer's ring: an arc of soft discs
-    const a = -1.05 + i * 0.047 + u * 0.01, x = -380 + 980 * Math.cos(a), y = 560 + 980 * Math.sin(a);
-    glow(GLOW.ice, x, y, 58 + 14 * Math.sin(i * 1.7), 0.13 + 0.05 * Math.sin(i * 2.3));
-  }
-  ctx.restore();
-  const th = CLT + u * CLW, c = Math.cos(th), ac = Math.abs(c), w = 120, h = 76;
-  ctx.save(); ctx.translate(W * 0.5, H * 0.47); ctx.rotate(-0.12 + 0.03 * Math.sin(u * 0.5)); ctx.globalCompositeOperation = 'lighter';
-  if (ac < 0.04) {                                    // edge-on: nothing left but a hairline
-    ctx.fillStyle = `rgba(235,242,255,${0.45 * (1 - ac / 0.04) + 0.15})`; ctx.fillRect(-0.5, -h / 2, 1, h);
-  } else {                                            // a thin film: colours slide across it as it turns, no outline
-    const x0 = -w / 2 * c, x1 = w / 2 * c, s = th * 0.55, g = ctx.createRadialGradient(x0 - 2.2 * w * Math.sign(c), -h, 0, x0 - 2.2 * w * Math.sign(c), -h, 3.2 * w);   // bands bent like a soap film's
-    [[0, 300], [0.25, 180], [0.5, 120], [0.75, 45], [1, 300]].forEach(([p, hue]) => g.addColorStop(p, `hsla(${(hue + s * 120) % 360},80%,72%,${0.42 * Math.min(1, ac * 3)})`));
-    ctx.fillStyle = g; ctx.fillRect(Math.min(x0, x1), -h / 2, Math.abs(x1 - x0), h);
-    const spec = ctx.createLinearGradient(x0, -h / 2, x1, h / 2);   // and a highlight sweeping over it
-    const k = clamp((Math.sin(th) + 1) / 2, 0.05, 0.95);
-    spec.addColorStop(0, 'rgba(255,255,255,0)'); spec.addColorStop(k, `rgba(255,255,255,${0.35 * Math.min(1, ac * 3)})`); spec.addColorStop(1, 'rgba(255,255,255,0)');
-    ctx.fillStyle = spec; ctx.fillRect(Math.min(x0, x1), -h / 2, Math.abs(x1 - x0), h);
-  }
-  ctx.restore();
-}
-function drawSinger(t) {                              // the Singer's eye, the Sun it notices, and the foil
-  if (t < OPEN || t > SC.fall + 3) return;
-  if (t >= CL0 && t < CL1) { drawFoilClose(t); return; }
-  const s = singerCam(t);
-  ctx.save(); ctx.translate(SCC[0], SCC[1]); ctx.scale(s, s); ctx.translate(-SCC[0], -SCC[1]);
-  drawIris(t);
-  solarSystem(t, ease(ramp(t, OPEN + 1.5, OPEN + 4)) * (t < SC.fall ? 1 : 0));   // drawFall takes over on the same geometry
-  drawFoil(t);
+  glow(GLOW.white, fx, fy, 60, 0.8 * (t >= FOIL_IN ? Math.exp(-(t - FOIL_IN) / 0.25) : 0));   // taken out: a glint
+  const [kx, ky] = foilAnchor(CUE.flick);
+  glow(GLOW.white, kx, ky, 240, 0.95 * (t >= CUE.flick ? Math.exp(-(t - CUE.flick) / 0.12) : 0));   // the flick
   ctx.restore();
 }
 
-// ---- the fall: the Solar System collapses into two dimensions ---------------------------------------------
-// Local coordinates are the orbital plane, the Sun at the origin, 1 unit = 1 px at zoom 1: the Singer's far view
-// drawn the same way, so the hand-over is invisible. The foil touched down at IMPACT; from SC.fall a disc of
-// two-dimensional space grows from there. A body flattens the moment the disc's edge reaches it, and each body
-// sits on its orbit at the distance from IMPACT that the edge reaches on its cue: Neptune, Uranus, Saturn and
-// Jupiter on CUE.planets, the Sun on CUE.sun, Earth (on the far side of the Sun) on CUE.earth.
-const TILT = 0.34, ROT = -0.12;
-const IMPACT = (() => { const dx = EDGE[0] - SUN[0], dy = EDGE[1] - SUN[1], c = Math.cos(-ROT), s = Math.sin(-ROT); return [dx * c - dy * s, (dx * s + dy * c) / TILT]; })();
-const DSUN = Math.hypot(...IMPACT);
+// ---- the fall, the escape, the look back, the end (gl-solar.js, gl-pluto.js) ----------------------------------
 const LS = SC.escape + 6.2;                           // the escaping ship reaches light speed, on "逃出了"
 const BACK0 = LS + 5.0;                               // and five seconds later we look back
-const RHO = [[SC.fall, 0], [CUE.planets[0], 40], [CUE.planets[1], 90], [CUE.planets[2], 135], [CUE.planets[3], 175],
-             [CUE.sun, DSUN], [CUE.earth, 252], [SC.escape, 470], [LS, 760], [SC.back, 1400]];   // after Earth it races the ship
-function keyed(t, keys, shape = x => x) {            // piecewise between [t, value] keys; shape eases each segment
-  if (t <= keys[0][0]) return keys[0][1];
-  for (let i = 1; i < keys.length; i++) if (t < keys[i][0]) {
-    const [t0, a] = keys[i - 1], [t1, b] = keys[i], k = shape((t - t0) / (t1 - t0));
-    return Array.isArray(a) ? a.map((v, j) => lerp(v, b[j], k)) : lerp(a, b, k);
-  }
-  return keys.at(-1)[1];
-}
-const rhoAt = t => keyed(t, RHO);
-const hitOf = d => { for (let i = 1; i < RHO.length; i++) if (d <= RHO[i][1]) return lerp(RHO[i - 1][0], RHO[i][0], (d - RHO[i - 1][1]) / (RHO[i][1] - RHO[i - 1][1])); return Infinity; };
-function guilloche(seed, rings) {                     // a unit-radius engraving: fine lace rings, a spirograph, fine circles
-  const r = rng(seed), p = new Path2D(), N = 2400;     // high ring frequencies keep it fine even at the closest zoom
-  for (let i = 0; i < rings; i++) {
-    const a = 0.24 + 0.7 * (i + 1) / (rings + 1), b = 0.012 + 0.028 * r(), m = 36 + Math.floor(r() * 90), ph = r() * TAU;
-    for (let j = 0; j <= N; j++) { const u = j / N * TAU, q = a + b * Math.cos(m * u + ph); j ? p.lineTo(q * Math.cos(u), q * Math.sin(u)) : p.moveTo(q * Math.cos(u), q * Math.sin(u)); }
-  }
-  const n = [7, 9, 11, 13][Math.floor(r() * 4)], l = 0.55 + 0.3 * r(), k = 1 / n, s = 0.98 / (1 - k + l * k);
-  for (let j = 0; j <= 1400; j++) { const u = j / 1400 * TAU, x = (1 - k) * Math.cos(u) + l * k * Math.cos((1 - k) / k * u), y = (1 - k) * Math.sin(u) - l * k * Math.sin((1 - k) / k * u); j ? p.lineTo(x * s, y * s) : p.moveTo(x * s, y * s); }
-  for (const c of [0.2, 0.62, 1]) { p.moveTo(c, 0); p.arc(0, 0, c, 0, TAU); }
-  return p;
-}
-const BODIES = [                                      // r: orbit, d: distance from IMPACT, side: which way round the orbit, size: radius at zoom 1,
-  { n: 'neptune', zh: '海王星', r: 196, d: 40, side: 1, size: 5.3, hue: 228, col: '#6a86ff' },   // spread: how far its 2D image sprawls
-  { n: 'uranus', zh: '天王星', r: 158, d: 90, side: -1, size: 4.8, hue: 186, col: '#9fe6ea' },
-  { n: 'saturn', zh: '土星', r: 120, d: 135, side: 1, size: 6.3, hue: 42, col: '#e6cd96', ring: true },
-  { n: 'jupiter', zh: '木星', r: 86, d: 175, side: -1, size: 8.3, hue: 26, col: '#dcae80' },
-  { n: 'mars', r: 52, d: 195, side: 1, size: 2.7, hue: 12, col: '#d4673f' },
-  { n: 'venus', r: 30, d: 205, side: -1, size: 3.3, hue: 48, col: '#eadbb0' },
-  { n: 'sun', zh: '太阳', r: 0, d: DSUN, size: 11, hue: 44, col: '#fff2cc', sun: true },
-  { n: 'mercury', r: 22, d: 225, side: 1, size: 2.2, hue: 30, col: '#bdaea0' },
-  { n: 'earth', zh: '地球', r: 40, d: 252, side: -1, size: 3.7, hue: 200, col: '#4f9be8', earth: true },
-].map((b, i) => {
-  const alpha = Math.atan2(IMPACT[1], IMPACT[0]);
-  const th = b.r ? alpha + b.side * Math.acos(clamp((b.r * b.r + DSUN * DSUN - b.d * b.d) / (2 * b.r * DSUN), -1, 1)) : 0;
-  return { ...b, x: b.r * Math.cos(th), y: b.r * Math.sin(th), hit: hitOf(b.d), path: guilloche(31 + i * 7, b.sun ? 10 : b.earth ? 13 : 6), ph: i * 1.3 };
-});
-const EARTH = BODIES.find(b => b.earth);
-const GLYPHS = (() => { const r = rng(5); return Array.from({ length: 150 }, (_, i) => [i / 150 * TAU, 0.8 + 0.1 * r(), 0.015 + 0.06 * r() * r(), r() < 0.3]); })();
-function fallView(t) {                                // where the plane sits: screen anchor P, local focus F, zoom z, tilt
-  const sF = singerCam(SC.fall), z0 = ssZoom(SC.fall) * sF, E = [EARTH.x, EARTH.y];   // starts exactly where the Singer's camera left off
-  const P0 = [SCC[0] + (SUN[0] - SCC[0]) * sF, SCC[1] + (SUN[1] - SCC[1]) * sF];
-  return keyed(t, [[SC.fall, [...P0, 0, 0, z0, TILT]], [100, [1080, 560, 0, 0, 2.3, TILT]], [CUE.sun - 1.5, [1020, 560, 0, 0, 2.5, TILT]],
-                   [CUE.sun + 2.5, [960, 560, 0, 0, 3.3, 0.55]], [CUE.earth - 0.5, [960, 560, 0, 0, 3.3, 0.55]],   // push in and up: the Sun fills the frame, held
-                   [CUE.earth + 2, [950, 545, E[0] * 0.5, E[1] * 0.5, 4.2, 0.5]], [SC.escape - 2, [960, 540, E[0], E[1], 8, 0.45]]], easeIO);
-}
-const CONTINENTS = (() => {                           // Earth's land, unrolled into its rings
-  const r = rng(77), p = new Path2D();
-  for (const ring of [0.38, 0.5, 0.62, 0.74, 0.86]) {
-    const n = 5 + Math.floor(r() * 5);
-    for (let i = 0; i < n; i++) {
-      const ac = (i + r() * 0.6) / n * TAU, span = 0.18 + 0.32 * r(), th = 0.035 + 0.035 * r(), s1 = r() * 9, s2 = r() * 9;
-      for (let j = 0; j <= 48; j++) {
-        const u = j / 48 * TAU, a = ac + span / 2 * Math.cos(u), rr = ring + th / 2 * Math.sin(u) * (0.75 + 0.5 * (0.5 + 0.5 * Math.sin(3 * u + s1) * Math.sin(5 * u + s2)));
-        j ? p.lineTo(rr * Math.cos(a), rr * Math.sin(a)) : p.moveTo(rr * Math.cos(a), rr * Math.sin(a));
-      }
-      p.closePath();
-    }
-  }
-  return p;
-})();
-const SPREAD = b => (b.sun ? 30 : b.earth ? 24 : 22);  // a 2D image sprawls far wider than the body it was
-const FLAT = 3.5;                                      // seconds a body takes to fall flat
-// a view is [screen x, screen y, local focus x, local focus y, zoom, tilt?]; tilt defaults to the far view's TILT
-const toScreen = ([px, py, fx, fy, z, k = TILT], x, y) => { const dx = (x - fx) * z, dy = (y - fy) * z * k; return [px + dx * Math.cos(ROT) - dy * Math.sin(ROT), py + dx * Math.sin(ROT) + dy * Math.cos(ROT)]; };
-function inPlane(v) { ctx.translate(v[0], v[1]); ctx.rotate(ROT); ctx.scale(v[4], v[4] * (v[5] ?? TILT)); ctx.translate(-v[2], -v[3]); }
-function iridescent(hue, turn, spread = [-40, 20, 80, 140, -40], sat = 85, light = 72) {
-  const g = ctx.createConicGradient(turn, 0, 0);
-  spread.forEach((h, i) => g.addColorStop(i / (spread.length - 1), `hsl(${hue + h},${sat}%,${light}%)`));
-  return g;
-}
-const lace = (b, turn) => b.sun ? iridescent(44, turn, [-6, 8, -14, 12, -6], 80, 80)     // the Sun: white gold
-                        : b.earth ? iridescent(203, turn, [-8, 10, -12, 12, -8], 55, 84)   // Earth: blue white
-                        : iridescent(b.hue, turn);
-function paintDisc(b, D, a, t, v) {                   // a flattened body: a dark medallion engraved in iridescent line
-  ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(t * 0.02 + b.ph); ctx.scale(D, D);
-  ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = (b.earth ? 0.7 : 0.32) * a; ctx.fillStyle = '#05070d';   // thin backing: the layers show through, Earth stands out
-  ctx.beginPath(); ctx.arc(0, 0, 1, 0, TAU); ctx.fill();
-  ctx.globalCompositeOperation = 'lighter';
-  const core = ctx.createRadialGradient(0, 0, 0, 0, 0, 0.3);   // a soft core in the body's own colour, not a hole
-  core.addColorStop(0, `hsla(${b.hue},80%,${b.sun ? 85 : 62}%,${0.75 * a})`); core.addColorStop(1, `hsla(${b.hue},80%,50%,0)`);
-  ctx.fillStyle = core; ctx.beginPath(); ctx.arc(0, 0, 0.3, 0, TAU); ctx.fill();
-  if (b.sun) {                                       // the Sun goes flat as the brightest thing in the film
-    const fire = ctx.createRadialGradient(0, 0, 0, 0, 0, 1);
-    fire.addColorStop(0, `rgba(255,252,240,${a})`); fire.addColorStop(0.3, `rgba(255,226,160,${0.8 * a})`);
-    fire.addColorStop(0.75, `rgba(255,190,100,${0.42 * a})`); fire.addColorStop(0.95, `rgba(255,170,80,${0.2 * a})`); fire.addColorStop(1, 'rgba(255,170,80,0)');   // gold under the whole disc
-    ctx.fillStyle = fire; ctx.beginPath(); ctx.arc(0, 0, 1, 0, TAU); ctx.fill();
-  }
-  if (b.earth) {                                     // its continents, unrolled into the rings
-    ctx.fillStyle = `rgba(140,205,185,${0.2 * a})`; ctx.fill(CONTINENTS);
-    ctx.strokeStyle = `rgba(215,240,255,${0.75 * a})`; ctx.lineWidth = 1.3 / (D * v[4] * 0.6); ctx.stroke(CONTINENTS);
-  }
-  ctx.globalAlpha = (b.sun ? 1 : 0.9) * a; ctx.strokeStyle = lace(b, t * 0.05 + b.ph);
-  ctx.lineWidth = (b.sun ? 1.6 : 1.1) / (D * v[4] * 0.6);
-  ctx.stroke(b.path);
-  if (b.earth) {                                     // Earth's whole history, a ring of marks etched into it
-    ctx.fillStyle = `hsl(190,80%,80%)`;
-    for (const [an, rr, len, dot] of GLYPHS) {
-      ctx.save(); ctx.rotate(an); ctx.translate(rr, 0);
-      if (dot) { ctx.beginPath(); ctx.arc(0, 0, 0.008, 0, TAU); ctx.fill(); } else ctx.fillRect(0, -0.003, len, 0.006);
-      ctx.restore();
-    }
-  }
-  ctx.restore();
-}
-function painting(t, v, A, { hero = 0, edge = 1 } = {}) {   // the plane: orbits, the 2D region and its edge, the flattened bodies
-  const rho = rhoAt(t), lw = px => px / (v[4] * 0.6);
-  ctx.save(); inPlane(v);
-  ctx.globalCompositeOperation = 'lighter'; ctx.lineWidth = lw(1.2);
-  ctx.strokeStyle = `rgba(150,180,230,${0.24 * A})`;  // the orbits, still three-dimensional
-  for (const r of ORBITS) { ctx.beginPath(); ctx.arc(0, 0, r, 0, TAU); ctx.stroke(); }
-  ctx.save(); ctx.beginPath(); ctx.arc(IMPACT[0], IMPACT[1], rho, 0, TAU); ctx.clip();   // inside the edge: the painting
-  if (edge > 0) {
-    const sheen = ctx.createRadialGradient(IMPACT[0], IMPACT[1], 0, IMPACT[0], IMPACT[1], Math.max(1, rho));
-    sheen.addColorStop(0, `rgba(70,50,130,${0.05 * A * edge})`); sheen.addColorStop(0.9, `rgba(40,90,160,${0.06 * A * edge})`); sheen.addColorStop(1, `rgba(170,210,255,${0.14 * A * edge})`);
-    ctx.fillStyle = sheen; ctx.fillRect(IMPACT[0] - rho, IMPACT[1] - rho, 2 * rho, 2 * rho);
-    ctx.lineWidth = lw(0.7);
-    for (let j = 0; j < 40; j++) {                    // engraved ripples of the fall, running out with the edge
-      const rr = rho - j * 6 - (t * 6) % 6; if (rr <= 0) continue;
-      ctx.strokeStyle = `hsla(${190 + j * 4},80%,74%,${0.10 * A * edge * (1 - j / 40)})`; ctx.beginPath(); ctx.arc(IMPACT[0], IMPACT[1], rr, 0, TAU); ctx.stroke();
-    }
-  }
-  ctx.lineWidth = lw(1.2);
-  ctx.strokeStyle = `rgba(255,214,150,${0.5 * A})`;   // the orbits, now drawn lines in the painting
-  for (const r of ORBITS) { ctx.beginPath(); ctx.arc(0, 0, r, 0, TAU); ctx.stroke(); }
-  ctx.restore();
-  for (const b of BODIES) {                           // flattened bodies, in the order they fell (Earth on top)
-    const f = easeIO(ramp(t, b.hit, b.hit + FLAT));
-    if (f > 0) paintDisc(b, b.size * 0.6 * (1 + SPREAD(b) * f), f * A * (b.earth ? 1 : lerp(1, 0.38, hero)), t, v);
-  }
-  if (edge > 0) {                                     // the edge itself, iridescent
-    ctx.lineWidth = lw(2.6); ctx.shadowColor = 'rgba(190,210,255,0.9)'; ctx.shadowBlur = 20;
-    ctx.globalAlpha = 0.95 * A * edge * ramp(t, SC.fall, SC.fall + 0.6);
-    ctx.translate(IMPACT[0], IMPACT[1]); ctx.strokeStyle = iridescent(210, t * 0.3);
-    ctx.beginPath(); ctx.arc(0, 0, rho, 0, TAU); ctx.stroke();
-  }
-  ctx.restore();
-}
-// The hero fall: cut in close as the edge reaches Neptune. The 2D plane is edge-on, a thin bright line; the planet
-// sinks into it, and what has gone through spreads sideways along the line as a band of slices. Then the camera
-// tilts up and the band opens into Neptune's engraving, and we cut back to the wide.
-const NEP = BODIES[0], HN0 = SC.fall + 2.8, HN1 = CUE.planets[1] - 1.7;
-const HATCH = (() => {                                // the matter that has passed through, as fine strokes streaming out along the plane
-  const r = rng(91);
-  return Array.from({ length: 1700 }, () => ({ rel: r(), u0: r(), v: 30 + 620 * r() * r(), side: r() < 0.5 ? -1 : 1,
-    dy: (r() - 0.5) * 18 * r(), len: 4 + 12 * r(), ang: (r() < 0.5 ? 1 : -1) * (0.35 + 0.5 * r()), hue: r() }));
-})();
-function drawHeroNeptune(t) {
-  const y0 = H * 0.6, cx = W * 0.54, R = 230, SINK = 4.6;
-  const cyAt = tt => { const s = ramp(tt, NEP.hit, NEP.hit + SINK); return y0 - R - 6 + (2 * R + 30) * s * s * (1.4 - 0.4 * s); };
-  const cy = cyAt(t), half = y => (Math.abs(y0 - y) < R ? Math.sqrt(R * R - (y0 - y) ** 2) : 0);
-  const sunk = clamp(cy + R - y0, 0, 2 * R) / (2 * R), vol = sunk * sunk * (3 - 2 * sunk);
-  const tilt = easeIO(ramp(t, HN1 - 2.0, HN1)), wH = R * (0.15 + 4.6 * vol) * (1 + 0.12 * Math.max(0, t - NEP.hit));
-  const xF = keyed(t, [[HN0, -260], [NEP.hit, cx - 10], [HN1, W + 900]]);   // the 2D edge running along the plane
-  ctx.save(); ctx.globalCompositeOperation = 'lighter';
-  ctx.fillStyle = 'rgba(190,215,255,0.10)'; ctx.fillRect(0, y0 - 0.5, W, 1);            // the plane: a faint guide everywhere
-  const tip = ctx.createLinearGradient(xF - 300, 0, xF, 0);                               // and bright where it is already 2D, fading out at the edge
-  tip.addColorStop(0, `rgba(215,235,255,${0.85 * (1 - tilt)})`); tip.addColorStop(1, 'rgba(215,235,255,0)');
-  ctx.fillStyle = `rgba(215,235,255,${0.85 * (1 - tilt)})`; ctx.fillRect(0, y0 - 1, Math.max(0, xF - 300), 2);
-  ctx.fillStyle = tip; ctx.fillRect(xF - 300, y0 - 1, 300, 2);
-  ctx.restore();
-  if (cy - R < y0) {                                  // Neptune, above the line; what has passed through is gone
-    ctx.save(); ctx.beginPath(); ctx.rect(0, 0, W, y0); ctx.clip(); ctx.beginPath(); ctx.arc(cx, cy, R, 0, TAU); ctx.clip();
-    const base = ctx.createRadialGradient(cx + 0.45 * R, cy - 0.3 * R, 0.04 * R, cx + 0.15 * R, cy, 1.3 * R);   // lit from the right
-    base.addColorStop(0, '#d4e4ff'); base.addColorStop(0.16, '#86a0ff'); base.addColorStop(0.45, '#3653c4'); base.addColorStop(0.75, '#14246a'); base.addColorStop(1, '#03050f');
-    ctx.fillStyle = base; ctx.fillRect(cx - R, cy - R, 2 * R, 2 * R);
-    const VT = 0.22;                                  // seen a little above the equator: latitude bands are thin, curving, crowding to the poles
-    for (let i = -7; i <= 7; i++) {
-      const phi = i / 8 * Math.PI / 2, yy = cy + R * Math.sin(phi) * Math.cos(VT), rx = R * Math.cos(phi), ry = rx * Math.sin(VT);
-      ctx.strokeStyle = i % 2 ? 'rgba(200,220,255,0.10)' : 'rgba(14,26,90,0.16)'; ctx.lineWidth = R * (0.03 + 0.025 * ((i * 7 + 21) % 3)) * Math.cos(phi);
-      ctx.filter = 'blur(3px)'; ctx.beginPath(); ctx.ellipse(cx, yy, rx, ry, 0, 0, Math.PI); ctx.stroke(); ctx.filter = 'none';
-    }
-    ctx.save(); ctx.translate(cx - 0.18 * R, cy + 0.12 * R); ctx.scale(1, 0.5);   // the dark storm, soft-edged
-    const spot = ctx.createRadialGradient(0, 0, 0, 0, 0, 0.18 * R);
-    spot.addColorStop(0, 'rgba(4,8,36,0.6)'); spot.addColorStop(0.6, 'rgba(4,8,36,0.35)'); spot.addColorStop(1, 'rgba(4,8,36,0)');
-    ctx.fillStyle = spot; ctx.beginPath(); ctx.arc(0, 0, 0.18 * R, 0, TAU); ctx.fill(); ctx.restore();
-    const night = ctx.createLinearGradient(cx - R, 0, cx + 0.3 * R, 0);                // the night side
-    night.addColorStop(0, 'rgba(0,0,6,0.9)'); night.addColorStop(0.55, 'rgba(0,0,6,0.35)'); night.addColorStop(1, 'rgba(0,0,6,0)');
-    ctx.fillStyle = night; ctx.fillRect(cx - R, cy - R, 2 * R, 2 * R);
-    ctx.restore();
-    ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.beginPath(); ctx.rect(0, 0, W, y0); ctx.clip();   // a lit limb of atmosphere, fading round to the night side
-    const limb = ctx.createLinearGradient(cx - R, cy - 0.3 * R, cx + R, cy + 0.1 * R);
-    limb.addColorStop(0, 'rgba(150,190,255,0)'); limb.addColorStop(0.55, 'rgba(150,190,255,0.08)'); limb.addColorStop(1, 'rgba(170,205,255,0.5)');
-    ctx.strokeStyle = limb; ctx.lineWidth = 7; ctx.filter = 'blur(3px)'; ctx.beginPath(); ctx.arc(cx, cy, R * 1.005, 0, TAU); ctx.stroke(); ctx.filter = 'none';
-    ctx.restore();
-  }
-  ctx.save(); ctx.globalCompositeOperation = 'lighter';
-  const h = half(cy);                                 // where it meets the plane: a white-hot cut
-  if (h > 0) {                                        // its glow lies flat along the line, not as a haze below it
-    ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.fillRect(cx - h, y0 - 1, 2 * h, 2);
-    ctx.save(); ctx.translate(cx, y0); ctx.scale(1, 0.07); glow(GLOW.ice, 0, 0, h * 2.6, 0.75); ctx.restore();
-  }
-  if (t > NEP.hit && tilt < 1) {                      // what has gone through streams out along the plane as fine iridescent hatching
-    ctx.lineWidth = 1.1; ctx.lineCap = 'round';
-    for (const m of HATCH) {
-      const tr = NEP.hit + SINK * m.rel; if (t < tr) continue;
-      const x = cx + m.side * (half(cyAt(tr)) * m.u0 + m.v * (t - tr)), age = t - tr;
-      if (x < -20 || x > W + 20) continue;
-      const a = (1 - tilt) * Math.min(1, age * 4) * (0.5 + 0.5 * Math.exp(-age / 2.5));
-      ctx.strokeStyle = `hsla(${200 + 140 * m.hue},85%,${68 + 14 * m.hue}%,${a})`;
-      ctx.beginPath(); ctx.moveTo(x, y0 + m.dy); ctx.lineTo(x + Math.cos(m.ang) * m.len * m.side, y0 + m.dy - Math.sin(m.ang) * m.len); ctx.stroke();
-    }
-  }
-  if (tilt > 0) {                                     // the camera tilts up: the plane opens into Neptune's engraving
-    const wR = lerp(Math.min(wH, 1400), 760, tilt);
-    ctx.save(); ctx.translate(cx, y0); ctx.scale(wR, wR * lerp(0.012, 0.34, tilt)); ctx.rotate(t * 0.02 + NEP.ph);   // flatten, then turn within the plane
-    ctx.globalAlpha = tilt; ctx.strokeStyle = lace(NEP, t * 0.05 + NEP.ph); ctx.lineWidth = 1.4 / wR; ctx.stroke(NEP.path);
-    ctx.restore();
-  }
-  ctx.restore();
-  const say = subAt('海王星');                          // its name, as it is spoken
-  if (say) text('海王星', cx, Math.min(cy - R - 44, y0 - 54), { size: 30, track: 0.3, alpha: 0.85 * window01(t, say.t0, HN1 - 0.6, 0.4, 0.6), halo: true });   // rides down with it
-}
-function drawFall(t) {                                // the Solar System falls into two dimensions, in 3D (gl-solar.js)
-  if (t < SC.fall || t >= SC.escape) return;          // a hard cut to the escape
+function drawFall(t) {                                // the foil arrives; the Solar System falls into two dimensions
+  if (t < SING.CUT || t >= SC.escape) return;         // a hard cut to the escape
   ctx.drawImage(SOL.draw(t), 0, 0);
   for (const [s, x, y, a] of SOL.labels(t)) text(s, x, y, { size: 28, track: 0.3, alpha: 0.85 * a, halo: true });
   const say = subAt('海王星');                          // Neptune's name, as it is spoken, in its own shot
   if (say && t >= SOL.HN0 && t < SOL.HN1) { const [x, y] = SOL.screenOf('neptune'); text('海王星', x, Math.max(80, y - 30), { size: 30, track: 0.3, alpha: 0.85 * window01(t, say.t0, SOL.HN1 - 0.6, 0.4, 0.6), halo: true }); }
-  return;
-  if (t >= HN0 && t < HN1) { drawHeroNeptune(t); return; }
-  const v = fallView(t), A = 1;
-  painting(t, v, A, { hero: ease(ramp(t, CUE.earth + 1, SC.escape - 4)) });   // closing in on Earth, the rest steps back
-  ctx.save(); ctx.globalCompositeOperation = 'lighter';
-  const sunS = toScreen(v, 0, 0);
-  for (const b of BODIES) {                           // bodies still round: lit from the Sun, squashing flat as they fall
-    const f = easeIO(ramp(t, b.hit, b.hit + FLAT)); if (f >= 1) continue;
-    const [x, y] = toScreen(v, b.x, b.y), R = b.size * v[4] * 0.6;
-    if (b.sun) { glow(GLOW.gold, x, y, R * 14, 0.9 * (1 - f) * A); glow(GLOW.white, x, y, R * 2.4, (1 - f) * A); continue; }
-    ctx.save(); ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = (1 - f) * A; ctx.translate(x, y); ctx.scale(1, 1 - 0.97 * f);
-    const L = Math.atan2(sunS[1] - y, sunS[0] - x), g = ctx.createRadialGradient(R * 0.45 * Math.cos(L), R * 0.45 * Math.sin(L), R * 0.1, 0, 0, R);
-    g.addColorStop(0, '#ffffff'); g.addColorStop(0.25, b.col); g.addColorStop(1, '#05070c');
-    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, Math.max(1, R), 0, TAU); ctx.fill();
-    if (b.ring) { ctx.strokeStyle = 'rgba(230,205,150,0.7)'; ctx.lineWidth = Math.max(0.8, R * 0.25); ctx.beginPath(); ctx.ellipse(0, 0, R * 2.3, R * 0.7, -0.3, 0, TAU); ctx.stroke(); }
-    ctx.restore();
-  }
-  const [ix, iy] = toScreen(v, ...IMPACT);            // the foil touching down
-  glow(GLOW.white, ix, iy, 320, 0.95 * Math.exp(-(t - SC.fall) / 0.3)); glow(GLOW.ice, ix, iy, 700, 0.5 * Math.exp(-(t - SC.fall) / 0.8));
-  for (const b of [BODIES.find(b => b.sun), EARTH]) { // the two big falls: a bloom where they go; the blacks stay black
-    const p = t - b.hit; if (p < 0 || p > 4) continue;
-    const [x, y] = toScreen(v, b.x, b.y), k = Math.exp(-p / (b.sun ? 0.6 : 0.4));
-    if (b.sun) { glow(GLOW.white, x, y, 1100, 0.85 * k); glow(GLOW.gold, x, y, 1800, 0.55 * window01(p, 0, 3.6, 0.25, 1.4)); }   // a warm bloom held through the peak
-    else { glow(GLOW.ice, x, y, 650, 0.75 * k); glow(GLOW.white, x, y, 160, 0.9 * k); }
-  }
-  ctx.restore();
-  for (const b of BODIES) {                           // each name, quietly, as it goes flat (Neptune's is in its own shot)
-    if (!b.zh || b.n === 'neptune') continue;
-    const a = window01(t, b.hit + 0.3, b.hit + 3.2, 0.5, 0.8) * A; if (a <= 0) continue;
-    const [x, y] = toScreen(v, b.x, b.y), f = easeIO(ramp(t, b.hit, b.hit + FLAT)), D = b.size * 0.6 * (1 + SPREAD(b) * f);
-    text(b.zh, x, y - Math.max(30, D * v[4] * (v[5] ?? TILT)) - 22, { size: 28, track: 0.3, alpha: 0.85 * a, halo: true });
-  }
 }
-
-// ---- the escape, the look back, the end ---------------------------------------------------------------------
-// One warm point outruns the edge: from the cut it flies just ahead of the 2D region as the edge closes on it;
-// at LS it reaches light speed, the stars stream past and the painting falls away. Then the rear view: the whole
-// Solar System, flat, hanging in the dark inside a thin gold frame, receding; it dims under the end card.
-const HEAD = -0.42;                                   // the ship's heading in the plane, from IMPACT: out to the upper right
-const DIR = [Math.cos(HEAD), Math.sin(HEAD)];
-const shipLocal = t => {                              // in the plane: a little ahead of the 2D edge, the edge gaining on it until LS
-  const tt = Math.min(t, LS), r = rhoAt(tt) + lerp(210, 22, ease(ramp(tt, SC.escape, LS)));
-  return [IMPACT[0] + DIR[0] * r, IMPACT[1] + DIR[1] * r];
-};
-function escapeView(t) {                              // close beside the ship as the edge closes; at the jump the camera falls behind
-  const a = ease(ramp(t, SC.escape, LS - 0.3)), w = 1 - Math.pow(1 - ramp(t, LS, LS + 1.8), 3), w2 = ease(ramp(t, LS + 1.8, BACK0));
-  const sl = shipLocal(t), near = [lerp(880, 1290, a), lerp(600, 450, a), sl[0], sl[1], lerp(2.9, 3.4, a)];
-  const far = [lerp(760, 640, w2), lerp(640, 700, w2), 0, 0, lerp(0.75, 0.42, w2)];
-  return [...near.map((n, i) => lerp(n, far[i], w)), TILT];
-}
-function drawEscape(t) {                              // the light-speed ship, the painting, the end
+function drawEscape(t) {                              // the light-speed ship on Pluto, then the painting, the end
   if (t < SC.escape) return;
-  if (t < BACK0) { ctx.drawImage(PLU.draw(t), 0, 0); return; }   // the escape, on Pluto (gl-pluto.js)
+  if (t < BACK0) { ctx.drawImage(PLU.draw(t), 0, 0); return; }
   ctx.drawImage(SOL.draw(t), 0, 0);                    // the look-back: Pluto falls last, its tablets' words kept in its image
   const endDim = 0.55 * ease(ramp(t, SC.end, SC.end + 2.5));
   if (endDim > 0) { ctx.fillStyle = `rgba(0,0,0,${endDim})`; ctx.fillRect(0, 0, W, H); }
-  return;
-  if (t < BACK0) {
-    const v = escapeView(t), sl = shipLocal(t), B = toScreen(v, ...sl), B1 = toScreen(v, sl[0] + DIR[0], sl[1] + DIR[1]);
-    const dl = Math.hypot(B1[0] - B[0], B1[1] - B[1]) || 1, d = [(B1[0] - B[0]) / dl, (B1[1] - B[1]) / dl];   // its heading on screen
-    const jump = 1 - Math.pow(1 - ramp(t, LS, LS + 2.5), 3), drift = ramp(t, LS + 2.5, BACK0);
-    const S = t < LS ? B : [lerp(1300, 1720, jump) + 50 * drift, lerp(440, 250, jump) - 25 * drift];   // after the jump: a point of light leaving
-    const L0 = toScreen(v, ...shipLocal(LS));          // where it left the painting
-    painting(t, v, 1, { edge: 1 });
-    const warp = window01(t, LS - 0.25, LS + 1.1, 0.25, 0.6);   // light speed: for a second the stars stream past
-    if (warp > 0) {
-      const VP = [B[0] + d[0] * 300, B[1] + d[1] * 300];   // just ahead of the ship: the streaks radiate round it
-      ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.lineWidth = 0.9; ctx.strokeStyle = '#cfe0ff';
-      for (const s of STARS) {
-        if (s.layer === 0) continue;
-        const x = ((s.x - t * DRIFT[s.layer]) % (W + 200) + W + 200) % (W + 200) - 100, y = s.y, k = 0.16 * warp * s.layer;
-        ctx.globalAlpha = 0.24 * warp * s.layer; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + (x - VP[0]) * k, y + (y - VP[1]) * k); ctx.stroke();
-      }
-      ctx.restore();
-    }
-    ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.lineCap = 'round';
-    if (t < LS) {                                     // the ship: a cyan-white needle and its wake
-      const g = ctx.createLinearGradient(S[0], S[1], S[0] - d[0] * 260, S[1] - d[1] * 260);
-      g.addColorStop(0, 'rgba(200,235,255,0.95)'); g.addColorStop(1, 'rgba(160,215,255,0)');
-      ctx.strokeStyle = g; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(S[0], S[1]); ctx.lineTo(S[0] - d[0] * 260, S[1] - d[1] * 260); ctx.stroke();
-      ctx.strokeStyle = 'rgba(255,255,255,0.95)'; ctx.lineWidth = 3;
-      ctx.beginPath(); ctx.moveTo(S[0] - d[0] * 22, S[1] - d[1] * 22); ctx.lineTo(S[0] + d[0] * 8, S[1] + d[1] * 8); ctx.stroke();
-      glow(GLOW.ice, S[0], S[1], 60, 0.9); glow(GLOW.white, S[0], S[1], 12, 1);
-    } else {                                          // gone: the line it drew from the painting, and a point of light, leaving
-      const fade = 0.25 + 0.75 * Math.exp(-(t - LS - 0.4) / 3);
-      const g = ctx.createLinearGradient(S[0], S[1], L0[0], L0[1]);
-      g.addColorStop(0, `rgba(205,235,255,${0.9 * fade})`); g.addColorStop(1, 'rgba(160,215,255,0)');
-      ctx.strokeStyle = g; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(S[0], S[1]); ctx.lineTo(L0[0], L0[1]); ctx.stroke();
-      const k = lerp(1, 0.55, drift);
-      glow(GLOW.ice, S[0], S[1], 70 * k, 0.9 * k); glow(GLOW.white, S[0], S[1], 14 * k, k);
-    }
-    glow(GLOW.white, B[0], B[1], 700, 0.8 * Math.exp(-Math.abs(t - LS) / 0.18));   // the jump
-    ctx.restore();
-    return;
-  }
-  const u = easeIO(ramp(t, BACK0, DURATION)), dim = lerp(1, 0.45, ease(ramp(t, SC.end, SC.end + 2.5)));
-  const e = easeIO(ramp(t, SC.end - 1.5, SC.end + 1.5));   // for the end card the painting rises and steps back, clear of the text
-  const v = [960, lerp(530, 500, u) - 190 * e, -40, 0, lerp(1.35, 0.74, u) * lerp(1, 0.8, e), lerp(0.8, 0.7, u)];   // looking back, nearly face-on
-  painting(t, v, dim * ease(ramp(t, BACK0, BACK0 + 0.8)), { edge: 0 });
-  ctx.save(); inPlane(v); ctx.globalCompositeOperation = 'lighter';   // the frame: two gold hairlines
-  ctx.lineWidth = 1.3 / (v[4] * 0.6); ctx.strokeStyle = `rgba(255,214,150,${0.65 * dim * ease(ramp(t, BACK0 + 1.2, BACK0 + 3))})`;
-  for (const r of [330, 338]) { ctx.beginPath(); ctx.arc(-40, 0, r, 0, TAU); ctx.stroke(); }
-  ctx.restore();
 }
 
 // ---- cards and subtitles -------------------------------------------------------------------------------
@@ -810,6 +286,7 @@ function cards(t) {
       text(c.text, W / 2, H * 0.72, { size: 56, weight: 400, track: 0.1, alpha: a, blur: 18 });
     } else if (c.kind === 'credit') {
       text(c.text, W / 2, H * 0.72 + 64, { size: 28, weight: 400, track: 0.2, alpha: 0.6 * a });
+      text('纹理：Solar System Scope（CC BY 4.0，经改编）· NASA/JPL · 冥王星：David Seal / Pat Rawlings · 银河系：Galaxy Explorer', W / 2, H - 44, { size: 17, weight: 400, track: 0.05, alpha: 0.38 * a });
     }
   }
 }
@@ -844,18 +321,21 @@ async function render(t) {
 <script src="../../../galaxy-explorer/vendor/UnrealBloomPass.js"></script>
 <script src="gl-core.js"></script>
 <script src="gl-ships.js"></script>
+<script src="gl-galaxy.js"></script>
 <script src="gl-fleet.js"></script>
 <script src="gl-earth.js"></script>
+<script src="gl-singer.js"></script>
 <script src="gl-pluto.js"></script>
 <script src="gl-solar.js"></script>
 <script>
 window.DURATION = DURATION;
-window.EVENTS = { duration: DURATION, cuts: [...Object.values(SC).slice(1), ...CUE.kills, CUE.flick, ...CUE.planets, CUE.earth, CL0, CL1, HN0, HN1, BACK0].sort((a, b) => a - b) };
+window.EVENTS = { duration: DURATION, cuts: [...Object.values(SC).slice(1), ...CUE.kills, CUE.flick, ...CUE.planets, CUE.earth, subAt('列成方阵')?.t0 ?? SC.fleet + 7.1,
+  SING.T0, CL0, CL1, SING.CUT, SOL.HN0, SOL.HN1, BACK0].sort((a, b) => a - b) };
 window.seek = async t => render(clamp(t, 0, DURATION - 1e-6));
 Promise.all([`400 34px ${ZH}`, `600 132px ${ZH}`].map(f => document.fonts.load(f)).concat(GL.ready())).then(() => {
   // a gradient changes how Chrome rasterises later blended draws on this canvas, so draw one before any frame:
   // then a frame looks the same whether it is a page's first or follows others (render.mjs --check)
-  FLEET.bake();                                       // the droplet's reflections, captured once
+  MILKY.bakeSky(); FLEET.bake();                      // the sky, then the droplet's reflections of it, captured once
   vignette(0.5); grain(0); ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
   window.READY = true;
 });

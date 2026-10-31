@@ -140,10 +140,17 @@ const SOL = (() => {
       }` })));
   region.position.copy(IMP).setY(-0.01); region.renderOrder = 5; scene.add(region);
   const flashTouch = GL.glowSprite(0xffffff, 1, 0); flashTouch.position.copy(IMP); scene.add(flashTouch);
+  const foil = foilMesh(1.6, 1.0); scene.add(foil.group);   // the foil, gliding in from beyond the touchdown (gl-singer.js)
+  const FROM = IMP.clone().add(new THREE.Vector3(Math.cos(PHI), 0.3, Math.sin(PHI)).multiplyScalar(110));
+  const trail = new THREE.Line(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(6, 3)).setAttribute('color', new THREE.Float32BufferAttribute([0.9, 0.95, 1, 0, 0, 0], 3)),
+    new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));   // a fine wake behind it
+  trail.frustumCulled = false; scene.add(trail);
+  const foilPos = t => { const k = ramp(t, SING.CUT, SC.fall), u = 1 - Math.pow(1 - k, 2.2); return FROM.clone().lerp(IMP, u).setY(lerp(FROM.y, 0.05, u)); };
   const N = BY.neptune.pos, E = BY.earth.pos, Pl = BY.pluto.pos, ctr = IMP.clone().multiplyScalar(0.45), azP = Math.atan2(Pl.z, Pl.x);
   const frame = [160, 165].map(r => { const m = toPlane(new THREE.Mesh(new THREE.RingGeometry(r, r + 0.6, 512), new THREE.MeshBasicMaterial({ color: 0xffd696, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending }))); m.position.y = 0.1; scene.add(m); return m; });
   const azIN = Math.atan2(N.z - IMP.z, N.x - IMP.x) + Math.PI / 2;
   const CAM = [                                          // target xyz, distance, azimuth, elevation; tiny gaps are cuts
+    [SING.CUT, [ctr.x, 0, ctr.z, 236, PHI + 0.95, 0.34, 32]],                 // the foil comes in
     [SC.fall, [ctr.x, 0, ctr.z, 205, PHI + 1.05, 0.38, 32]],
     [HN0 - 0.01, [ctr.x, 0, ctr.z, 188, PHI + 1.12, 0.36, 32]],
     [HN0, [N.x, 0, N.z, 30, azIN, 0.035, 9.5]],                        // telephoto from outside the disc: Neptune big, the plane a line
@@ -171,7 +178,8 @@ const SOL = (() => {
     for (const b of bodies) {
       for (const o of [b.mesh, b.inner, b.ring, ...(b.glows || [])]) if (o) o.visible = !hero || b.id === 'neptune';
       const f = clamp((t - b.hit) / (b.sun ? 4 : 3.5));
-      b.uni.uF.value = f; b.uni.uTime.value = t; if (b.sun) b.uni.uGain.value = 1.45 + 0.7 * window01(t, b.hit, b.hit + 5, 0.4, 2.5);   // the Sun burns brightest as it falls b.uni.uSpin.value = Math.min(t, b.hit) * b.spin * 0.02;
+      b.uni.uF.value = f; b.uni.uTime.value = t; b.uni.uSpin.value = Math.min(t, b.hit) * b.spin * 0.02;
+      if (b.sun) b.uni.uGain.value = 1.45 + 0.7 * window01(t, b.hit, b.hit + 5, 0.4, 2.5);   // the Sun burns brightest as it falls
       b.inner.material.uniforms.uA.value = ease(clamp((f - 0.25) / 0.6));
       const p = t - b.hit;                              // the edge reaching it: a cold flash
       b.flash.material.opacity = p > 0 && p < 3 ? 0.8 * Math.exp(-p / 0.5) : 0; b.flash.scale.setScalar(b.R * (b.sun ? 30 : 16));
@@ -182,12 +190,18 @@ const SOL = (() => {
     region.scale.setScalar(Math.max(0.001, rho)); region.material.uniforms.uRho.value = Math.max(0.001, rho);
     region.material.uniforms.uTime.value = t; region.visible = t >= SC.fall;
     for (const f of frame) f.material.opacity = 0.75 * ease(ramp(t, SC.end - 3.5, SC.end + 0.5));
-    const q = t - SC.fall; flashTouch.material.opacity = q >= 0 ? Math.exp(-q / 0.4) : 0; flashTouch.scale.setScalar(70);
+    const q = t - SC.fall; flashTouch.material.opacity = q >= 0 ? 0.9 * Math.exp(-q / 0.25) : 0; flashTouch.scale.setScalar(22);   // a hard white point, not a haze
+    const k = ramp(t, SING.CUT, SC.fall);                // slowing as it comes down, tumbling, and lying flat as it lands
+    foil.group.visible = t >= SING.CUT && t < SC.fall + 0.12;
+    foil.group.position.copy(foilPos(t));
+    trail.visible = foil.group.visible; trail.geometry.attributes.position.array.set([...foilPos(t).toArray(), ...foilPos(t - 0.45).toArray()]); trail.geometry.attributes.position.needsUpdate = true;
+    foil.group.rotation.set(lerp(0.6 + 2.4 * k, -Math.PI / 2, ease(ramp(t, SC.fall - 0.6, SC.fall))), 1.3 + 1.8 * k, 0.4 * (1 - k));
   }
   function draw(t, view) {                               // view: [tx, ty, tz, d, az, el], or the scripted camera
     setTime(t);
     const v = view || keyed(t, CAM, easeIO);
     cam.fov = v[6] ?? 32; orbitCam(cam, [v[0], v[1], v[2]], v[3], v[4], v[5]);
+    if (foil.group.visible) foil.update(cam, t, 1, 13);
     const peak = window01(t, CUE.sun - 0.2, CUE.sun + 4, 0.2, 1.5);
     return GL.draw(scene, cam, { strength: 0.7 + 0.5 * peak, radius: 0.55, threshold: 0.8 });
   }

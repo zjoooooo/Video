@@ -3,7 +3,7 @@
 // coordinates (z away from the camera) map to three.js with z negated.
 const FLEET = (() => {
   const scene = new THREE.Scene(), cam = new THREE.PerspectiveCamera(2 * Math.atan(H / 2 / F) * 180 / Math.PI, W / H, 2, 90000);
-  scene.add(GL.stars(31, 10000, 45000), GL.milkyDome(5, 0.28, 0.5));
+  scene.add(GL.stars(31, 10000, 45000), MILKY.sky(1.1, [0, 0.57, -0.82], 0.6, 0.15));
   const key = new THREE.DirectionalLight(0xfff0d8, 2.4); key.position.set(-1, 0.9, 0.5); scene.add(key);
   const rim = new THREE.DirectionalLight(0x8fb4ff, 0.8); rim.position.set(1, 0.25, -1); scene.add(rim);
   scene.add(new THREE.HemisphereLight(0x6a7ea6, 0x14100c, 0.75));

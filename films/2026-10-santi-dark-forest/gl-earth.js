@@ -3,7 +3,7 @@
 // night side, under a rim of atmosphere. The cut to the assembled formation comes on "它们列成方阵".
 const LEAVE = (() => {
   const scene = new THREE.Scene(), cam = new THREE.PerspectiveCamera(34, W / H, 5, 200000);
-  scene.add(GL.stars(41, 9000, 60000), GL.milkyDome(9, 0.45, 0.4));
+  scene.add(GL.stars(41, 9000, 60000), MILKY.sky(0.9, [0.2, 0.32, -0.93], -0.7, 0.4));
   const SUN = new THREE.Vector3(-1, 0.32, 0.45).normalize();
   const key = new THREE.DirectionalLight(0xfff2e0, 2.2); key.position.copy(SUN); scene.add(key);
   scene.add(new THREE.HemisphereLight(0x4a6a9a, 0x080a10, 0.55));
