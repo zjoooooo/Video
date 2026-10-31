@@ -254,7 +254,7 @@ function drawSinger(t) {                              // the galaxy from far abo
 
 // ---- the fall, the escape, the look back, the end (gl-solar.js, gl-pluto.js) ----------------------------------
 const LS = SC.escape + 6.2;                           // the escaping ship reaches light speed, on "逃出了"
-const BACK0 = LS + 5.0;                               // and five seconds later we look back
+const BACK0 = LS + 1.2;                               // and a breath later we look back (plan.py: escape + 7.4)
 function drawFall(t) {                                // the foil arrives; the Solar System falls into two dimensions
   if (t < SING.CUT || t >= SC.escape) return;         // a hard cut to the escape
   ctx.drawImage(SOL.draw(t), 0, 0);
@@ -282,18 +282,24 @@ function cards(t) {
       ctx.restore();
     } else if (c.kind === 'quote') {
       text(c.text, W / 2, H * 0.3, { size: 64, weight: 400, track: 0.12, color: ICE, alpha: a, glow: 'rgba(140,180,255,0.55)', blur: 30 });
-    } else if (c.kind === 'end') {                    // under the painting, which rises to make room
+    } else if (c.kind === 'end') {                    // under the painting, on a dark scrim
+      const g = ctx.createLinearGradient(0, H * 0.52, 0, H); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(0.35, `rgba(0,0,0,${0.62 * a})`); g.addColorStop(1, `rgba(0,0,0,${0.7 * a})`);
+      ctx.fillStyle = g; ctx.fillRect(0, H * 0.52, W, H * 0.48);
       text(c.text, W / 2, H * 0.72, { size: 56, weight: 400, track: 0.1, alpha: a, blur: 18 });
     } else if (c.kind === 'credit') {
       text(c.text, W / 2, H * 0.72 + 64, { size: 28, weight: 400, track: 0.2, alpha: 0.6 * a });
-      text('纹理：Solar System Scope（CC BY 4.0，经改编）· NASA/JPL · 冥王星：David Seal / Pat Rawlings · 银河系：Galaxy Explorer', W / 2, H - 44, { size: 17, weight: 400, track: 0.05, alpha: 0.38 * a });
+    } else if (c.kind === 'textures') {
+      c.text.split('|').forEach((line, i) => text(line, W / 2, H * 0.72 + i * 44, { size: 26, weight: 400, track: 0.05, alpha: 0.7 * a }));
     }
   }
 }
 function subtitles(t) {
   for (const s of TL.subs) {
     if (t < s.t0 || t >= s.t1) continue;
-    text(s.zh, W / 2, H - 92, { size: 34, weight: 400, track: 0.06, alpha: window01(t, s.t0, s.t1, 0.18, 0.18), blur: 12 });
+    const a = window01(t, s.t0, s.t1, 0.18, 0.18), half = s.zh.length * 19 + 120;   // a soft dark scrim: readable over the Sun's image too
+    ctx.save(); ctx.translate(W / 2, H - 92); ctx.scale(half, 46); const g = ctx.createRadialGradient(0, 0, 0, 0, 0, 1);
+    g.addColorStop(0, `rgba(0,0,0,${0.55 * a})`); g.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = g; ctx.fillRect(-1, -1, 2, 2); ctx.restore();
+    text(s.zh, W / 2, H - 92, { size: 34, weight: 400, track: 0.06, alpha: a, blur: 12 });
   }
 }
 

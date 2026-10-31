@@ -89,7 +89,7 @@ cue["kills"] = [at(t) for t in (29.0, 34.0, 38.0, 43.0)]
 cue["flick"] = scenes["foil"]
 cue["planets"] = [at(t) for t in (88.0, 95.0, 102.0, 109.0)]      # Neptune, Uranus, Saturn, Jupiter
 cue["sun"], cue["earth"] = scenes["paint"], at(123.0)
-BACK0 = scenes["escape"] + 11.2                                 # the look-back: five seconds after the jump (film.src.html: LS + 5)
+BACK0 = scenes["escape"] + 7.4                                  # the look-back: 1.2 s after the jump (film.src.html: LS + 1.2)
 
 # line id, earliest start, must end by (the next scene or the next line's window)
 PLACE = [("forest", 2.0, scenes["fleet"]), ("fleet", scenes["fleet"] + 2.0, scenes["drop"]),
@@ -97,7 +97,7 @@ PLACE = [("forest", 2.0, scenes["fleet"]), ("fleet", scenes["fleet"] + 2.0, scen
          ("singer", scenes["ember"] + 8.0, scenes["foil"]), ("quote", scenes["foil"] + 1.5, scenes["fall"]),
          ("fall", scenes["fall"] + 3.0, cue["planets"][3] + 4.0), ("earth", cue["earth"] + 2.0, scenes["escape"]),
          ("escape", scenes["escape"] + 2.0, BACK0), ("back", BACK0 + 0.8, BACK0 + 4.4),
-         ("pluto", BACK0 + 4.6, scenes["end"]), ("end", scenes["end"] + 1.0, DURATION - 2.0)]
+         ("pluto", scenes["back"] + 0.8, scenes["end"]), ("end", scenes["end"] + 1.0, DURATION - 2.0)]
 subs = []
 for lid, t0, by in PLACE:
     s, e, ph = P.say(lid, t0)
@@ -107,8 +107,10 @@ for lid, t0, by in PLACE:
 
 cards = [{"t0": cue["title"], "t1": cue["title"] + 9.0, "kind": "title", "text": "黑暗森林"},
          {"t0": scenes["foil"] + 1.0, "t1": scenes["fall"] - 0.5, "kind": "quote", "text": "毁灭你，与你有何相干。"},
-         {"t0": scenes["end"] + 0.5, "t1": DURATION - 0.6, "kind": "end", "text": "给岁月以文明，而不是给文明以岁月。"},
-         {"t0": scenes["end"] + 3.5, "t1": DURATION - 0.6, "kind": "credit", "text": "刘慈欣《三体》"}]
+         {"t0": scenes["end"] + 0.5, "t1": DURATION - 4.4, "kind": "end", "text": "给岁月以文明，而不是给文明以岁月。"},
+         {"t0": scenes["end"] + 3.5, "t1": DURATION - 4.4, "kind": "credit", "text": "刘慈欣《三体》"},
+         {"t0": DURATION - 4.0, "t1": DURATION - 0.3, "kind": "textures",       # CC BY: the texture credits, on their own, at a readable size
+          "text": "纹理：Solar System Scope（CC BY 4.0，经改编）· NASA/JPL|冥王星纹理：David Seal / Pat Rawlings · 银河系：Galaxy Explorer"}]
 subs = [s for s in subs                                          # quote and end are on their cards; no subtitle twice
         if not any(c["t0"] - 1 < s["t0"] < c["t1"] and c["kind"] in ("quote", "end") for c in cards)]
 for a, b in zip(subs, subs[1:]): a["t1"] = min(a["t1"], b["t0"])   # one subtitle on screen at a time

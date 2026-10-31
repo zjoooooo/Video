@@ -81,13 +81,13 @@ const MILKY = (() => {
     group.remove(...body); local.visible = true; sc.remove(group);
     mats.forEach(m => { m.uniforms.uSize.value = 4; m.uniforms.uCap.value = 34; });
   }
-  function sky(gain, through, roll = 0, core = 0) {    // a far sphere with the band across the view direction `through`, tilted by roll on
+  function sky(gain, through, roll = 0, core = 0, radius = 20000) {   // a far sphere, the band across the view direction `through`, tilted by roll on
     const v = new THREE.Vector3(...through).normalize(), right = v.clone().cross(new THREE.Vector3(0, 1, 0)).normalize(), up = right.clone().cross(v);   // screen; the core `core` rad along it
     const n = up.multiplyScalar(Math.cos(roll)).addScaledVector(right, -Math.sin(roll)).normalize(), a = v.applyAxisAngle(n, core);
     const c0 = new THREE.Vector3(-SUN.x, 0, -SUN.z).normalize(), Y = new THREE.Vector3(0, 1, 0);   // the galactic centre as seen from the Sun
     const basis = (x, y) => new THREE.Matrix4().makeBasis(x, y, x.clone().cross(y));
     const rot = basis(c0, Y).multiply(basis(a, n).transpose());   // world direction -> cube direction
-    const m = new THREE.Mesh(new THREE.SphereGeometry(20000, 64, 32), new THREE.ShaderMaterial({ side: THREE.BackSide, depthWrite: false,
+    const m = new THREE.Mesh(new THREE.SphereGeometry(radius, 64, 32), new THREE.ShaderMaterial({ side: THREE.BackSide, depthWrite: false,
       uniforms: { uCube: { value: skyRT.texture }, uGain: { value: gain }, uRot: { value: new THREE.Matrix3().setFromMatrix4(rot) } },
       vertexShader: 'varying vec3 vD; void main(){ vD = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
       fragmentShader: 'uniform samplerCube uCube; uniform float uGain; uniform mat3 uRot; varying vec3 vD; void main(){ vec3 d = uRot * normalize(vD); gl_FragColor = vec4((textureCube(uCube, d).rgb + 1.6 * textureCube(uCube, d, 4.0).rgb) * uGain, 1.0); }' }));   // the stars, and the band's glow
