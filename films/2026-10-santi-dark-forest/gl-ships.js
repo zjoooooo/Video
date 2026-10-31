@@ -43,9 +43,12 @@ const SHIP = (() => {                                  // nose to -z, engines to
     ...[[-1.8, -0.8], [1.8, -0.8], [0, 1.6]].map(([x, y]) => [new THREE.CircleGeometry(0.95, 20), M4(x, y, 18.95), '#bfe6ff']),
     [new THREE.SphereGeometry(0.35, 8, 6), M4(0, 0, -20.2), '#ff9a7a'],
   ];
+  const TEAR = [(x, y) => -7 + 1.8 * Math.sin(x * 1.1 + 0.7) * Math.cos(y * 1.3) + 0.9 * Math.sin(x * 2.7 - y * 1.9) + 0.55 * Math.sin(x * 7.1 - y * 4.3) + 0.35 * Math.sin(y * 11.3 + x * 2.7),
+                (x, y) => 7 + 1.6 * Math.sin(y * 1.2 - 0.4) * Math.cos(x * 1.5) + 0.8 * Math.sin(x * 2.3 + y * 2.9) + 0.5 * Math.sin(x * 6.3 + y * 5.1) + 0.3 * Math.sin(y * 9.7 - x * 3.9)];   // two jagged, irregular tears
+  const TEAR_GLSL = `float tear0(vec2 p){ return -7.0 + 1.8 * sin(p.x * 1.1 + 0.7) * cos(p.y * 1.3) + 0.9 * sin(p.x * 2.7 - p.y * 1.9) + 0.55 * sin(p.x * 7.1 - p.y * 4.3) + 0.35 * sin(p.y * 11.3 + p.x * 2.7); }
+    float tear1(vec2 p){ return 7.0 + 1.6 * sin(p.y * 1.2 - 0.4) * cos(p.x * 1.5) + 0.8 * sin(p.x * 2.3 + p.y * 2.9) + 0.5 * sin(p.x * 6.3 + p.y * 5.1) + 0.3 * sin(p.y * 9.7 - p.x * 3.9); }`;
   const pieces = (() => {                              // the wreck: the hull itself torn in three along two jagged lines, each piece centred on itself
-    const tear = [(x, y) => -7 + 1.8 * Math.sin(x * 1.1 + 0.7) * Math.cos(y * 1.3) + 0.9 * Math.sin(x * 2.7 - y * 1.9),
-                  (x, y) => 7 + 1.6 * Math.sin(y * 1.2 - 0.4) * Math.cos(x * 1.5) + 0.8 * Math.sin(x * 2.3 + y * 2.9)];
+    const tear = TEAR;
     const whole = mergeParts(parts), P = whole.attributes.position.array, out = [[], [], []];
     for (let t = 0; t < P.length / 9; t++) {             // each triangle to the piece its centre lies in
       const cx = (P[t * 9] + P[t * 9 + 3] + P[t * 9 + 6]) / 3, cy = (P[t * 9 + 1] + P[t * 9 + 4] + P[t * 9 + 7]) / 3, cz = (P[t * 9 + 2] + P[t * 9 + 5] + P[t * 9 + 8]) / 3;
@@ -79,7 +82,7 @@ const SHIP = (() => {                                  // nose to -z, engines to
   plating.wrapS = plating.wrapT = THREE.RepeatWrapping;
   const material = (tint = 0xffffff, rough = 0.38) => new THREE.MeshStandardMaterial({ vertexColors: true, color: tint, map: plating, bumpMap: plating, bumpScale: 0.5,
     metalness: 0.72, roughness: rough, envMap: MILKY.skyTex, envMapIntensity: 0.9 });
-  return { hull: mergeParts(parts), lights: mergeParts(lights), pieces, material, rear: [[-1.8, -0.8, 19.5], [1.8, -0.8, 19.5], [0, 1.6, 19.5]] };
+  return { hull: mergeParts(parts), lights: mergeParts(lights), pieces, material, TEAR_GLSL, rear: [[-1.8, -0.8, 19.5], [1.8, -0.8, 19.5], [0, 1.6, 19.5]] };
 })();
 function spriteCloud(n, cap = 512) {                   // additive point-sprites: position, size (world units), colour and alpha per point
   const pos = new Float32Array(n * 3), size = new Float32Array(n), col = new Float32Array(n * 4);

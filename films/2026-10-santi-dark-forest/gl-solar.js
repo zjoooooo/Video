@@ -71,7 +71,7 @@ const SOL = (() => {
       vec3 c; float a = uAlpha;
       if (vK < 0.5) {                                                          // still round: lit by the Sun, a rim of air
         float nv = max(0.0, dot(vN, V));
-        float lit = uSun > 0.5 ? 0.78 + 0.22 * nv : uFill > 0.5 ? 0.03 + 1.1 * max(0.0, dot(vN, uLdir)) : 0.06 + 0.94 * max(0.0, dot(vN, normalize(-vW)));   // Pluto: one distant light, a terminator
+        float lit = uSun > 0.5 ? 0.78 + 0.22 * nv : uFill > 0.5 ? 0.03 + 0.74 * max(0.0, dot(vN, uLdir)) : 0.06 + 0.94 * max(0.0, dot(vN, normalize(-vW)));   // Pluto: one distant light, a terminator
         c = tex * uGain * lit + uAtmo * pow(1.0 - nv, 2.2) * 1.6;
         if (uSun > 0.5) c = 1.0 - exp(-c * 1.3);
       } else {                                                                 // in the painting
@@ -229,8 +229,8 @@ const SOL = (() => {
     [BACK0 - 0.01, [Pl.x * 0.25, 0, Pl.z * 0.25, 330, azP, 0.4, 32]],      // the look-back (the escape itself is on Pluto: gl-pluto.js)
     [BACK0, [Pl.x * 0.25, 0, Pl.z * 0.25, 330, azP, 0.4, 32]],
     [PLUTO_HIT - 0.3, [Pl.x, 0.5, Pl.z, 9, azP + 0.25, 0.42, 30]],         // Pluto against the painting, lit at the rim
-    [PLUTO_HIT + 4.5, [Pl.x + 6.6, 0, Pl.z, 15, 0, 1.15, 34]],            // over the arc of Pluto's image where the words lie, upright
-    [SC.end - 2.5, [Pl.x + 6.6, 0, Pl.z, 14, 0.02, 1.18, 34]],
+    [PLUTO_HIT + 4.5, [Pl.x + 6.6 * Math.cos(-0.2), 0, Pl.z + 6.6 * Math.sin(-0.2), 15, -0.2, 1.15, 34]],   // over the arc of Pluto's image where the words lie, upright,
+    [SC.end - 2.5, [Pl.x + 6.6 * Math.cos(0.2), 0, Pl.z + 6.6 * Math.sin(0.2), 14, 0.2, 1.18, 34]],      // panning slowly along them
     [SC.end + 1.8, [0, 0, 0, 698, azEnd, 1.52, 32]],                      // the whole painting, face-on in its gold frame, above the end card
     [DURATION, [0, 0, 0, 720, azEnd, 1.52, 32]],
   ];

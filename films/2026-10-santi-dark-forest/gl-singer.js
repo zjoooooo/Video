@@ -29,8 +29,8 @@ function foilMesh(w, h) {
         float run = exp(-pow((dot(q, vec2(0.86, 0.5)) - fract((uTime - uRun) / 3.0) * 2.4 + 0.3) / 0.18, 2.0));   // and a gleam running over it
         float fres = pow(1.0 - c, 5.0), spec = pow(max(dot(Rf, V), 0.0), 240.0);
         float edge = 1.0 - smoothstep(0.0, 0.012, min(min(q.x, 1.0 - q.x), min(q.y, 1.0 - q.y)));
-        float lightOn = clamp(0.03 + 2.4 * hot + 1.5 * run + 0.9 * fres, 0.0, 2.2);   // dark glass, the colour only where light rakes across it
-        vec3 col = vec3(0.004, 0.005, 0.008) + film * lightOn + vec3(1.0, 0.97, 0.92) * spec * 1.2 + vec3(0.85, 0.92, 1.0) * edge * (0.08 + 0.9 * hot);
+        float lightOn = 0.03 + 2.4 * hot + 1.5 * run + 0.9 * fres;            // dark glass, the colour only where light rakes across it,
+        vec3 col = vec3(0.004, 0.005, 0.008) + film * 0.85 * (1.0 - exp(-lightOn * 1.3)) + vec3(1.0, 0.97, 0.92) * spec * 0.35 + vec3(0.85, 0.92, 1.0) * edge * 0.8 * (hot + run);   // tone-mapped through the film's colour: the bands run through the brightest part
         gl_FragColor = vec4(col * uA, 1.0);
       }` });
   const plane = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
@@ -46,7 +46,7 @@ function foilMesh(w, h) {
     mat.uniforms.uLight.value.copy(here).addScaledVector(toCam, 0.45).add(new THREE.Vector3(-0.25 * k, 0.35 * k, 0).applyQuaternion(camera.quaternion));   // a light near the lens: its highlight is a spot
     n.set(0, 0, 1).transformDirection(plane.matrixWorld); v.copy(camera.position).sub(group.getWorldPosition(new THREE.Vector3()));
     const dist = v.length(), c = Math.abs(n.dot(v.normalize()));
-    edgeLine.material.opacity = a * (0.22 + 0.75 * Math.pow(1 - c, 4));   // a fine glint along its edge; edge-on, the hairline is all there is
+    edgeLine.material.opacity = a * 0.9 * Math.pow(1 - c, 8);             // edge-on, the hairline is all there is; otherwise its edges glint only where raked (in the shader)
     const px = H / (2 * Math.tan(camera.fov * Math.PI / 360)) / dist * Math.max(w, h) * group.scale.x;   // its size on screen
     const far = 1 - ramp(px, 8, 40);
     glint.material.color.setRGB(...[0, 0.33, 0.67].map(o => 0.6 + 0.4 * Math.cos(TAU * (o + t * 0.25))));

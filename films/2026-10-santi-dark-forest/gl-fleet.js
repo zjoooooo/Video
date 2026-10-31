@@ -12,12 +12,17 @@ const FLEET = (() => {
   const hulls = new THREE.InstancedMesh(SHIP.hull, SHIP.material(), N);
   const lamps = new THREE.InstancedMesh(SHIP.lights, new THREE.MeshBasicMaterial({ vertexColors: true }), N);
   const burnt = SHIP.material(0x1d1b19, 0.85); burnt.envMapIntensity = 0.25; burnt.side = THREE.DoubleSide;   // the hull in three, burnt near-black, open at the tears
-  burnt.onBeforeCompile = sh => {                       // its torn rims glow, and cool
-    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute float aEdge; attribute float aHeat; varying float vGlow;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvGlow = aEdge * aEdge * aHeat;');
-    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vGlow;').replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += vec3(1.0, 0.36, 0.07) * vGlow * 4.0;');
-  };
   const heat = SHIP.pieces.map(pc => { const a = new THREE.InstancedBufferAttribute(new Float32Array(N), 1); pc.geo.setAttribute('aHeat', a); return a; });
-  const shards = SHIP.pieces.map(pc => new THREE.InstancedMesh(pc.geo, burnt, N));
+  const shards = SHIP.pieces.map(pc => {                // its torn rims glow, a thin line along the tear itself, and cool
+    const m = burnt.clone();
+    m.onBeforeCompile = sh => {
+      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute float aHeat; varying float vHeat; varying vec3 vShip;')
+        .replace('#include <begin_vertex>', `#include <begin_vertex>\nvHeat = aHeat; vShip = position + vec3(${pc.centre.x.toFixed(4)}, ${pc.centre.y.toFixed(4)}, ${pc.centre.z.toFixed(4)});`);
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>\nvarying float vHeat; varying vec3 vShip;\n${SHIP.TEAR_GLSL}`)
+        .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\nfloat dT = min(abs(vShip.z - tear0(vShip.xy)), abs(vShip.z - tear1(vShip.xy)));\ntotalEmissiveRadiance += vec3(1.0, 0.36, 0.07) * vHeat * 5.0 * exp(-dT * dT / 0.05);');
+    };
+    return new THREE.InstancedMesh(pc.geo, m, N);
+  });
   const engines = spriteCloud(N * 3, 70), fire = spriteCloud(N * 3, 40), sparks = spriteCloud(N * 3, 24), dropFx = spriteCloud(96, 300);
   for (const m of [hulls, lamps, ...shards]) { m.frustumCulled = false; scene.add(m); }
   scene.add(engines.pts, fire.pts, sparks.pts, dropFx.pts);
@@ -115,7 +120,7 @@ const FLEET = (() => {
   function bake() {                                       // the droplet's reflections: the fleet as seen from where it waits, once
     const dome = new THREE.Mesh(new THREE.SphereGeometry(30000, 32, 16), new THREE.ShaderMaterial({ side: THREE.BackSide, depthWrite: false,   // a faint studio of space: its shape reads
       vertexShader: 'varying vec3 vD; void main(){ vD = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-      fragmentShader: 'varying vec3 vD; void main(){ float u = vD.y * 0.5 + 0.5; gl_FragColor = vec4(mix(vec3(0.0), vec3(0.16, 0.19, 0.26), smoothstep(0.45, 1.0, u)) + vec3(0.05, 0.06, 0.08) * exp(-pow((vD.y - 0.05) / 0.12, 2.0)) + vec3(1.0, 0.98, 0.95) * 1.4 * exp(-pow((vD.y - 0.62) / 0.05, 2.0)) * smoothstep(-0.2, 0.5, vD.x), 1.0); }' }));   // and a long soft strip light overhead
+      fragmentShader: 'varying vec3 vD; void main(){ float u = vD.y * 0.5 + 0.5; gl_FragColor = vec4(mix(vec3(0.0), vec3(0.16, 0.19, 0.26), smoothstep(0.45, 1.0, u)) + vec3(0.05, 0.06, 0.08) * exp(-pow((vD.y - 0.05) / 0.12, 2.0)) + vec3(1.0, 0.98, 0.95) * 0.82 * exp(-pow((vD.y - 0.62) / 0.017, 2.0)) * exp(-pow((vD.x - 0.25) / 0.42, 2.0)) + vec3(0.13, 0.15, 0.2) * exp(-pow((vD.y + 0.22) / 0.07, 2.0)), 1.0); }' }));   // a thin soft strip light overhead, fading at its ends; a faint glow low down to rim its lower edge
     setShips(SC.drop + 2); droplet.visible = sky.visible = false; scene.add(dome);   // from a little above the slab: the fleet's lights a broad band round it
     cubeCam.position.set(DC.x, 22, DC.z); cubeCam.update(GL.renderer, scene); scene.remove(dome); droplet.visible = sky.visible = true;
   }
