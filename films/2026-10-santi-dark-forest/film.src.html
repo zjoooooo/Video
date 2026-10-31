@@ -58,16 +58,22 @@ function stars(t, a = 1) {
   }
   ctx.restore();
 }
-function backdrop() {
-  ctx.fillStyle = SPACE; ctx.fillRect(0, 0, W, H);
-  const g = ctx.createRadialGradient(W * 0.55, H * 0.45, 0, W * 0.55, H * 0.45, W * 0.75);
-  g.addColorStop(0, 'rgba(14,24,44,0.9)'); g.addColorStop(1, 'rgba(4,6,11,0)');
-  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+function dithered(fn) {                               // a full-frame image computed per pixel with ±½ level of noise: dark gradients cannot band
+  const c = Object.assign(document.createElement('canvas'), { width: W, height: H }), g = c.getContext('2d'), d = g.createImageData(W, H), r = rng(404);
+  for (let y = 0, i = 0; y < H; y++) for (let x = 0; x < W; x++, i += 4) {
+    const [R, G, B, A] = fn(x, y), n = r() - 0.5;     // Uint8ClampedArray rounds and clamps
+    d.data[i] = R + n; d.data[i + 1] = G + n; d.data[i + 2] = B + n; d.data[i + 3] = A + n;
+  }
+  g.putImageData(d, 0, 0); return c;
 }
+const SKY = dithered((x, y) => {                      // deep space with a faint blue glow right of centre
+  const f = Math.max(0, 1 - Math.hypot(x - W * 0.55, y - H * 0.45) / (W * 0.75)), k = 0.9 * f * f;
+  return [4 + 10 * k, 6 + 18 * k, 11 + 33 * k, 255.5];
+});
+const VIGN = dithered((x, y) => [0, 0, 0, 255 * 0.6 * clamp((Math.hypot(x - W / 2, y - H / 2) - H * 0.35) / (H * 0.7))]);
+function backdrop() { ctx.drawImage(SKY, 0, 0); }
 function vignette(strength) {
-  const g = ctx.createRadialGradient(W / 2, H / 2, H * 0.35, W / 2, H / 2, H * 1.05);
-  g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, `rgba(0,0,0,${strength})`);
-  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  ctx.globalAlpha = strength / 0.6; ctx.drawImage(VIGN, 0, 0); ctx.globalAlpha = 1;
 }
 const GRAIN = (() => {                                 // seeded noise tile; moved every 1/24 s it reads as film grain and dithers gradients
   const c = Object.assign(document.createElement('canvas'), { width: 256, height: 256 }), g = c.getContext('2d'), d = g.createImageData(256, 256);
@@ -159,7 +165,7 @@ const SHIPS = (() => {
   for (const s of out) {                               // dies when the first blast reaches it; past REACH only a slow chain carries
     let tk = Infinity; const v = BLAST * (0.7 + 0.6 * s.fr);
     for (const [t, x, z] of samples) { const d = Math.hypot(x - s.x, z - s.z), a = t + d / v + Math.max(0, d - REACH) / 70; if (a < tk) tk = a; }
-    s.tk = s.run ? Infinity : tk + 0.04 * s.jit;
+    s.tk = s.run ? Infinity : s.flag ? CUE.kills[3] : tk + 0.04 * s.jit;   // the flagship goes on the last accent, in the foreground
   }
   return out;
 })();
@@ -221,17 +227,44 @@ function hull(s, x, y, k, color, alpha, lit = false) {   // one ship's silhouett
   const L = 17 * k * s.sz, pts = HULLS[s.hull];
   ctx.save(); ctx.globalAlpha = alpha; ctx.fillStyle = color; ctx.translate(x, y); ctx.rotate(s.hd);
   ctx.beginPath(); pts.forEach(([px, py], i) => (i ? ctx.lineTo(px * L, py * L) : ctx.moveTo(px * L, py * L))); ctx.closePath();
-  if (lit) {                                           // up close: lit from above, its belly in shadow, a spine, a row of lights
+  if (lit) {                                           // up close: two tones, lit top and dark belly, a rim of light, a spine, a row of lights
     ctx.globalCompositeOperation = 'source-over';
     const g = ctx.createLinearGradient(0, -0.3 * L, 0, 0.3 * L);
-    g.addColorStop(0, '#f2dfb2'); g.addColorStop(0.45, '#a8865a'); g.addColorStop(1, '#241a10');
+    g.addColorStop(0, '#f4e3b8'); g.addColorStop(0.47, '#c29d66'); g.addColorStop(0.53, '#4a3520'); g.addColorStop(1, '#140e08');
     ctx.fillStyle = g; ctx.fill();
+    ctx.save(); ctx.clip(); ctx.beginPath(); ctx.rect(-1.2 * L, -L, 2.4 * L, L - 0.02 * L); ctx.clip();   // the rim: the top edge only
+    ctx.beginPath(); pts.forEach(([px, py], i) => (i ? ctx.lineTo(px * L, py * L) : ctx.moveTo(px * L, py * L))); ctx.closePath();
+    ctx.strokeStyle = 'rgba(255,244,214,0.9)'; ctx.lineWidth = 2; ctx.stroke(); ctx.restore();
     ctx.strokeStyle = 'rgba(30,22,14,0.7)'; ctx.lineWidth = Math.max(1, 0.025 * L);
     ctx.beginPath(); ctx.moveTo(-0.85 * L, 0.02 * L); ctx.lineTo(0.8 * L, 0.02 * L); ctx.stroke();
     ctx.fillStyle = '#20180f'; ctx.fillRect(-1.0 * L, -0.12 * L, 0.18 * L, 0.24 * L);   // the drive block
     ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = '#fff1c8';
     for (const wx of [-0.3, -0.05, 0.2, 0.45]) { ctx.beginPath(); ctx.arc(wx * L, -0.07 * L, Math.max(0.8, 0.018 * L), 0, TAU); ctx.fill(); }
   } else ctx.fill();
+  ctx.restore();
+}
+function clipX(pts, lo, hi) {                         // a polygon cut to lo <= x <= hi
+  const cut = (poly, keep, xc) => poly.flatMap((a, i) => {
+    const b = poly[(i + 1) % poly.length], out = keep(a[0]) ? [a] : [];
+    if (keep(a[0]) !== keep(b[0])) out.push([xc, a[1] + (xc - a[0]) / (b[0] - a[0]) * (b[1] - a[1])]);
+    return out;
+  });
+  return cut(cut(pts, x => x >= lo, lo), x => x <= hi, hi);
+}
+const SHARDS = HULLS.map(h => [[-1.01, -0.3], [-0.3, 0.35], [0.35, 1.01]].map(([lo, hi]) => clipX(h, lo, hi)));
+function wreck(s, x, y, k, dt, haze) {               // the hull in three shards, drifting apart and turning, hot edges cooling to black
+  const L = 17 * k * s.sz, big = s.flag ? 2.5 : 1, open = 1 - Math.exp(-dt / 1.4);
+  ctx.save(); ctx.globalCompositeOperation = 'source-over'; ctx.lineJoin = 'round';
+  SHARDS[s.hull].forEach((poly, i) => {
+    ctx.save(); ctx.translate(x, y); ctx.rotate(s.hd);
+    ctx.translate((i - 1) * L * (0.22 * open + 0.012 * dt) * big, L * (s.fr - 0.5) * (i - 1 + 0.4) * 0.3 * open * big);
+    ctx.rotate((i - 1 + 0.35 * (s.fr - 0.5)) * (0.5 * open + 0.05 * dt) * big);
+    ctx.beginPath(); poly.forEach(([px, py], j) => (j ? ctx.lineTo(px * L, py * L) : ctx.moveTo(px * L, py * L))); ctx.closePath();
+    ctx.globalAlpha = (0.12 + 0.5 * Math.exp(-dt / 3)) * haze; ctx.fillStyle = '#2a140c'; ctx.fill();
+    ctx.globalAlpha = (0.85 * Math.exp(-dt / 1.0) + 0.08 * Math.exp(-dt / 12)) * haze;
+    ctx.strokeStyle = '#ff7a30'; ctx.lineWidth = Math.max(0.7, 0.05 * L); ctx.stroke();
+    ctx.restore();
+  });
   ctx.restore();
 }
 function drawFleet(t) {                               // fleet, drop, ember: the Doomsday Battle
@@ -258,10 +291,11 @@ function drawFleet(t) {                               // fleet, drop, ember: the
       if (s.flag) for (const o of [-0.12, 0.12]) glow(GLOW.white, rear, ry + o * L, 6 * k * s.sz, 0.8 * on);
       if (s.run && t > CUE.kills[1]) glow(GLOW.white, x, y, 22 * k + 4, 0.9);
     } else {                                           // dead: a two-frame white core, a fireball, a dying wreck, sparks
-      glow(GLOW.white, x, y, Math.min(26, 26 * k * s.sz + 4), 1.3 * Math.exp(-dt / 0.035));
-      glow(GLOW.fire, x, y, Math.min(48, (40 + 40 * s.fr) * k * s.sz * (0.5 + 0.5 * ease(clamp(dt / 0.12))) + 4), 0.95 * Math.exp(-dt / 0.5) * haze);   // capped, so neighbours never merge
-      if (k > 0.3) hull(s, x, y, k, '#5a2614', 0.55 * Math.exp(-dt / 18) * haze);
-      glow(GLOW.ember, x, y, 26 * k * s.sz + 2, (0.22 * Math.exp(-dt / 1.6) + 0.13 * Math.exp(-dt / 16)) * (0.5 + s.jit * 3.3) * haze);
+      const cap = s.flag ? 4 : 1;                      // the flagship's death is the one the camera is close enough to see
+      glow(GLOW.white, x, y, Math.min(26 * cap, 26 * k * s.sz + 4), 1.3 * Math.exp(-dt / 0.035));
+      glow(GLOW.fire, x, y, Math.min(48 * cap, (40 + 40 * s.fr) * k * s.sz * (0.5 + 0.5 * ease(clamp(dt / 0.12))) + 4), 0.95 * Math.exp(-dt / 0.5) * haze);   // capped, so neighbours never merge
+      if (k > 0.3) wreck(s, x, y, k, dt, haze);
+      glow(GLOW.ember, x, y, 26 * k * s.sz + 2, (0.22 * Math.exp(-dt / 1.2) + 0.04 * Math.exp(-dt / 10)) * (0.5 + s.jit * 3.3) * haze);
       for (const [d, v, vy] of s.deb) {                // sparks fly out fast, then keep drifting
         const e = 1 - Math.exp(-dt / 1.5) + dt * 0.02, q = project(c, X + Math.cos(d) * v * 1.5 * e, Y + vy * e, Z + Math.sin(d) * v * 1.5 * e);
         if (q) glow(GLOW.ember, q[0], q[1], Math.min(40, 6 * q[2] + 1.2), 0.55 * Math.exp(-dt / 2) + 0.14 * Math.exp(-dt / 12));
@@ -366,8 +400,34 @@ function drawFoil(t) {
   ctx.fill(); ctx.stroke();
   ctx.restore();
 }
+// While the foil waits, cut in close: it turns, goes edge-on and is gone to a hairline, twice. A thing with no thickness.
+const CL0 = SC.ember + 17.6, CL1 = SC.ember + 23.8;
+function drawFoilClose(t) {
+  const u = t - CL0;
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  for (let i = 0; i < 10; i++) {                      // the Singer's ring behind it, far out of focus
+    const a = -0.95 + i * 0.21 + u * 0.012, x = -950 + 1750 * Math.cos(a), y = 560 + 1750 * Math.sin(a);
+    glow(GLOW.ice, x, y, 170, 0.14 + 0.05 * Math.sin(i * 2.1));
+  }
+  ctx.restore();
+  const th = 0.25 + u * 0.95, c = Math.cos(th), w = 330, h = 210, ac = Math.abs(c);
+  ctx.save(); ctx.translate(W * 0.52, H * 0.46); ctx.rotate(-0.1 + 0.03 * Math.sin(u * 0.5));
+  ctx.globalCompositeOperation = 'lighter';
+  if (ac < 0.04) {                                    // edge-on: nothing left but a hairline
+    ctx.fillStyle = `rgba(230,240,255,${0.5 * (1 - ac / 0.04) + 0.1})`; ctx.fillRect(-0.5, -h / 2, 1, h);
+  } else {
+    const x0 = -w / 2 * c, x1 = w / 2 * c, s = (th * 0.35) % 1;   // turning about its vertical axis; a sheen slides across as it turns
+    const g = ctx.createLinearGradient(x0, -h / 2, x1, h / 2);
+    g.addColorStop(0, 'rgba(200,220,255,0.05)'); g.addColorStop(clamp(s, 0.02, 0.98), `rgba(235,245,255,${0.3 * Math.min(1, ac * 4)})`); g.addColorStop(1, 'rgba(190,170,255,0.05)');
+    ctx.fillStyle = g; ctx.fillRect(Math.min(x0, x1), -h / 2, Math.abs(x1 - x0), h);
+    ctx.strokeStyle = `rgba(255,255,255,${0.9 * Math.min(1, ac * 6)})`; ctx.lineWidth = 1.2;
+    ctx.strokeRect(Math.min(x0, x1), -h / 2, Math.abs(x1 - x0), h);
+  }
+  ctx.restore();
+}
 function drawSinger(t) {                              // the Singer's eye, the Sun it notices, and the foil
   if (t < OPEN || t > SC.fall + 3) return;
+  if (t >= CL0 && t < CL1) { drawFoilClose(t); return; }
   const s = singerCam(t);
   ctx.save(); ctx.translate(SCC[0], SCC[1]); ctx.scale(s, s); ctx.translate(-SCC[0], -SCC[1]);
   drawIris(t);
@@ -386,6 +446,7 @@ const TILT = 0.34, ROT = -0.12;
 const IMPACT = (() => { const dx = EDGE[0] - SUN[0], dy = EDGE[1] - SUN[1], c = Math.cos(-ROT), s = Math.sin(-ROT); return [dx * c - dy * s, (dx * s + dy * c) / TILT]; })();
 const DSUN = Math.hypot(...IMPACT);
 const LS = SC.escape + 6.2;                           // the escaping ship reaches light speed, on "逃出了"
+const BACK0 = LS + 5.0;                               // and five seconds later we look back
 const RHO = [[SC.fall, 0], [CUE.planets[0], 40], [CUE.planets[1], 90], [CUE.planets[2], 135], [CUE.planets[3], 175],
              [CUE.sun, DSUN], [CUE.earth, 252], [SC.escape, 470], [LS, 760], [SC.back, 1400]];   // after Earth it races the ship
 function keyed(t, keys, shape = x => x) {            // piecewise between [t, value] keys; shape eases each segment
@@ -575,7 +636,10 @@ function drawHeroNeptune(t) {
   }
   ctx.save(); ctx.globalCompositeOperation = 'lighter';
   const h = half(cy);                                 // where it meets the plane: a white-hot cut
-  if (h > 0) { ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.fillRect(cx - h, y0 - 1, 2 * h, 2); glow(GLOW.white, cx, y0, h * 2.2, 0.45); }
+  if (h > 0) {                                        // its glow lies flat along the line, not as a haze below it
+    ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.fillRect(cx - h, y0 - 1, 2 * h, 2);
+    ctx.save(); ctx.translate(cx, y0); ctx.scale(1, 0.07); glow(GLOW.ice, 0, 0, h * 2.6, 0.75); ctx.restore();
+  }
   if (t > NEP.hit && tilt < 1) {                      // what has gone through streams out along the plane as fine iridescent hatching
     ctx.lineWidth = 1.1; ctx.lineCap = 'round';
     for (const m of HATCH) {
@@ -643,17 +707,17 @@ const shipLocal = t => {                              // in the plane: a little 
   return [IMPACT[0] + DIR[0] * r, IMPACT[1] + DIR[1] * r];
 };
 function escapeView(t) {                              // close beside the ship as the edge closes; at the jump the camera falls behind
-  const a = ease(ramp(t, SC.escape, LS - 0.3)), w = 1 - Math.pow(1 - ramp(t, LS, LS + 1.8), 3), w2 = ease(ramp(t, LS + 1.8, SC.back));
+  const a = ease(ramp(t, SC.escape, LS - 0.3)), w = 1 - Math.pow(1 - ramp(t, LS, LS + 1.8), 3), w2 = ease(ramp(t, LS + 1.8, BACK0));
   const sl = shipLocal(t), near = [lerp(880, 1290, a), lerp(600, 450, a), sl[0], sl[1], lerp(2.9, 3.4, a)];
   const far = [lerp(760, 640, w2), lerp(640, 700, w2), 0, 0, lerp(0.75, 0.42, w2)];
   return [...near.map((n, i) => lerp(n, far[i], w)), TILT];
 }
 function drawEscape(t) {                              // the light-speed ship, the painting, the end
   if (t < SC.escape) return;
-  if (t < SC.back) {
+  if (t < BACK0) {
     const v = escapeView(t), sl = shipLocal(t), B = toScreen(v, ...sl), B1 = toScreen(v, sl[0] + DIR[0], sl[1] + DIR[1]);
     const dl = Math.hypot(B1[0] - B[0], B1[1] - B[1]) || 1, d = [(B1[0] - B[0]) / dl, (B1[1] - B[1]) / dl];   // its heading on screen
-    const jump = 1 - Math.pow(1 - ramp(t, LS, LS + 2.5), 3), drift = ramp(t, LS + 2.5, SC.back);
+    const jump = 1 - Math.pow(1 - ramp(t, LS, LS + 2.5), 3), drift = ramp(t, LS + 2.5, BACK0);
     const S = t < LS ? B : [lerp(1300, 1720, jump) + 50 * drift, lerp(440, 250, jump) - 25 * drift];   // after the jump: a point of light leaving
     const L0 = toScreen(v, ...shipLocal(LS));          // where it left the painting
     painting(t, v, 1, { edge: 1 });
@@ -682,18 +746,18 @@ function drawEscape(t) {                              // the light-speed ship, t
       g.addColorStop(0, `rgba(205,235,255,${0.9 * fade})`); g.addColorStop(1, 'rgba(160,215,255,0)');
       ctx.strokeStyle = g; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(S[0], S[1]); ctx.lineTo(L0[0], L0[1]); ctx.stroke();
       const k = lerp(1, 0.55, drift);
-      glow(GLOW.ice, S[0], S[1], 44 * k, 0.9 * k); glow(GLOW.white, S[0], S[1], 9 * k, k);
+      glow(GLOW.ice, S[0], S[1], 70 * k, 0.9 * k); glow(GLOW.white, S[0], S[1], 14 * k, k);
     }
     glow(GLOW.white, B[0], B[1], 700, 0.8 * Math.exp(-Math.abs(t - LS) / 0.18));   // the jump
     ctx.restore();
     return;
   }
-  const u = easeIO(ramp(t, SC.back, DURATION)), dim = lerp(1, 0.45, ease(ramp(t, SC.end, SC.end + 2.5)));
+  const u = easeIO(ramp(t, BACK0, DURATION)), dim = lerp(1, 0.45, ease(ramp(t, SC.end, SC.end + 2.5)));
   const e = easeIO(ramp(t, SC.end - 1.5, SC.end + 1.5));   // for the end card the painting rises and steps back, clear of the text
   const v = [960, lerp(530, 500, u) - 190 * e, -40, 0, lerp(1.35, 0.74, u) * lerp(1, 0.8, e), lerp(0.8, 0.7, u)];   // looking back, nearly face-on
-  painting(t, v, dim * ease(ramp(t, SC.back, SC.back + 0.8)), { edge: 0 });
+  painting(t, v, dim * ease(ramp(t, BACK0, BACK0 + 0.8)), { edge: 0 });
   ctx.save(); inPlane(v); ctx.globalCompositeOperation = 'lighter';   // the frame: two gold hairlines
-  ctx.lineWidth = 1.3 / (v[4] * 0.6); ctx.strokeStyle = `rgba(255,214,150,${0.65 * dim * ease(ramp(t, SC.back + 1.2, SC.back + 3))})`;
+  ctx.lineWidth = 1.3 / (v[4] * 0.6); ctx.strokeStyle = `rgba(255,214,150,${0.65 * dim * ease(ramp(t, BACK0 + 1.2, BACK0 + 3))})`;
   for (const r of [330, 338]) { ctx.beginPath(); ctx.arc(-40, 0, r, 0, TAU); ctx.stroke(); }
   ctx.restore();
 }
@@ -739,7 +803,7 @@ async function render(t) {
 }
 
 window.DURATION = DURATION;
-window.EVENTS = { duration: DURATION, cuts: [...Object.values(SC).slice(1), ...CUE.kills, CUE.flick, ...CUE.planets, CUE.earth].sort((a, b) => a - b) };
+window.EVENTS = { duration: DURATION, cuts: [...Object.values(SC).slice(1), ...CUE.kills, CUE.flick, ...CUE.planets, CUE.earth, CL0, CL1, HN0, HN1, BACK0].sort((a, b) => a - b) };
 window.seek = async t => render(clamp(t, 0, DURATION - 1e-6));
 Promise.all([`400 34px ${ZH}`, `600 132px ${ZH}`].map(f => document.fonts.load(f))).then(() => {
   // a gradient changes how Chrome rasterises later blended draws on this canvas, so draw one before any frame:
