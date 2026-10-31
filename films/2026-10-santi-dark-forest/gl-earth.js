@@ -29,16 +29,17 @@ const LEAVE = (() => {
     vertexShader: 'varying float vRim, vDay; uniform vec3 uSun; void main(){ vec3 n = normalize(normalMatrix * normal); vRim = pow(1.0 - abs(n.z), 2.6); vDay = dot(normalize(mat3(modelMatrix) * normal), uSun); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
     fragmentShader: 'varying float vRim, vDay; void main(){ gl_FragColor = vec4(vec3(0.45, 0.72, 1.0), vRim * 1.1 * (0.06 + 0.94 * smoothstep(-0.3, 0.3, vDay))); }' }));
   atmo.position.copy(C); scene.add(atmo);
-  const n = 140, r = rng(303), ships = [];               // the departing ships: columns rising out of orbit, staggered
+  const n = 141, r = rng(303), ships = [];               // the departing ships: columns rising out of orbit, staggered; the last passes close
   const DIR = new THREE.Vector3(0.5, 0.16, 0.85).normalize();   // out past us and to the right, under the title
   for (let i = 0; i < n; i++) {
     const col = i % 7, row = Math.floor(i / 7);
     ships.push({ base: new THREE.Vector3(-900 + col * 240 + (r() - 0.5) * 90, -620 + (r() - 0.5) * 120 - col * 22, -1500 - row * 230 + (r() - 0.5) * 90),   // a broad river of ships, its nearest close by
                  delay: row * 0.08 + r() * 0.15, acc: 70 + 40 * r(), sz: 1.4 + 0.8 * r() });
   }
-  const hulls = new THREE.InstancedMesh(SHIP.hull, new THREE.MeshStandardMaterial({ vertexColors: true, metalness: 0.55, roughness: 0.4 }), n);
+  ships[n - 1] = { base: new THREE.Vector3(-150, -95, -420), delay: 0.5, acc: 34, sz: 1.5 };   // right past the camera
+  const hulls = new THREE.InstancedMesh(SHIP.hull, SHIP.material(), n);
   const lamps = new THREE.InstancedMesh(SHIP.lights, new THREE.MeshBasicMaterial({ vertexColors: true }), n);
-  const drives = spriteCloud(n * 4, 140);
+  const drives = spriteCloud(n * 20, 90);
   for (const m of [hulls, lamps]) { m.frustumCulled = false; scene.add(m); }
   scene.add(drives.pts);
   const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, -1), DIR), m4 = new THREE.Matrix4();
@@ -48,12 +49,16 @@ const LEAVE = (() => {
     drives.reset();
     ships.forEach((s, i) => {
       const a = Math.max(0, u - s.delay), lit = ease(clamp(a / 0.25));   // each lights its drives in turn on the hit, then climbs harder and harder
-      const p = s.base.clone().addScaledVector(DIR, 0.5 * s.acc * a * a + 40 * a);
+      const at = b => s.base.clone().addScaledVector(DIR, 0.5 * s.acc * b * b + 40 * b), p = at(a);
       m4.compose(p, q, new THREE.Vector3(s.sz, s.sz, s.sz)); hulls.setMatrixAt(i, m4); lamps.setMatrixAt(i, m4);
       for (const [rx, ry, rz] of SHIP.rear) {
         const w = new THREE.Vector3(rx, ry, rz).multiplyScalar(s.sz).applyQuaternion(q).add(p);
-        drives.add(w.x, w.y, w.z, 7 * s.sz * (1 + 1.5 * lit), 0.6, 0.85, 1, 0.95 * lit);
-        if (a > 0 && a < 0.6) drives.add(w.x, w.y, w.z, 40 * s.sz, 1, 1, 1, 0.8 * Math.exp(-a / 0.12));   // ignition flash
+        drives.add(w.x, w.y, w.z, 3.2 * s.sz * (1 + 0.6 * lit), 0.6, 0.85, 1, 0.95 * lit);
+        for (let k = 1; k <= 4; k++) {                   // and a short streak of exhaust behind it
+          const b = Math.max(0, a - k * 0.05), d = at(a).sub(at(b)); if (a <= 0) break;
+          drives.add(w.x - d.x, w.y - d.y, w.z - d.z, 2.6 * s.sz, 0.5, 0.75, 1, 0.5 * lit * (1 - k / 5));
+        }
+        if (a > 0 && a < 0.6) drives.add(w.x, w.y, w.z, 12 * s.sz, 1, 1, 1, 0.7 * Math.exp(-a / 0.1));   // ignition flash
       }
     });
     hulls.instanceMatrix.needsUpdate = lamps.instanceMatrix.needsUpdate = true;

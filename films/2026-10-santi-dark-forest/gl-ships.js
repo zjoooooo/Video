@@ -1,15 +1,17 @@
 // Shared pieces for the ships: a stellar-class warship built from parts and merged into one geometry (plus a second
-// geometry for its lights), and a cloud of additive point-sprites for engines, fireballs and embers.
-function mergeParts(parts) {                          // [geometry, matrix, colour] -> one non-indexed geometry with vertex colours
-  const pos = [], nor = [], col = [];
+// geometry for its lights, and its hull broken in three for the wrecks), plated in a painted panel texture; and a
+// cloud of additive point-sprites for engines, fireballs and embers.
+function mergeParts(parts) {                          // [geometry, matrix, colour] -> one non-indexed geometry: normals, uvs, vertex colours
+  const pos = [], nor = [], uv = [], col = [];
   for (const [g, m, c] of parts) {
-    const geo = g.index ? g.toNonIndexed() : g.clone(); geo.applyMatrix4(m); geo.computeVertexNormals();
-    const p = geo.attributes.position.array, n = geo.attributes.normal.array, cc = new THREE.Color(c);
-    for (let i = 0; i < p.length; i += 3) { pos.push(p[i], p[i + 1], p[i + 2]); nor.push(n[i], n[i + 1], n[i + 2]); col.push(cc.r, cc.g, cc.b); }
+    const geo = g.clone().applyMatrix4(m), flat = geo.index ? geo.toNonIndexed() : geo;   // a cylinder's normals stay smooth, a box's flat
+    const p = flat.attributes.position.array, n = flat.attributes.normal.array, t = flat.attributes.uv.array, cc = new THREE.Color(c);
+    for (let i = 0, j = 0; i < p.length; i += 3, j += 2) { pos.push(p[i], p[i + 1], p[i + 2]); nor.push(n[i], n[i + 1], n[i + 2]); uv.push(t[j], t[j + 1]); col.push(cc.r, cc.g, cc.b); }
   }
   const out = new THREE.BufferGeometry();
   out.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
   out.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+  out.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
   out.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
   return out;
 }
@@ -17,15 +19,19 @@ const M4 = (x = 0, y = 0, z = 0, rx = 0, ry = 0, rz = 0) => new THREE.Matrix4().
 const SHIP = (() => {                                  // nose to -z, engines to +z, about 36 units long
   const r = rng(808), HULL = '#b9a47c', DARK = '#57524b', PLATE = '#8c8578';
   const along = g => g.rotateX(Math.PI / 2);           // cylinders lie along z, their top radius at +z (the stern)
+  const wing = s => {                                  // a swept wing, bevelled, lying in the x-z plane
+    const sh = new THREE.Shape([[0, -4.2], [4.4 * s, -1.2], [4.6 * s, 3.6], [0, 4.6]].map(([x, z]) => new THREE.Vector2(x, z)));
+    return new THREE.ExtrudeGeometry(sh, { depth: 0.36, bevelEnabled: true, bevelThickness: 0.08, bevelSize: 0.08, bevelSegments: 2, curveSegments: 1 }).rotateX(Math.PI / 2).translate(0, 0.18, 0);
+  };
   const parts = [
-    [along(new THREE.CylinderGeometry(2.6, 2.2, 22, 8)), M4(0, 0, 0), HULL],
-    [along(new THREE.CylinderGeometry(2.2, 0.25, 9, 8)), M4(0, 0, -15.5), HULL],
+    [along(new THREE.CylinderGeometry(2.6, 2.2, 22, 28)), M4(0, 0, 0), HULL],
+    [along(new THREE.CylinderGeometry(2.2, 0.25, 9, 28)), M4(0, 0, -15.5), HULL],
     [new THREE.BoxGeometry(6.6, 5, 6), M4(0, 0, 13.5), PLATE],
     [new THREE.BoxGeometry(0.8, 2.2, 18), M4(0, 2.5, -1), DARK],
     [new THREE.BoxGeometry(1.2, 1.4, 14), M4(0, -2.6, -0.5), DARK],
-    [new THREE.BoxGeometry(5, 0.25, 9), M4(4.4, 0, 4, 0, 0, -0.12), PLATE],
-    [new THREE.BoxGeometry(5, 0.25, 9), M4(-4.4, 0, 4, 0, 0, 0.12), PLATE],
-    ...[[-1.8, -0.8], [1.8, -0.8], [0, 1.6]].map(([x, y]) => [along(new THREE.CylinderGeometry(1.35, 1.1, 2.6, 16)), M4(x, y, 17.6), DARK]),
+    [wing(1), M4(2.1, 0, 4, 0, 0, -0.12), PLATE],
+    [wing(-1), M4(-2.1, 0, 4, 0, 0, 0.12), PLATE],
+    ...[[-1.8, -0.8], [1.8, -0.8], [0, 1.6]].map(([x, y]) => [along(new THREE.CylinderGeometry(1.35, 1.1, 2.6, 20)), M4(x, y, 17.6), DARK]),
   ];
   for (let i = 0; i < 14; i++) {                       // surface detail: plates and blocks along the hull
     const z = -9 + r() * 18, a = (r() - 0.5) * 2.2;
@@ -37,7 +43,23 @@ const SHIP = (() => {                                  // nose to -z, engines to
     ...[[-1.8, -0.8], [1.8, -0.8], [0, 1.6]].map(([x, y]) => [new THREE.CircleGeometry(0.95, 20), M4(x, y, 18.95), '#bfe6ff']),
     [new THREE.SphereGeometry(0.35, 8, 6), M4(0, 0, -20.2), '#ff9a7a'],
   ];
-  return { hull: mergeParts(parts), lights: mergeParts(lights), rear: [[-1.8, -0.8, 19.5], [1.8, -0.8, 19.5], [0, 1.6, 19.5]] };
+  const pieces = [[-99, -7], [-7, 7], [7, 99]].map(([z0, z1]) => {   // the wreck: fore, middle and aft, each centred on itself
+    const g = mergeParts(parts.filter(([, m]) => { const z = new THREE.Vector3().setFromMatrixPosition(m).z; return z >= z0 && z < z1; }));
+    g.computeBoundingBox(); const c = g.boundingBox.getCenter(new THREE.Vector3()); g.translate(-c.x, -c.y, -c.z);
+    return { geo: g, centre: c, ends: [z0 > -99 ? z0 : null, z1 < 99 ? z1 : null].filter(v => v !== null) };   // where it broke
+  });
+  const plating = GL.canvasTex(512, 512, (g, w, h) => {   // panels in slightly different greys, dark seams, a few hatches and vents
+    const q = rng(909); g.fillStyle = '#c4c4c4'; g.fillRect(0, 0, w, h);
+    for (let y = 0; y < h; y += 32) for (let x = 0; x < w;) { const pw = 32 * (1 + Math.floor(q() * 3)), v = 170 + 50 * q(); g.fillStyle = `rgb(${v},${v},${v})`; g.fillRect(x, y, pw, 32); x += pw; }
+    g.strokeStyle = 'rgba(40,40,40,0.9)'; g.lineWidth = 1.5;
+    for (let y = 0; y <= h; y += 32) { g.beginPath(); g.moveTo(0, y); g.lineTo(w, y); g.stroke(); }
+    for (let i = 0; i < 120; i++) { const x = Math.floor(q() * 16) * 32, y = Math.floor(q() * 16) * 32; g.beginPath(); g.moveTo(x, y); g.lineTo(x, y + 32); g.stroke(); }
+    for (let i = 0; i < 70; i++) { g.fillStyle = `rgba(30,30,30,${0.3 + 0.4 * q()})`; g.fillRect(q() * w, q() * h, 4 + 14 * q(), 3 + 8 * q()); }
+  });
+  plating.wrapS = plating.wrapT = THREE.RepeatWrapping;
+  const material = (tint = 0xffffff, rough = 0.38) => new THREE.MeshStandardMaterial({ vertexColors: true, color: tint, map: plating, bumpMap: plating, bumpScale: 0.5,
+    metalness: 0.72, roughness: rough, envMap: MILKY.skyTex, envMapIntensity: 0.9 });
+  return { hull: mergeParts(parts), lights: mergeParts(lights), pieces, material, rear: [[-1.8, -0.8, 19.5], [1.8, -0.8, 19.5], [0, 1.6, 19.5]] };
 })();
 function spriteCloud(n, cap = 512) {                   // additive point-sprites: position, size (world units), colour and alpha per point
   const pos = new Float32Array(n * 3), size = new Float32Array(n), col = new Float32Array(n * 4);
