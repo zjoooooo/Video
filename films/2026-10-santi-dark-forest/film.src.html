@@ -193,7 +193,7 @@ function drawFleet(t) {                               // fleet, drop, ember: the
   const C0 = project(c, 0, 0, (ROWS - 1) * SP / 2) || [W / 2, H / 2];
   const fade = 1 - ramp(t, SC.foil - 4, SC.foil + 1);
   ctx.save();
-  ctx.translate(lerp(C0[0], 1340, crane), lerp(C0[1], 560, crane)); ctx.scale(lerp(1, 0.012, crane), lerp(1, 0.012, crane)); ctx.translate(-C0[0], -C0[1]);
+  ctx.translate(lerp(C0[0], edgeAt(t)[0] + 14, crane), lerp(C0[1], edgeAt(t)[1] - 8, crane)); ctx.scale(lerp(1, 0.012, crane), lerp(1, 0.012, crane)); ctx.translate(-C0[0], -C0[1]);
   ctx.globalCompositeOperation = 'lighter';
   for (const s of SHIPS) {
     let X = s.x, Y = s.y, Z = s.z;
@@ -239,8 +239,69 @@ function drawFleet(t) {                               // fleet, drop, ember: the
   }
 }
 
+// ---- the Singer: a glance, and a slip of paper ---------------------------------------------------------
+// The Singer is never drawn, only its gaze: rings of cold sensing points rippling out from off-frame left.
+// One bright ring, the glance, crosses the Sun as the narration says "瞥了一眼". On the 1:14 accent the foil
+// flicks out and tumbles to the outer edge of the Solar System, where the fall begins.
+const SUN = [1340, 560], ORBITS = [34, 52, 74, 104, 146, 196], EDGE = [SUN[0] - 214, SUN[1] + 28];
+const GAZE = [-700, 300], GLANCE = SC.ember + 8.9, GLANCE_V = 620;
+const glanceHits = GLANCE + Math.hypot(SUN[0] - GAZE[0], SUN[1] - GAZE[1]) / GLANCE_V;
+const ssZoom = t => lerp(1, 1.6, easeIO(ramp(t, SC.ember + 14, SC.fall + 4)));   // a slow push-in on the Solar System, into the fall
+const edgeAt = t => [SUN[0] + (EDGE[0] - SUN[0]) * ssZoom(t), SUN[1] + (EDGE[1] - SUN[1]) * ssZoom(t)];
+function solarSystem(t, a) {                          // the far view: the Sun and faint orbits (the fall takes over from here)
+  if (a <= 0.001) return;
+  const z = ssZoom(t);
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  ctx.lineWidth = 1.2; ctx.strokeStyle = `rgba(150,180,230,${0.24 * a})`;
+  for (const r of ORBITS) { ctx.beginPath(); ctx.ellipse(SUN[0], SUN[1], r * z, r * z * 0.34, -0.12, 0, TAU); ctx.stroke(); }
+  glow(GLOW.gold, SUN[0], SUN[1], 80 * z, 0.9 * a); glow(GLOW.white, SUN[0], SUN[1], 14 * z, a);
+  const p = t - glanceHits;                            // noticed: a cold ring closes on the Sun
+  if (p > -0.4 && p < 1.6) { ctx.strokeStyle = `rgba(190,225,255,${0.7 * a * window01(p, -0.4, 1.6, 0.3, 1)})`; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(SUN[0], SUN[1], lerp(70, 10, ease(ramp(p, -0.4, 1.2))), 0, TAU); ctx.stroke(); }
+  ctx.restore();
+}
+const FLICK = [170, 640];
+function foilAt(t) {                                  // the foil's path: a slow arc, under the quote card, to the Solar System's edge
+  const u = easeIO(ramp(t, CUE.flick, SC.fall)), q = 1 - u, P1 = [700, 800], E = edgeAt(t);
+  return [q * q * FLICK[0] + 2 * q * u * P1[0] + u * u * E[0], q * q * FLICK[1] + 2 * q * u * P1[1] + u * u * E[1], lerp(1.25, 0.3, u)];
+}
+function drawFoil(t) {
+  if (t < CUE.flick - 0.05 || t > SC.fall + 1.5) return;
+  const [x, y, s] = foilAt(t), a = 1 - ramp(t, SC.fall, SC.fall + 1.5);
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  glow(GLOW.white, FLICK[0], FLICK[1], 180, 0.9 * Math.exp(-Math.max(0, t - CUE.flick) / 0.12));   // the flick
+  for (let j = 1; j <= 24; j++) {                      // a faint glimmer behind it
+    const [px, py] = foilAt(t - j * 0.05); glow(GLOW.ice, px, py, 10 * s + 2, 0.12 * a * (1 - j / 25));
+  }
+  glow(GLOW.ice, x, y, 70 * s + 8, 0.45 * a);
+  const rot = (t - CUE.flick) * 2.1, fore = Math.abs(Math.cos(rot * 0.7)) * 0.85 + 0.15;   // tumbling: it flattens and turns
+  ctx.translate(x, y); ctx.rotate(rot); ctx.scale(1, fore);
+  ctx.globalAlpha = a; ctx.fillStyle = 'rgba(235,245,255,0.55)'; ctx.strokeStyle = 'rgba(255,255,255,0.95)'; ctx.lineWidth = 1.2 / fore;
+  const w = 28 * s, h = 18 * s; ctx.beginPath(); ctx.moveTo(-w / 2 + 5 * s, -h / 2); ctx.lineTo(w / 2 + 5 * s, -h / 2); ctx.lineTo(w / 2 - 5 * s, h / 2); ctx.lineTo(-w / 2 - 5 * s, h / 2); ctx.closePath();
+  ctx.fill(); ctx.stroke();
+  ctx.restore();
+}
+function drawSinger(t) {                              // the Singer's gaze, the Sun it notices, and the foil
+  if (t < SC.ember + 6 || t > SC.fall + 3) return;
+  const a = ease(ramp(t, SC.ember + 6, SC.ember + 9)) * (1 - ease(ramp(t, SC.fall - 1, SC.fall + 3)));
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  const drift = (t * 22) % 140, Rg = GLANCE_V * (t - GLANCE);
+  for (let i = 0; i < 15; i++) {
+    const r = 760 + i * 140 + drift, ring = a * clamp((r - 700) / 200) * clamp((2900 - r) / 300);
+    if (ring <= 0.01) continue;
+    for (let th = -0.62; th < 0.78; th += 20 / r) {
+      const x = GAZE[0] + r * Math.cos(th), y = GAZE[1] + r * Math.sin(th);
+      if (x < -10 || x > W + 10 || y < -10 || y > H + 10) continue;
+      const g = t > GLANCE ? Math.exp(-(((r - Rg) / 70) ** 2)) * (1 - ramp(t, GLANCE + 3, GLANCE + 5)) : 0;
+      glow(GLOW.ice, x, y, 8 + 10 * g, ring * (0.3 + 0.15 * Math.sin(th * 40 + i + t * 0.8) + 0.7 * g));
+    }
+  }
+  ctx.restore();
+  solarSystem(t, ease(ramp(t, SC.ember + 10, SC.ember + 14)) * (1 - ramp(t, SC.fall + 2, SC.fall + 3)));
+  drawFoil(t);
+}
+
 // ---- scenes still to come ----------------------------------------------------------------------------------
-function drawSinger(t) {}                             // the Singer's field and the foil
 function drawFall(t) {}                               // the 2D front flattens the Solar System
 function drawEscape(t) {}                             // the light-speed ship, the painting, the end
 
