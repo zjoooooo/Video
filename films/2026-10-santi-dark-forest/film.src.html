@@ -1,0 +1,144 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>黑暗森林</title>
+<style>html,body{margin:0;background:#000;overflow:hidden}canvas{display:block}</style></head>
+<body><canvas width="1920" height="1080"></canvas>
+<script>
+// 黑暗森林: the droplet's Doomsday Battle and the Singer's dual-vector foil, cut to "Interstellar Space Travel".
+// Frame contract: window.DURATION (seconds) and async window.seek(t); every value is a pure function of t.
+// Static tables (stars, ships, line art) are built once from seeded generators and never mutated.
+const TL = JSON.parse(__TEXT:timeline.json__), CUE = TL.cue, SC = TL.scenes;
+const W = 1920, H = 1080, DURATION = TL.duration;
+const INK = '#e8ecf4', GOLD = '#ffcf7a', ICE = '#bcd3ff', SPACE = '#04060b';
+const ZH = '"Songti SC", "STSong", serif';
+const cv = document.querySelector('canvas'), ctx = cv.getContext('2d');
+
+// ---- time helpers --------------------------------------------------------------------------------------
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const ramp = (t, a, b) => clamp((t - a) / (b - a));
+const ease = x => x * x * (3 - 2 * x);
+const easeIO = x => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
+const window01 = (t, a, b, fin = 0.4, fout = 0.4) => ease(ramp(t, a, a + fin)) * (1 - ease(ramp(t, b - fout, b)));
+const lerp = (a, b, k) => a + (b - a) * k;
+const TAU = Math.PI * 2;
+function rng(seed) {                                   // mulberry32: the same seed gives the same table every load
+  return () => { seed = (seed + 0x6D2B79F5) | 0; let x = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    x = (x + Math.imul(x ^ (x >>> 7), 61 | x)) ^ x; return ((x ^ (x >>> 14)) >>> 0) / 4294967296; };
+}
+
+// ---- type ----------------------------------------------------------------------------------------------
+function text(s, x, y, { size = 34, weight = 400, font = ZH, color = INK, alpha = 1, track = 0, align = 'center', blur = 0, glow = null } = {}) {
+  if (alpha <= 0.001) return;
+  ctx.save();
+  ctx.globalAlpha = alpha; ctx.fillStyle = color; ctx.textAlign = align; ctx.textBaseline = 'middle';
+  ctx.font = `${weight} ${size}px ${font}`; ctx.letterSpacing = `${track}em`;
+  if (blur || glow) { ctx.shadowColor = glow || 'rgba(0,0,0,0.85)'; ctx.shadowBlur = blur || 24; }
+  // letterSpacing adds space after the last glyph too; shift centred text back by half of it
+  ctx.fillText(s, x + (align === 'center' ? track * size / 2 : 0), y);
+  ctx.restore();
+}
+
+// ---- sky -----------------------------------------------------------------------------------------------
+const STARS = (() => {
+  const r = rng(7), tint = ['#9fb4ff', '#cfd8ff', '#ffffff'];
+  return Array.from({ length: 2400 }, (_, i) => ({ x: r() * (W + 200), y: r() * H, layer: i % 3,
+    s: [0.55, 0.9, 1.5][i % 3] * (0.6 + 0.8 * r()), ph: r() * TAU, f: 0.6 + 2.4 * r(), c: tint[(r() * 3) | 0] }));
+})();
+const DRIFT = [2, 5, 11];                              // px/s per depth layer: a slow pan the whole film long
+function stars(t, a = 1) {
+  if (a <= 0.001) return;
+  ctx.save();
+  for (const s of STARS) {
+    const x = ((s.x - t * DRIFT[s.layer]) % (W + 200) + W + 200) % (W + 200) - 100;
+    const k = a * (0.75 + 0.25 * Math.sin(t * s.f + s.ph)) * (0.45 + 0.25 * s.layer);
+    ctx.globalAlpha = k; ctx.fillStyle = s.c;
+    if (s.s < 1.1) ctx.fillRect(x, s.y, s.s, s.s);
+    else { ctx.beginPath(); ctx.arc(x, s.y, s.s * 0.6, 0, TAU); ctx.fill(); }
+  }
+  ctx.restore();
+}
+function backdrop() {
+  ctx.fillStyle = SPACE; ctx.fillRect(0, 0, W, H);
+  const g = ctx.createRadialGradient(W * 0.55, H * 0.45, 0, W * 0.55, H * 0.45, W * 0.75);
+  g.addColorStop(0, 'rgba(14,24,44,0.9)'); g.addColorStop(1, 'rgba(4,6,11,0)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+}
+function vignette(strength) {
+  const g = ctx.createRadialGradient(W / 2, H / 2, H * 0.35, W / 2, H / 2, H * 1.05);
+  g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, `rgba(0,0,0,${strength})`);
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+}
+const GRAIN = (() => {                                 // seeded noise tile; moved every 1/24 s it reads as film grain and dithers gradients
+  const c = Object.assign(document.createElement('canvas'), { width: 256, height: 256 }), g = c.getContext('2d'), d = g.createImageData(256, 256);
+  let s = 20261031;
+  for (let i = 0; i < d.data.length; i += 4) { s = (s * 1664525 + 1013904223) >>> 0; const v = s >>> 24; d.data[i] = d.data[i + 1] = d.data[i + 2] = v; d.data[i + 3] = 255; }
+  g.putImageData(d, 0, 0); return c;
+})();
+function grain(t) {
+  const f = Math.floor(t * 24), ox = (f * 97) % 256, oy = (f * 61) % 256;
+  ctx.save(); ctx.globalCompositeOperation = 'overlay'; ctx.globalAlpha = 0.07;
+  ctx.translate(-ox, -oy); ctx.fillStyle = ctx.createPattern(GRAIN, 'repeat'); ctx.fillRect(0, 0, W + 256, H + 256);
+  ctx.restore();
+}
+
+// ---- scenes (filled in by the later tasks) ---------------------------------------------------------------
+function drawFleet(t) {}                              // fleet, drop, ember: the Doomsday Battle
+function drawSinger(t) {}                             // the Singer's field and the foil
+function drawFall(t) {}                               // the 2D front flattens the Solar System
+function drawEscape(t) {}                             // the light-speed ship, the painting, the end
+
+// ---- cards and subtitles -------------------------------------------------------------------------------
+function cards(t) {
+  for (const c of TL.cards) {
+    if (t < c.t0 || t >= c.t1) continue;
+    const a = window01(t, c.t0, c.t1, 0.8, 0.6);
+    if (c.kind === 'title') {
+      const k = lerp(1, 1.04, ramp(t, c.t0, c.t1));
+      ctx.save(); ctx.translate(W / 2, H / 2); ctx.scale(k, k);
+      text(c.text, 0, 0, { size: 132, weight: 600, track: 0.5, alpha: a, glow: 'rgba(255,214,150,0.35)', blur: 40 });
+      ctx.restore();
+    } else if (c.kind === 'quote') {
+      text(c.text, W / 2, H * 0.3, { size: 64, weight: 400, track: 0.12, color: ICE, alpha: a, glow: 'rgba(140,180,255,0.55)', blur: 30 });
+    } else if (c.kind === 'end') {
+      text(c.text, W / 2, H / 2 - 24, { size: 56, weight: 400, track: 0.1, alpha: a, blur: 18 });
+    } else if (c.kind === 'credit') {
+      text(c.text, W / 2, H / 2 + 62, { size: 28, weight: 400, track: 0.2, alpha: 0.6 * a });
+    }
+  }
+}
+function subtitles(t) {
+  for (const s of TL.subs) {
+    if (t < s.t0 || t >= s.t1) continue;
+    text(s.zh, W / 2, H - 92, { size: 34, weight: 400, track: 0.06, alpha: window01(t, s.t0, s.t1, 0.18, 0.18), blur: 12 });
+  }
+}
+
+// ---- the frame -----------------------------------------------------------------------------------------
+async function render(t) {
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+  ctx.filter = 'none'; ctx.shadowBlur = 0; ctx.shadowColor = 'rgba(0,0,0,0)'; ctx.lineWidth = 1;   // every frame starts from the same state
+  backdrop();
+  stars(t, 1);
+  drawFleet(t); drawSinger(t); drawFall(t); drawEscape(t);
+  vignette(0.6);
+  cards(t); subtitles(t);
+  grain(t);
+  const black = Math.max(1 - ease(ramp(t, 0, 1.5)), ease(ramp(t, DURATION - 1.2, DURATION)));
+  if (black > 0.001) { ctx.globalAlpha = black; ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1; }
+}
+
+window.DURATION = DURATION;
+window.EVENTS = { duration: DURATION, cuts: [...Object.values(SC).slice(1), ...CUE.kills, CUE.flick, ...CUE.planets, CUE.earth].sort((a, b) => a - b) };
+window.seek = async t => render(clamp(t, 0, DURATION - 1e-6));
+Promise.all([`400 34px ${ZH}`, `600 132px ${ZH}`].map(f => document.fonts.load(f))).then(() => {
+  // a gradient changes how Chrome rasterises later blended draws on this canvas, so draw one before any frame:
+  // then a frame looks the same whether it is a page's first or follows others (render.mjs --check)
+  vignette(0.5); grain(0); ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+  window.READY = true;
+});
+if (!/[?&]norun/.test(location.search) && !navigator.webdriver) {   // opened by hand: play it
+  const t0 = performance.now();
+  const loop = async () => { await render(((performance.now() - t0) / 1000) % DURATION); requestAnimationFrame(loop); };
+  requestAnimationFrame(loop);
+}
+</script>
+</body></html>
