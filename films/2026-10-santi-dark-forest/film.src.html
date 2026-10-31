@@ -80,8 +80,166 @@ function grain(t) {
   ctx.restore();
 }
 
-// ---- scenes (filled in by the later tasks) ---------------------------------------------------------------
-function drawFleet(t) {}                              // fleet, drop, ember: the Doomsday Battle
+// ---- glow sprites (drawn additively; built once) ---------------------------------------------------------
+function sprite(rgb, size = 64) {
+  const c = Object.assign(document.createElement('canvas'), { width: size, height: size }), g = c.getContext('2d');
+  const r = g.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+  r.addColorStop(0, `rgba(${rgb},1)`); r.addColorStop(0.25, `rgba(${rgb},0.45)`); r.addColorStop(1, `rgba(${rgb},0)`);
+  g.fillStyle = r; g.fillRect(0, 0, size, size); return c;
+}
+const GLOW = { gold: sprite('255,200,120'), white: sprite('255,248,235'), ember: sprite('255,110,40'), ice: sprite('170,215,255') };
+function glow(img, x, y, d, a) { if (a > 0.003 && d > 0.5) { ctx.globalAlpha = Math.min(1, a); ctx.drawImage(img, x - d / 2, y - d / 2, d, d); } }
+
+// ---- the cold open: the forest, and a few eyes in it ----------------------------------------------------
+const EYES = [[420, 300, 3.2], [1510, 210, 5.4], [1180, 760, 7.6], [260, 820, 9.0]];   // x, y, when it opens
+function drawOpen(t) {
+  if (t > SC.fleet + 1) return;
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  for (const [x, y, at] of EYES) {
+    const a = window01(t, at, at + 2.6, 0.5, 1.6) * (1 - ramp(t, SC.fleet - 0.4, SC.fleet));
+    glow(GLOW.ice, x, y, 46, 0.55 * a); glow(GLOW.white, x, y, 8, 0.9 * a);
+  }
+  ctx.restore();
+}
+
+// ---- the Doomsday Battle: 2,016 ships, one droplet ------------------------------------------------------
+// World: x right, y up, z away from the camera; the fleet is a flat slab of COLS x ROWS ships, SP apart.
+// The droplet makes four passes, one per accent in the music, each straight down the middle of one band of
+// columns, so every strike is a line of explosions running from the camera to the horizon (or back); a ship
+// dies when the pass reaches it, plus the time the chain of explosions takes to spread sideways to it.
+// About 1% never die: they run.
+const COLS = 48, ROWS = 42, SP = 60, F = 1200, PASS = 0.7, CHAIN = 330, Z0 = -500, Z1 = (ROWS - 1) * SP + 500;
+const ORDER = [1, 2, 0, 3];                            // the band each strike cuts: centre-left, centre-right, left, right
+const bandOf = col => Math.floor(col / (COLS / 4));
+const BANDX = ORDER.map(b => ((b + 0.5) * COLS / 4 - 0.5 - (COLS - 1) / 2) * SP);
+const passZ = (k, u) => (k % 2 ? lerp(Z0, Z1, u) : lerp(Z1, Z0, u));         // even strikes come at the camera, odd ones go away
+const SHIPS = (() => {
+  const r = rng(11), out = [];
+  for (let j = 0; j < ROWS; j++) for (let i = 0; i < COLS; i++) {
+    const s = { x: (i - (COLS - 1) / 2) * SP + (r() - 0.5) * 12, y: (r() - 0.5) * 16, z: j * SP + (r() - 0.5) * 12, row: j,
+      run: r() < 0.012, dir: r() * TAU, jit: r() * 0.15, deb: [0, 1, 2].map(() => [r() * TAU, 40 + 90 * r(), (r() - 0.5) * 60]) };
+    const k = ORDER.indexOf(bandOf(i)), u = (s.z - passZ(k, 0)) / (passZ(k, 1) - passZ(k, 0));
+    s.tk = s.run ? Infinity : CUE.kills[k] + PASS * clamp(u) + Math.abs(s.x - BANDX[k]) / CHAIN + s.jit;
+    out.push(s);
+  }
+  return out;
+})();
+
+function camAt(t) {                                    // low over the slab: dolly in on the reveal, settle and drift through the battle
+  const a = easeIO(ramp(t, SC.fleet, SC.drop)), b = ease(ramp(t, CUE.kills[0], SC.foil));
+  const c = { x: lerp(-120, 260, b), y: lerp(620, 380, a) - 40 * b, z: lerp(-2600, -1250, a) + lerp(0, 220, b),
+              roll: 0.05 * Math.sin(t * 0.11) - 0.05 * a, cy: lerp(H * 0.62, H * 0.5, a) };   // cy: the slab sits low under the title
+  c.pitch = Math.atan2(c.y, 1500 - c.z);
+  return c;
+}
+function project(c, X, Y, Z) {
+  const dx = X - c.x, dy = Y - c.y, dz = Z - c.z, cp = Math.cos(c.pitch), sp = Math.sin(c.pitch);
+  const y1 = dy * cp + dz * sp, z1 = -dy * sp + dz * cp;
+  if (z1 < 60) return null;
+  const s = F / z1, sx = dx * s, sy = -y1 * s, cr = Math.cos(c.roll), sr = Math.sin(c.roll);
+  return [W / 2 + sx * cr - sy * sr, c.cy + sx * sr + sy * cr, s, z1];
+}
+function dropletAt(t) {                                // world position of the droplet in the wide shot (after the close-up)
+  const K = CUE.kills;
+  for (let k = 0; k < 4; k++) {
+    if (t < K[k] + PASS) return [BANDX[k], 0, passZ(k, ramp(t, K[k], K[k] + PASS))];
+    const next = K[k + 1] ?? SC.ember;
+    if (t < next) {                                    // between passes: loop out past the end of the slab, then line up the next cut
+      const u = easeIO(ramp(t, K[k] + PASS, next)), z0 = passZ(k, 1), out = z0 > 0 ? 1 : -1;
+      if (k === 3) return [BANDX[3] + 2000 * u * u, 900 * u * u, z0 + 14000 * u * u];   // and away, over the horizon
+      const x0 = BANDX[k], x1 = BANDX[k + 1], mz = z0 + out * 1100, q = 1 - u;
+      return [q * x0 + u * x1, 260 * Math.sin(Math.PI * u), q * q * z0 + 2 * q * u * mz + u * u * z0];
+    }
+  }
+  return null;
+}
+
+function drawDropletClose(t) {                         // the close-up: a perfect mirror with the fleet's lights in it
+  const a = window01(t, SC.drop, CUE.kills[0], 0.25, 0.05);
+  if (a <= 0) return;
+  const g = easeIO(ramp(t, SC.drop, SC.drop + 3.2)), sc = lerp(0.16, 1, g) * lerp(1, 1.06, ramp(t, SC.drop + 3.2, CUE.kills[0]));
+  const cx = lerp(W * 0.72, W * 0.5, g), cy = lerp(H * 0.36, H * 0.48, g), R = 150 * sc, L = 470 * sc, rot = -0.18 + 0.05 * Math.sin(t * 0.7);
+  ctx.save(); ctx.globalAlpha = a; ctx.translate(cx, cy); ctx.rotate(rot);
+  const shape = () => { ctx.beginPath(); ctx.moveTo(-L, 0);           // pointed tail to the left, round head to the right
+    ctx.bezierCurveTo(-L * 0.45, -R * 0.2, -R * 0.6, -R, R * 0.15, -R);
+    ctx.bezierCurveTo(R * 1.35, -R, R * 1.35, R, R * 0.15, R);
+    ctx.bezierCurveTo(-R * 0.6, R, -L * 0.45, R * 0.2, -L, 0); ctx.closePath(); };
+  shape(); ctx.save(); ctx.clip();
+  const body = ctx.createLinearGradient(0, -R, 0, R);
+  body.addColorStop(0, '#dfe8f2'); body.addColorStop(0.18, '#7d8ea3'); body.addColorStop(0.5, '#0d131c'); body.addColorStop(0.82, '#3a4a5e'); body.addColorStop(1, '#c9d6e4');
+  ctx.fillStyle = body; ctx.fillRect(-L, -R, L + R * 1.4, 2 * R);
+  ctx.globalCompositeOperation = 'lighter';            // the fleet, curved across the mirror and sliding as it turns
+  for (let j = 0; j < 14; j++) for (let i = 0; i < 30; i++) {
+    const u = (i / 29) * 2 - 1 + 0.08 * Math.sin(t * 0.4), v = 0.18 + j * 0.035;
+    const x = R * 0.2 + (L * 0.75) * u * (1 - 0.32 * u * u) - L * 0.18, y = R * v * (1 - 0.25 * u * u);
+    glow(GLOW.gold, x, y, 12 * sc + 2, 0.95 * (1 - Math.abs(u)) * (0.6 + 0.4 * Math.sin(i * 1.7 + j)));
+  }
+  const spec = ctx.createLinearGradient(0, -R * 0.95, 0, -R * 0.55);    // the hard specular band that tells you it is a mirror
+  spec.addColorStop(0, 'rgba(255,255,255,0)'); spec.addColorStop(0.5, 'rgba(255,255,255,0.85)'); spec.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.globalAlpha = a; ctx.fillStyle = spec; ctx.fillRect(-L * 0.3, -R, L * 0.3 + R * 1.2, R * 0.5);
+  ctx.restore();
+  ctx.globalCompositeOperation = 'lighter'; ctx.lineWidth = 1.2; ctx.strokeStyle = `rgba(200,225,255,${0.5 * a})`; shape(); ctx.stroke();
+  const wake = ramp(t, CUE.kills[0] - 0.45, CUE.kills[0]);         // it wakes: a glint runs along the rim just before it strikes
+  if (wake > 0) glow(GLOW.white, lerp(-L, R * 1.1, wake), -R * 0.62 * Math.sin(Math.PI * wake), 160 * sc, wake);
+  ctx.restore();
+}
+
+function drawFleet(t) {                               // fleet, drop, ember: the Doomsday Battle
+  drawOpen(t);
+  if (t < SC.fleet - 0.05 || t > SC.foil + 1) return;
+  if (t >= SC.drop && t < CUE.kills[0]) { drawDropletClose(t); return; }
+  const c = camAt(t);
+  const crane = easeIO(ramp(t, SC.ember + 10, SC.foil - 4));       // up and away until the battlefield is a speck by the Sun
+  const C0 = project(c, 0, 0, (ROWS - 1) * SP / 2) || [W / 2, H / 2];
+  const fade = 1 - ramp(t, SC.foil - 4, SC.foil + 1);
+  ctx.save();
+  ctx.translate(lerp(C0[0], 1340, crane), lerp(C0[1], 560, crane)); ctx.scale(lerp(1, 0.012, crane), lerp(1, 0.012, crane)); ctx.translate(-C0[0], -C0[1]);
+  ctx.globalCompositeOperation = 'lighter';
+  for (const s of SHIPS) {
+    let X = s.x, Y = s.y, Z = s.z;
+    if (s.run) { const u = Math.max(0, t - CUE.kills[1]); X += Math.sign(s.x || 1) * 70 * u * u; Z += 160 * u * u; Y += 14 * u * u; }   // away from the camera
+    const p = project(c, X, Y, Z); if (!p) continue;
+    const [x, y, k, z1] = p, haze = clamp(1.3 - z1 / 4200, 0.25, 1);
+    const on = ease(ramp(t, SC.fleet + s.row * 0.022, SC.fleet + s.row * 0.022 + 0.35)) * fade * haze;
+    const dt = t - s.tk;
+    if (dt < 0) {                                      // alive: a dark hull lit by its own drive
+      const pulse = 0.85 + 0.15 * Math.sin(t * 2 + s.dir * 5);
+      ctx.globalAlpha = 0.75 * on; ctx.fillStyle = '#c9a265'; ctx.fillRect(x - 16 * k, y - Math.max(0.5, 2.2 * k), 32 * k, Math.max(1, 4.4 * k));
+      glow(GLOW.gold, x + 16 * k, y, 46 * k + 3, 0.7 * on * pulse);
+      glow(GLOW.white, x + 16 * k, y, 9 * k + 1.5, 0.9 * on);
+      if (s.run && t > CUE.kills[1]) glow(GLOW.white, x, y, 22 * k + 4, 0.9 * fade);
+    } else {                                           // dead: a short hard flash, a dying ember, sparks flung out
+      glow(GLOW.white, x, y, 120 * k * Math.exp(-dt / 0.25) + 3, 1.1 * Math.exp(-dt / 0.07) * haze);
+      const smoulder = (0.32 * Math.exp(-dt / 1.6) + 0.16 * Math.exp(-dt / 16)) * (0.5 + s.jit * 3.3) * fade * haze;
+      ctx.globalAlpha = 0.5 * Math.exp(-dt / 18) * fade * haze; ctx.fillStyle = '#6a2c16';   // the wreck, still glowing dull red
+      ctx.fillRect(x - 14 * k, y - Math.max(0.5, 2 * k), 28 * k, Math.max(1, 4 * k));
+      glow(GLOW.ember, x, y, 30 * k + 2, smoulder);
+      for (const [d, v, vy] of s.deb) {                // sparks fly out fast, then keep drifting
+        const e = 1 - Math.exp(-dt / 1.5) + dt * 0.02, q = project(c, X + Math.cos(d) * v * 1.5 * e, Y + vy * e, Z + Math.sin(d) * v * 1.5 * e);
+        if (q) glow(GLOW.ember, q[0], q[1], 6 * q[2] + 1.2, (0.55 * Math.exp(-dt / 2) + 0.14 * Math.exp(-dt / 12)) * fade);
+      }
+    }
+  }
+  const P = t >= CUE.kills[0] ? dropletAt(t) : null;   // the droplet: a white-hot point with a cyan wake
+  if (P) {
+    const trail = [];
+    for (let j = 0; j <= 16; j++) { const Q = dropletAt(t - j * 0.01), q = Q && project(c, ...Q); if (q) trail.push(q); }
+    ctx.globalAlpha = 0.8; ctx.strokeStyle = '#bfe4ff'; ctx.lineCap = 'round';
+    for (let j = 1; j < trail.length; j++) {          // a tapering cyan wake
+      ctx.lineWidth = (5 * trail[0][2] + 1.5) * (1 - j / trail.length);
+      ctx.beginPath(); ctx.moveTo(trail[j - 1][0], trail[j - 1][1]); ctx.lineTo(trail[j][0], trail[j][1]); ctx.stroke();
+    }
+    const q = project(c, ...P);
+    if (q) { glow(GLOW.white, q[0], q[1], Math.min(56, 90 * q[2] + 14), 1); glow(GLOW.ice, q[0], q[1], Math.min(130, 220 * q[2] + 30), 0.7); }   // capped: up close it is a star, not a lens blob
+  }
+  ctx.restore();
+  for (const k of CUE.kills) {                         // each strike lights the whole frame for an instant
+    const a = t >= k ? 0.12 * Math.exp(-(t - k) / 0.25) : 0;
+    if (a > 0.003) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = `rgba(255,240,220,${a})`; ctx.fillRect(0, 0, W, H); ctx.restore(); }
+  }
+}
+
+// ---- scenes still to come ----------------------------------------------------------------------------------
 function drawSinger(t) {}                             // the Singer's field and the foil
 function drawFall(t) {}                               // the 2D front flattens the Solar System
 function drawEscape(t) {}                             // the light-speed ship, the painting, the end
@@ -93,7 +251,7 @@ function cards(t) {
     const a = window01(t, c.t0, c.t1, 0.8, 0.6);
     if (c.kind === 'title') {
       const k = lerp(1, 1.04, ramp(t, c.t0, c.t1));
-      ctx.save(); ctx.translate(W / 2, H / 2); ctx.scale(k, k);
+      ctx.save(); ctx.translate(W / 2, H * 0.3); ctx.scale(k, k);
       text(c.text, 0, 0, { size: 132, weight: 600, track: 0.5, alpha: a, glow: 'rgba(255,214,150,0.35)', blur: 40 });
       ctx.restore();
     } else if (c.kind === 'quote') {
