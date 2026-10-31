@@ -230,7 +230,7 @@ function hull(s, x, y, k, color, alpha, lit = false) {   // one ship's silhouett
   if (lit) {                                           // up close: two tones, lit top and dark belly, a rim of light, a spine, a row of lights
     ctx.globalCompositeOperation = 'source-over';
     const g = ctx.createLinearGradient(0, -0.3 * L, 0, 0.3 * L);
-    g.addColorStop(0, '#f4e3b8'); g.addColorStop(0.47, '#c29d66'); g.addColorStop(0.53, '#4a3520'); g.addColorStop(1, '#140e08');
+    g.addColorStop(0, '#f2deb0'); g.addColorStop(0.49, '#d4b27c'); g.addColorStop(0.51, '#7a6244'); g.addColorStop(1, '#4a3a26');   // underside about half as bright
     ctx.fillStyle = g; ctx.fill();
     ctx.save(); ctx.clip(); ctx.beginPath(); ctx.rect(-1.2 * L, -L, 2.4 * L, L - 0.02 * L); ctx.clip();   // the rim: the top edge only
     ctx.beginPath(); pts.forEach(([px, py], i) => (i ? ctx.lineTo(px * L, py * L) : ctx.moveTo(px * L, py * L))); ctx.closePath();
@@ -251,18 +251,37 @@ function clipX(pts, lo, hi) {                         // a polygon cut to lo <= 
   });
   return cut(cut(pts, x => x >= lo, lo), x => x <= hi, hi);
 }
-const SHARDS = HULLS.map(h => [[-1.01, -0.3], [-0.3, 0.35], [0.35, 1.01]].map(([lo, hi]) => clipX(h, lo, hi)));
-function wreck(s, x, y, k, dt, haze) {               // the hull in three shards, drifting apart and turning, hot edges cooling to black
-  const L = 17 * k * s.sz, big = s.flag ? 2.5 : 1, open = 1 - Math.exp(-dt / 1.4);
-  ctx.save(); ctx.globalCompositeOperation = 'source-over'; ctx.lineJoin = 'round';
+const CUTS = [[-1.01, -0.3], [-0.3, 0.35], [0.35, 1.01]];
+const SHARDS = HULLS.map(h => CUTS.map(([lo, hi]) => clipX(h, lo, hi)));
+const yAt = (poly, x) => { const ys = poly.filter(p => Math.abs(p[0] - x) < 1e-6).map(p => p[1]); return ys.length ? [Math.min(...ys), Math.max(...ys)] : [0, 0]; };
+function wreck(s, x, y, k, dt, haze) {               // the hull in three solid shards drifting apart; only the broken edges glow, briefly
+  const L = 17 * k * s.sz, open = 1 - Math.exp(-dt / 1.4);
+  ctx.save(); ctx.lineCap = 'round';
   SHARDS[s.hull].forEach((poly, i) => {
     ctx.save(); ctx.translate(x, y); ctx.rotate(s.hd);
-    ctx.translate((i - 1) * L * (0.22 * open + 0.012 * dt) * big, L * (s.fr - 0.5) * (i - 1 + 0.4) * 0.3 * open * big);
-    ctx.rotate((i - 1 + 0.35 * (s.fr - 0.5)) * (0.5 * open + 0.05 * dt) * big);
+    if (s.flag) {                                      // the flagship's pieces part at ~30 px/s, spinning slowly
+      ctx.translate((i - 1) * (14 + 30 * dt) + (i === 1 ? 0 : 6), (s.fr - 0.5 + 0.4 * (i - 1)) * 12 * dt); ctx.rotate((i - 1 + 0.3) * 0.16 * dt);
+    } else {
+      ctx.translate((i - 1) * L * (0.22 * open + 0.012 * dt), L * (s.fr - 0.5) * (i - 1 + 0.4) * 0.3 * open);
+      ctx.rotate((i - 1 + 0.35 * (s.fr - 0.5)) * (0.5 * open + 0.05 * dt));
+    }
     ctx.beginPath(); poly.forEach(([px, py], j) => (j ? ctx.lineTo(px * L, py * L) : ctx.moveTo(px * L, py * L))); ctx.closePath();
-    ctx.globalAlpha = (0.12 + 0.5 * Math.exp(-dt / 3)) * haze; ctx.fillStyle = '#2a140c'; ctx.fill();
-    ctx.globalAlpha = (0.85 * Math.exp(-dt / 1.0) + 0.08 * Math.exp(-dt / 12)) * haze;
-    ctx.strokeStyle = '#ff7a30'; ctx.lineWidth = Math.max(0.7, 0.05 * L); ctx.stroke();
+    ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 0.85 * haze;
+    const g = ctx.createLinearGradient(0, -0.3 * L, 0, 0.3 * L);   // a burnt hull, still solid: dull top, black underside
+    g.addColorStop(0, '#5a4532'); g.addColorStop(0.5, '#33261a'); g.addColorStop(1, '#0e0a06');
+    ctx.fillStyle = g; ctx.fill();
+    ctx.globalCompositeOperation = 'lighter';         // the torn edges: white-orange, cooling out within a second
+    const hot = Math.exp(-dt / 0.35) * haze; if (hot > 0.01) {
+      ctx.strokeStyle = `rgba(255,${150 + 80 * hot | 0},70,${hot})`; ctx.lineWidth = Math.max(1, 0.06 * L);
+      for (const xc of [CUTS[i][0], CUTS[i][1]]) {
+        if (Math.abs(xc) > 1) continue;
+        const [a, b] = yAt(poly, xc); ctx.beginPath(); ctx.moveTo(xc * L, a * L); ctx.lineTo(xc * L, b * L); ctx.stroke();
+      }
+    }
+    if (s.flag) for (let j = 0; j < 5; j++) {         // venting: sparks streaming off the torn edge, again and again
+      const ph = (dt * 0.9 + j / 5 + i * 0.37) % 1, ex = (i === 0 ? CUTS[0][1] : i === 2 ? CUTS[2][0] : CUTS[1][j % 2]) * L;
+      glow(GLOW.fire, ex + (i - 1 || (j % 2 ? 1 : -1)) * ph * 40, (j - 2) * 3 + ph * 8, 10 * (1 - ph) + 2, 0.7 * (1 - ph) * Math.exp(-dt / 6));
+    }
     ctx.restore();
   });
   ctx.restore();
@@ -285,7 +304,7 @@ function drawFleet(t) {                               // fleet, drop, ember: the
     const dt = t - s.tk, L = 17 * k * s.sz;
     if (dt < 0) {                                      // alive: a dark hull lit by its own drive
       const pulse = 0.85 + 0.15 * Math.sin(t * 2 + s.dir * 5), rear = x - L * Math.cos(s.hd), ry = y - L * Math.sin(s.hd);
-      if (k > 0.3) hull(s, x, y, k, '#b8955f', 0.8 * on, k > 0.75); else { ctx.globalAlpha = 0.75 * on; ctx.fillStyle = '#b8955f'; ctx.fillRect(x - L, y - 1, 2 * L, 2); }
+      if (k > 0.3) hull(s, x, y, k, '#b8955f', 0.8 * on, k > 0.5); else { ctx.globalAlpha = 0.75 * on; ctx.fillStyle = '#b8955f'; ctx.fillRect(x - L, y - 1, 2 * L, 2); }
       glow(GLOW.gold, rear, ry, (s.flag ? 30 : 40) * k * s.sz + 3, 0.7 * on * pulse);
       glow(GLOW.white, rear, ry, 8 * k * s.sz + 1.5, 0.9 * on);
       if (s.flag) for (const o of [-0.12, 0.12]) glow(GLOW.white, rear, ry + o * L, 6 * k * s.sz, 0.8 * on);
@@ -400,28 +419,30 @@ function drawFoil(t) {
   ctx.fill(); ctx.stroke();
   ctx.restore();
 }
-// While the foil waits, cut in close: it turns, goes edge-on and is gone to a hairline, twice. A thing with no thickness.
-const CL0 = SC.ember + 17.6, CL1 = SC.ember + 23.8;
+// While the foil waits, cut in close: it turns, goes edge-on and is gone to a hairline, a thing with no thickness. The Sun
+// glows out of focus behind it, the Singer's ring arcs out of focus to the left; the shot ends on the hairline.
+const CL0 = SC.ember + 18.6, CL1 = CL0 + 4.0, CLW = 0.95, CLT = 1.5 * Math.PI - 4.0 * CLW;   // so it ends edge-on
 function drawFoilClose(t) {
   const u = t - CL0;
   ctx.save(); ctx.globalCompositeOperation = 'lighter';
-  for (let i = 0; i < 10; i++) {                      // the Singer's ring behind it, far out of focus
-    const a = -0.95 + i * 0.21 + u * 0.012, x = -950 + 1750 * Math.cos(a), y = 560 + 1750 * Math.sin(a);
-    glow(GLOW.ice, x, y, 170, 0.14 + 0.05 * Math.sin(i * 2.1));
+  glow(GLOW.gold, 1390, 430, 620, 0.32); glow(GLOW.white, 1390, 430, 120, 0.25);   // the Sun, far out of focus
+  for (let i = 0; i < 46; i++) {                      // the Singer's ring: an arc of soft discs
+    const a = -1.05 + i * 0.047 + u * 0.01, x = -380 + 980 * Math.cos(a), y = 560 + 980 * Math.sin(a);
+    glow(GLOW.ice, x, y, 58 + 14 * Math.sin(i * 1.7), 0.13 + 0.05 * Math.sin(i * 2.3));
   }
   ctx.restore();
-  const th = 0.25 + u * 0.95, c = Math.cos(th), w = 330, h = 210, ac = Math.abs(c);
-  ctx.save(); ctx.translate(W * 0.52, H * 0.46); ctx.rotate(-0.1 + 0.03 * Math.sin(u * 0.5));
-  ctx.globalCompositeOperation = 'lighter';
+  const th = CLT + u * CLW, c = Math.cos(th), ac = Math.abs(c), w = 120, h = 76;
+  ctx.save(); ctx.translate(W * 0.5, H * 0.47); ctx.rotate(-0.12 + 0.03 * Math.sin(u * 0.5)); ctx.globalCompositeOperation = 'lighter';
   if (ac < 0.04) {                                    // edge-on: nothing left but a hairline
-    ctx.fillStyle = `rgba(230,240,255,${0.5 * (1 - ac / 0.04) + 0.1})`; ctx.fillRect(-0.5, -h / 2, 1, h);
-  } else {
-    const x0 = -w / 2 * c, x1 = w / 2 * c, s = (th * 0.35) % 1;   // turning about its vertical axis; a sheen slides across as it turns
-    const g = ctx.createLinearGradient(x0, -h / 2, x1, h / 2);
-    g.addColorStop(0, 'rgba(200,220,255,0.05)'); g.addColorStop(clamp(s, 0.02, 0.98), `rgba(235,245,255,${0.3 * Math.min(1, ac * 4)})`); g.addColorStop(1, 'rgba(190,170,255,0.05)');
+    ctx.fillStyle = `rgba(235,242,255,${0.45 * (1 - ac / 0.04) + 0.15})`; ctx.fillRect(-0.5, -h / 2, 1, h);
+  } else {                                            // a thin film: colours slide across it as it turns, no outline
+    const x0 = -w / 2 * c, x1 = w / 2 * c, s = th * 0.55, g = ctx.createLinearGradient(x0, -h / 2, x1, h / 2);
+    [[0, 300], [0.25, 180], [0.5, 120], [0.75, 45], [1, 300]].forEach(([p, hue]) => g.addColorStop(p, `hsla(${(hue + s * 120) % 360},80%,72%,${0.42 * Math.min(1, ac * 3)})`));
     ctx.fillStyle = g; ctx.fillRect(Math.min(x0, x1), -h / 2, Math.abs(x1 - x0), h);
-    ctx.strokeStyle = `rgba(255,255,255,${0.9 * Math.min(1, ac * 6)})`; ctx.lineWidth = 1.2;
-    ctx.strokeRect(Math.min(x0, x1), -h / 2, Math.abs(x1 - x0), h);
+    const spec = ctx.createLinearGradient(x0, -h / 2, x1, h / 2);   // and a highlight sweeping over it
+    const k = clamp((Math.sin(th) + 1) / 2, 0.05, 0.95);
+    spec.addColorStop(0, 'rgba(255,255,255,0)'); spec.addColorStop(k, `rgba(255,255,255,${0.35 * Math.min(1, ac * 3)})`); spec.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = spec; ctx.fillRect(Math.min(x0, x1), -h / 2, Math.abs(x1 - x0), h);
   }
   ctx.restore();
 }
