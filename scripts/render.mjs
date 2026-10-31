@@ -4,6 +4,8 @@
 //   node scripts/render.mjs films/x/film.src.html --out out/x.mp4 [--fps 60] [--sub 4] [--workers 6]
 //   node scripts/render.mjs films/x/film.src.html --sheet [--from 0 --to 10 --step 0.5 --offset 0.45]
 //   node scripts/render.mjs films/x/film.src.html --check     (exit 1 if a frame depends on an earlier one)
+//   --gpu: WebGL on the GPU (Metal) instead of software GL, ~14x faster for films with a 3D layer. A page's first frame
+//   can differ from later ones by a level or two in a few pixels, so run --check without it.
 //
 // film.src.html may contain __ASSET:relative/path__ tokens (replaced by the file's base64) and
 // __TEXT:relative/path__ tokens (replaced by the file's text as a JS string literal); the
@@ -19,7 +21,7 @@ import { pathToFileURL } from 'node:url';
 const { values: o, positionals: [src] } = parseArgs({ allowPositionals: true, options: {
   out: { type: 'string' }, fps: { type: 'string', default: '60' }, sub: { type: 'string', default: '4' },
   shutter: { type: 'string', default: '0.5' }, workers: { type: 'string', default: '6' },
-  sheet: { type: 'boolean' }, check: { type: 'boolean' },
+  sheet: { type: 'boolean' }, check: { type: 'boolean' }, gpu: { type: 'boolean' },
   from: { type: 'string' }, to: { type: 'string' }, step: { type: 'string', default: '0.5' }, offset: { type: 'string', default: '0.45' },
 } });
 if (!src) { console.error('usage: render.mjs <film.src.html> [--out x.mp4 | --sheet | --check]'); process.exit(2); }
@@ -39,7 +41,8 @@ if (mode !== 'check') {
   fs.mkdirSync(work, { recursive: true });
 }
 
-const browser = await chromium.launch({ args: ['--allow-file-access-from-files'] });   // films may draw footage frames from out/
+const browser = await chromium.launch({ args: ['--allow-file-access-from-files',   // films may draw footage frames from out/
+  ...(o.gpu ? ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist'] : [])] });
 const context = await browser.newContext({ viewport: { width: 1920, height: 1080 }, deviceScaleFactor: 1 });
 async function open() {
   const page = await context.newPage();
