@@ -682,8 +682,13 @@ function drawHeroNeptune(t) {
   const say = subAt('海王星');                          // its name, as it is spoken
   if (say) text('海王星', cx, Math.min(cy - R - 44, y0 - 54), { size: 30, track: 0.3, alpha: 0.85 * window01(t, say.t0, HN1 - 0.6, 0.4, 0.6), halo: true });   // rides down with it
 }
-function drawFall(t) {                                // the 2D front flattens the Solar System
+function drawFall(t) {                                // the Solar System falls into two dimensions, in 3D (gl-solar.js)
   if (t < SC.fall || t >= SC.escape) return;          // a hard cut to the escape
+  ctx.drawImage(SOL.draw(t), 0, 0);
+  for (const [s, x, y, a] of SOL.labels(t)) text(s, x, y, { size: 28, track: 0.3, alpha: 0.85 * a, halo: true });
+  const say = subAt('海王星');                          // Neptune's name, as it is spoken, in its own shot
+  if (say && t >= SOL.HN0 && t < SOL.HN1) { const [x, y] = SOL.screenOf('neptune'); text('海王星', x, Math.max(80, y - 30), { size: 30, track: 0.3, alpha: 0.85 * window01(t, say.t0, SOL.HN1 - 0.6, 0.4, 0.6), halo: true }); }
+  return;
   if (t >= HN0 && t < HN1) { drawHeroNeptune(t); return; }
   const v = fallView(t), A = 1;
   painting(t, v, A, { hero: ease(ramp(t, CUE.earth + 1, SC.escape - 4)) });   // closing in on Earth, the rest steps back
@@ -823,10 +828,21 @@ async function render(t) {
   if (black > 0.001) { ctx.globalAlpha = black; ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1; }
 }
 
+</script>
+<script src="../../../galaxy-explorer/vendor/three.min.js"></script>
+<script src="../../../galaxy-explorer/vendor/CopyShader.js"></script>
+<script src="../../../galaxy-explorer/vendor/LuminosityHighPassShader.js"></script>
+<script src="../../../galaxy-explorer/vendor/EffectComposer.js"></script>
+<script src="../../../galaxy-explorer/vendor/RenderPass.js"></script>
+<script src="../../../galaxy-explorer/vendor/ShaderPass.js"></script>
+<script src="../../../galaxy-explorer/vendor/UnrealBloomPass.js"></script>
+<script src="gl-core.js"></script>
+<script src="gl-solar.js"></script>
+<script>
 window.DURATION = DURATION;
 window.EVENTS = { duration: DURATION, cuts: [...Object.values(SC).slice(1), ...CUE.kills, CUE.flick, ...CUE.planets, CUE.earth, CL0, CL1, HN0, HN1, BACK0].sort((a, b) => a - b) };
 window.seek = async t => render(clamp(t, 0, DURATION - 1e-6));
-Promise.all([`400 34px ${ZH}`, `600 132px ${ZH}`].map(f => document.fonts.load(f))).then(() => {
+Promise.all([`400 34px ${ZH}`, `600 132px ${ZH}`].map(f => document.fonts.load(f)).concat(GL.ready())).then(() => {
   // a gradient changes how Chrome rasterises later blended draws on this canvas, so draw one before any frame:
   // then a frame looks the same whether it is a page's first or follows others (render.mjs --check)
   vignette(0.5); grain(0); ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
