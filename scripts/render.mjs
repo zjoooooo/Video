@@ -34,6 +34,7 @@ if (built !== src) fs.writeFileSync(built, fs.readFileSync(src, 'utf8')
 
 const name = path.basename(dir);
 const out = o.out || `out/${name}.mp4`;
+fs.mkdirSync(path.dirname(out), { recursive: true });           // a fresh clone has no out/ yet
 const mode = o.check ? 'check' : o.sheet ? 'sheet' : 'render';
 const work = path.join(path.dirname(out), `${name}.${mode}.work`);   // one per mode: a check never deletes a render's frames
 if (mode !== 'check') {

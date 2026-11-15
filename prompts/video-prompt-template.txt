@@ -249,8 +249,10 @@ leading type wins.
 
 <build>
 1. One self-contained index.html, unless I named a framework. Expose
-   window.DURATION, window.ready (true only after fonts and assets load) and
-   window.render(t) with t in seconds.
+   window.DURATION, window.READY (true only after fonts and assets load) and
+   async window.seek(t) with t in seconds. If the folder already has a renderer
+   (such as scripts/render.mjs, which captures the page's first <canvas>), draw
+   the film into one canvas and use that renderer.
 2. Every pixel is a pure function of t. No requestAnimationFrame loops,
    setTimeout, CSS transitions or animations, Date.now, physics that accumulates
    between frames, or unseeded Math.random. Use a seeded hash keyed by object
@@ -263,7 +265,7 @@ leading type wins.
 4. Never put will-change on anything the camera scales. Text that swaps inside a
    morphing shape gets its own mask and timing.
 5. Renderer: Playwright opens the page at the film size with deviceScaleFactor
-   1, calls render(t) for each frame, captures JPEG quality 95 or the canvas
+   1, calls seek(t) for each frame, captures JPEG quality 95 or the canvas
    pixels, and pipes them to ffmpeg: libx264, yuv420p, crf 18, +faststart, BT.709
    tags. Run one browser per worker for parallel rendering and write frames
    atomically so a render can resume. For fast motion add motion blur: 4
