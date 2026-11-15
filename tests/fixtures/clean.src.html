@@ -1,0 +1,19 @@
+<!doctype html>
+<meta charset="utf-8">
+<canvas width="200" height="100"></canvas>
+<script>
+// The leaky fixture with a per-frame reset: every frame depends on t alone.
+const ctx = document.querySelector('canvas').getContext('2d');
+function render(t) {
+  ctx.reset();
+  ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, 200, 100);
+  ctx.strokeStyle = '#000';
+  if (t >= 0.5 && t < 1) { ctx.lineCap = 'round'; ctx.lineWidth = 40; }
+  ctx.beginPath(); ctx.moveTo(60, 50); ctx.lineTo(140, 50); ctx.stroke();
+}
+window.DURATION = 2;
+window.EVENTS = { cuts: [1] };
+window.seek = async t => render(t);
+render(0);
+window.READY = true;
+</script>

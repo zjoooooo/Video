@@ -1,0 +1,26 @@
+{
+  "name": "video",
+  "version": "1.0.0",
+  "description": "Code-rendered films: seek(t) HTML, Playwright frames, ffmpeg encode",
+  "scripts": {
+    "render": "node scripts/render.mjs",
+    "test": "bash tests/check.test.sh",
+    "qa": "uv run --with numpy scripts/qa_pops.py"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zjoooooo/Video.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/zjoooooo/Video/issues"
+  },
+  "homepage": "https://github.com/zjoooooo/Video#readme",
+  "devDependencies": {
+    "playwright": "^1.62.1"
+  },
+  "private": true
+}
